@@ -1,12 +1,12 @@
 #ifndef EBAPPLICATION_H
 #define EBAPPLICATION_H
 
-#include <QApplication>
+#include "../singleapplication/singleapplication.h"
 #include <QPointer>
 
 class EBMainWindow;
 
-class EBApplication : public QApplication
+class EBApplication : public SingleApplication
 {
     Q_OBJECT
 public:
@@ -22,8 +22,8 @@ public:
 public:
     static QPointer<EBMainWindow> _mainWindow;
 
-private:
-    QString _appId;
+private slots:
+    void handleInstanceMessage(const QString& message);
 };
 
 #endif // EBAPPLICATION_H

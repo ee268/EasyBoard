@@ -9,20 +9,20 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui Network)
 
-add_executable(${PROJECT_NAME}
-    src/gui/ebmainwindow.h src/gui/ebmainwindow.cpp)
+add_executable(${PROJECT_NAME})
 
-
-target_link_libraries(EasyBoard PRIVATE Qt5::Widgets)
 add_subdirectory(src/core)
 add_subdirectory(src/global)
 add_subdirectory(src/gui)
+add_subdirectory(src/singleapplication)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Widgets
+    Qt5::Core
+    Qt5::Gui
+    Qt5::Network
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
