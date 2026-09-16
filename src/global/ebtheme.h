@@ -6,10 +6,10 @@
 
 #include "ebsingleton.h"
 
-#define EBThemeIns Theme::getInstance()
+#define EBThemeInst Theme::getInstance()
 
 #define EBThemeColor(color) \
-    EBThemeIns->getThemeColor(color)
+    EBThemeInst->getThemeColor(color)
 
 enum EBThemeColor
 {

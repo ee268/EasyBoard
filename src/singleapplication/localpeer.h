@@ -33,7 +33,7 @@ private:
 
 signals:
     //主实例完成消息读取并完成确认
-    void onMessageReceived(const QString& message);
+    void messageReceived(const QString& message);
 
 private slots:
     //处理_server的待连接队列

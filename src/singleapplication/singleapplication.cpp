@@ -4,6 +4,8 @@
 
 #include <QWidget>
 
+#include <QDebug>
+
 SingleApplication::SingleApplication(const QString &appId, int &argc, char **argv)
     : QApplication{argc, argv}
     , _peer(new LocalPeer(appId, this))
@@ -50,6 +52,8 @@ void SingleApplication::activateWindow()
 {
     if (!_activationWindow)
         return;
+
+    qDebug() << "activate window";
 
     //移除窗口最小化，显示并将窗口提升到最前且激活
     _activationWindow->setWindowState(

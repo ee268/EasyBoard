@@ -38,6 +38,16 @@ int main(int argc, char *argv[])
             fileToOpen = candidate.fileName();
     }
 
+    //后启动实例把用户意图交给主实例后立即退出，不再创建第二个窗口
+    if (app.isSecondary()) {
+        qDebug() << "current application is secondary process";
+        const QString message =
+            fileToOpen.isEmpty() ? QStringLiteral("__eboard_activate__") : fileToOpen;
+
+        //发送成功则 0正常退出， 1错误
+        return app.sendMessage(message) ? 0 : 1;
+    }
+
     qDebug() << "待打开文件: " << fileToOpen;
     const int result = app.exec(fileToOpen);
 

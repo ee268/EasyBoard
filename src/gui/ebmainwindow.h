@@ -7,9 +7,7 @@ class EBMainWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit EBMainWindow(QWidget *parent = nullptr);
-
-signals:
+    explicit EBMainWindow(const QString& fileToOpen, QWidget *parent = nullptr);
 };
 
 #endif // EBMAINWINDOW_H

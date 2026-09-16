@@ -41,13 +41,18 @@ bool LocalPeer::isSecondary()
         return _isSecondary;
 
     _roleKnown = true;
-    if (_lockFile->tryLock(0)) {
+
+    //trylock试图获取文件锁，0代表立即获取不等待
+    //成功则代表为主实例，失败反之
+    if (!_lockFile->tryLock(0)) {
         _isSecondary = true;
         return true;
     }
 
-    //取得锁的进程是主实例；先移除异常退出可能遗留的本地服务端点。
+    //取得锁的进程是主实例；先移除上一次退出可能遗留的本地服务端点。
     QLocalServer::removeServer(_socketName);
+
+    //开始监听
     if (!_server->listen(_socketName))
         qWarning() << "无法监听EasyBoard本地服务: " << _server->errorString();
 
@@ -59,13 +64,17 @@ bool LocalPeer::sendMessage(const QString &message, int timeout)
 {
     //主实例不向自身发消息
     if (!isSecondary()) {
+        qDebug() << "LocalPeer: main process can't send message";
         return false;
     }
 
     QLocalSocket socket;
     socket.connectToServer(_socketName);
     if (!socket.waitForConnected(timeout))
+    {
+        qDebug() << "LocalPeer: connect to main process error, " << socket.errorString();
         return false;
+    }
 
     QByteArray payload;
     QDataStream output(&payload, QIODevice::WriteOnly);
@@ -78,10 +87,15 @@ bool LocalPeer::sendMessage(const QString &message, int timeout)
     if (!socket.waitForBytesWritten(timeout) ||
         !socket.waitForReadyRead(timeout))
     {
+        qDebug() << "LocalPeer: write to main process error, " << socket.errorString();
         return false;
     }
 
-    return socket.readAll() == QByteArrayLiteral("ack");
+    const QByteArray recvBytes = socket.readAll();
+
+    qDebug() << "LocalPeer: socket readAll " << recvBytes;
+
+    return recvBytes == QByteArrayLiteral("ack");
 }
 
 QString LocalPeer::applicationId() const
