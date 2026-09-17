@@ -6,16 +6,17 @@
 
 #include "ebsingleton.h"
 
-#define EBThemeInst Theme::getInstance()
+#define ebThemeInst EBTheme::getInstance()
 
-#define EBThemeColor(color) \
-    EBThemeInst->getThemeColor(color)
+#define ebThemeColor(color) \
+    ebThemeInst->getThemeColor(color)
 
 enum EBThemeColor
 {
     Board,
     BoardBorder,
     BoardBackground,
+    BoardPen,
     ColorCount
 };
 

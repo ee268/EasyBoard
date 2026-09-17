@@ -10,14 +10,24 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui Network)
+find_package(Qt5 REQUIRED COMPONENTS Core)
 
-add_executable(${PROJECT_NAME})
+file(GLOB_RECURSE EASYBOARD_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
+)
 
-add_subdirectory(src/core)
-add_subdirectory(src/global)
-add_subdirectory(src/gui)
-add_subdirectory(src/singleapplication)
+add_executable(${PROJECT_NAME}
+    ${EASYBOARD_SOURCES}
+    resources/EasyBoard.qrc
+)
 
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
+endif()
+
+
+target_link_libraries(EasyBoard PRIVATE Qt5::Core)
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Widgets
     Qt5::Core
@@ -30,7 +40,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
 )
 
 include(GNUInstallDirs)

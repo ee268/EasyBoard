@@ -1,7 +1,11 @@
 #include "ebapplication.h"
+#include "ebsettings.h"
 
 #include <QFile>
 #include <QDebug>
+#include <QDebug>
+#include <QDir>
+#include <QDateTime>
 
 void ebMessageOutput(QtMsgType type, const QMessageLogContext &context,
                      const QString &message)
@@ -15,6 +19,25 @@ void ebMessageOutput(QtMsgType type, const QMessageLogContext &context,
 #else
     qt_message_output(type, context, message);
 #endif
+
+    auto app = EBApplication::app();
+    if (app && app->isVerbose()) {
+        const QString path = QDir(EBSettings::logDir()).absoluteFilePath(
+            app->applicationName() + QStringLiteral(".log"));
+
+        QFile logFile(path);
+
+        //超过10MB时删除重建
+        if (logFile.exists() && logFile.size() > 10000000)
+            logFile.remove();
+
+        if (logFile.open(QIODevice::Append | QIODevice::Text)) {
+            QTextStream output(&logFile);
+            output.setCodec("UTF-8");
+            output << QDateTime::currentDateTime().toString(Qt::ISODate)
+                   << "       " << message << '\n';
+        }
+    }
 
     qInstallMessageHandler(preHandler);
 }
