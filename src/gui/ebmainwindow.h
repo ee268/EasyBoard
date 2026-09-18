@@ -4,8 +4,12 @@
 #include <QMainWindow>
 
 #include "../core/ebapplicationcontroller.h"
+#include "../domain/ebdocument.h"
 
 class QStackedWidget;
+class EBBoardView;
+class EBMainWindowActions;
+class EBPageNavigator;
 
 class EBMainWindow : public QMainWindow
 {
@@ -16,13 +20,16 @@ public:
     void showMode(EBApplicationController::MainMode mode);
 
 private:
-    QStackedWidget* _modeStack;
+    EBDocument _document;
+    QStackedWidget *_modeStack;
+    QWidget *_boardWorkspace;
+    EBBoardView *_boardView;
+    EBPageNavigator *_pageNavigator;
+    EBMainWindowActions *_actions;
 
 signals:
-    void fileImportRequested(const QString& path);
-
+    void fileImportRequested(const QString &path);
     void quitRequested();
-
     void modeRequested(EBApplicationController::MainMode mode);
 };
 

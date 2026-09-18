@@ -2,34 +2,63 @@
 #define EBBOARDVIEW_H
 
 #include <QGraphicsView>
-#include <QRectF>
 
-class QGraphicsScene;
+#include "ebboardscene.h"
 
+class QUndoStack;
+class EBDocument;
+
+// 视图只负责视口坐标、鼠标操作会话和撤销入口；页面内容交给场景。
 class EBBoardView : public QGraphicsView
 {
     Q_OBJECT
+
 public:
     enum class DrawingTool {
         Pen,
         Marker,
         Line,
         Eraser,
-        Pointer
+        Pointer,
+        Pan
     };
+    using PageColor = EBBoardScene::PageColor;
+    using PagePattern = EBBoardScene::PagePattern;
 
-    explicit EBBoardView(QWidget *parent = nullptr);
+    explicit EBBoardView(EBDocument *document, QWidget *parent = nullptr);
 
-    //切换下一笔使用的工具；已经开始的笔迹保持按下时选定的工具。
     void setDrawingTool(DrawingTool tool);
     DrawingTool drawingTool() const;
+    bool canUndo() const;
+    bool canRedo() const;
+    void undo();
+    void redo();
+    bool setCurrentPageIndex(int index);
 
-    //窗口内坐标映射到白板坐标
-    QPointF toPagePosition(const QPointF& viewportPos) const;
+    // 缩放倍数相对于“适应页面”；平移中心保存在场景坐标中。
+    void zoomIn();
+    void zoomOut();
+    void fitPage();
+    qreal zoomFactor() const;
+
+    // 保持原接口供主窗口使用，背景状态同步到文档当前页。
+    void setPageColor(PageColor color);
+    PageColor pageColor() const;
+    void setPagePattern(PagePattern pattern);
+    PagePattern pagePattern() const;
     QRectF pageRect() const;
+    QPointF toPagePosition(const QPointF &viewportPosition) const;
+
+signals:
+    void pagePositionChanged(const QPointF &pagePosition, bool insidePage);
+    void historyAvailabilityChanged(bool undoAvailable, bool redoAvailable);
+    void currentPageChanged(int index);
+    void pageContentChanged(int index);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -37,38 +66,34 @@ protected:
     void hideEvent(QHideEvent *event) override;
 
 private:
-    void fitPage();
+    using Snapshot = EBBoardScene::Snapshot;
+    class StrokeEditCommand;
 
-    // 拖动离开页面时将末端停在页边，避免笔迹画进灰色工作台。
-    QPointF boundedPagePosition(const QPoint &viewportPosition) const;
-
-    // 自由笔迹追加采样点，直线则只保留起点和当前终点。
+    void applyViewState();
+    void zoomBy(qreal factor);
+    QPointF boundedPagePosition(const QPointF &viewportPosition) const;
     void updateActiveStroke(const QPointF &pagePosition);
-
-    // 橡皮只移除接触位置附近的路径段，两侧笔迹保留为独立片段。
-    void eraseAt(const QPointF &pagePosition);
     void eraseAlong(const QPointF &from, const QPointF &to);
+    void beginEdit();
+    void finishEdit();
+    void syncCurrentPageStrokes();
 
-    // 指示点是临时图元，不参与笔迹保存和橡皮命中。
-    void movePointerTo(const QPointF &pagePosition);
-
-    QGraphicsScene* _scene;
-    QRectF _pageRect;
-
-    QGraphicsPathItem* _activeStroke;
-
+    EBDocument *_document;
+    EBBoardScene *_scene;
+    EBStrokeItem *_activeStroke;
     DrawingTool _drawingTool;
     DrawingTool _activeTool;
     QPointF _strokeStart;
-
     bool _erasing;
     QPointF _lastEraserPosition;
     bool _pointing;
-    QGraphicsEllipseItem *_pointerItem;
-
-signals:
-    //白板内坐标对于鼠标移动的映射
-    void pagePositionChanged(const QPointF &pagePosition, bool insidePage);
+    QUndoStack *_undoStack;
+    Snapshot _editBefore;
+    bool _editActive;
+    bool _editChanged;
+    qreal _zoomFactor;
+    QPointF _viewCenter;
+    bool _viewStateReady;
 };
 
-#endif // EBBOARDVIEW_H
+#endif

@@ -1,5 +1,7 @@
 # 构建
 /build
+/design
+/docs
 **/x64/
 **/Debug/
 

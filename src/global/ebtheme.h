@@ -13,13 +13,16 @@
 
 enum EBThemeColor
 {
-    Board,
     BoardBorder,
     BoardBackground,
     BoardPen,
     BoardMarker,
     BoardPointerFill,
     BoardPointerBorder,
+    BoardWhite,
+    BoardCream,
+    BoardWhitePattern,
+    BoardCreamPattern,
     ColorCount
 };
 
@@ -45,11 +48,14 @@ public:
 
     void setThemeType(const EBThemeType& type);
 
+    void setThemeColor(const EBThemeColor& colorName, const QColor& color);
+
 private:
     explicit EBTheme(QObject *parent = nullptr);
 
     void initLightColor();
     void initDarkColor();
+    void initPageColors();
 
 private:
     QColor _lightColorList[ColorCount];

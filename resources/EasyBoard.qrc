@@ -2,4 +2,22 @@
     <qresource prefix="/images">
         <file alias="easyboard.svg">images/easyboard.svg</file>
     </qresource>
+    <qresource prefix="/toolbar">
+        <file>icons/toolbar/background.svg</file>
+        <file>icons/toolbar/zoom_in.svg</file>
+        <file>icons/toolbar/zoom_out.svg</file>
+        <file>icons/toolbar/fit_page.svg</file>
+        <file>icons/toolbar/undo.svg</file>
+        <file>icons/toolbar/redo.svg</file>
+        <file>icons/toolbar/pen.svg</file>
+        <file>icons/toolbar/marker.svg</file>
+        <file>icons/toolbar/line.svg</file>
+        <file>icons/toolbar/eraser.svg</file>
+        <file>icons/toolbar/pointer.svg</file>
+        <file>icons/toolbar/pan.svg</file>
+        <file>icons/toolbar/board.svg</file>
+        <file>icons/toolbar/document.svg</file>
+        <file>icons/toolbar/web.svg</file>
+        <file>icons/toolbar/desktop.svg</file>
+    </qresource>
 </RCC>

@@ -1,146 +1,104 @@
 #include "ebboardview.h"
 
-#include <QEvent>
-#include <QGraphicsScene>
+#include <QHideEvent>
+#include <QLineF>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QResizeEvent>
-#include <QGraphicsPathItem>
+#include <QShowEvent>
+#include <QUndoCommand>
+#include <QUndoStack>
+#include <QWheelEvent>
 #include <QtMath>
 
 #include "../global/ebtheme.h"
+#include "../domain/ebdocument.h"
 
 namespace {
-constexpr qreal kPageMargin = 80.0;
-constexpr qreal kPageWidth = 1200.0;
-constexpr qreal kPageHeight = 900.0;
 constexpr qreal kPenWidth = 3.0;
 constexpr qreal kMarkerWidth = 18.0;
 constexpr qreal kEraserRadius = 12.0;
-constexpr qreal kPointerRadius = 7.0;
+constexpr int kMaxHistoryEntries = 50;
+constexpr qreal kZoomStep = 1.25;
+constexpr qreal kMinZoomFactor = 0.5;
+constexpr qreal kMaxZoomFactor = 4.0;
+}
 
-// 当前三种绘图工具都产生由直线段组成的 QPainterPath；按圆形橡皮裁开这些线段。
-bool splitStrokeAt(const QPainterPath &path, const QPointF &center,
-                   qreal radius, QVector<QPainterPath> &remaining)
+// 一次绘制或擦除是一项撤销命令；场景负责真正恢复笔迹图元。
+class EBBoardView::StrokeEditCommand : public QUndoCommand
 {
-    QPainterPath fragment;
-    QPointF lastPoint;
-    bool hasFragment = false;
-    bool removedPart = false;
-    const qreal radiusSquared = radius * radius;
-    const auto flush = [&]() {
-        if (hasFragment)
-            remaining.append(fragment);
-        fragment = QPainterPath();
-        hasFragment = false;
-    };
-
-    for (int index = 1; index < path.elementCount(); ++index) {
-        const QPainterPath::Element previous = path.elementAt(index - 1);
-        const QPainterPath::Element current = path.elementAt(index);
-        if (current.isMoveTo()) {
-            flush();
-            continue;
-        }
-        const QPointF start(previous.x, previous.y);
-        const QPointF end(current.x, current.y);
-        const QPointF direction = end - start;
-        const QPointF offset = start - center;
-        const qreal a = QPointF::dotProduct(direction, direction);
-        QVector<qreal> cuts{0.0, 1.0};
-        if (a > 1e-12) {
-            // 求线段与橡皮圆的交点参数 t，再判定各区间保留还是擦除。
-            const qreal b = 2.0 * QPointF::dotProduct(offset, direction);
-            const qreal c = QPointF::dotProduct(offset, offset) - radiusSquared;
-            const qreal discriminant = b * b - 4.0 * a * c;
-            if (discriminant > 0.0) {
-                const qreal root = qSqrt(discriminant);
-                for (qreal t : {(-b - root) / (2.0 * a),
-                                (-b + root) / (2.0 * a)}) {
-                    if (t > 1e-7 && t < 1.0 - 1e-7)
-                        cuts.append(t);
-                }
-                std::sort(cuts.begin(), cuts.end());
-            }
-        }
-
-        for (int part = 1; part < cuts.size(); ++part) {
-            const qreal from = cuts.at(part - 1);
-            const qreal to = cuts.at(part);
-            if (to - from <= 1e-7)
-                continue;
-            const QPointF middle = start + direction * ((from + to) / 2.0);
-            const QPointF distance = middle - center;
-            if (QPointF::dotProduct(distance, distance) < radiusSquared) {
-                // 圆内区间被删除；在此结束当前片段，下一段另起一条路径。
-                removedPart = true;
-                flush();
-                continue;
-            }
-
-            const QPointF first = start + direction * from;
-            const QPointF second = start + direction * to;
-            if (!hasFragment || QLineF(lastPoint, first).length() > 1e-5) {
-                flush();
-                fragment.moveTo(first);
-                hasFragment = true;
-            }
-            fragment.lineTo(second);
-            lastPoint = second;
-        }
+public:
+    StrokeEditCommand(EBBoardView *view, const Snapshot &before,
+                      const Snapshot &after, const QString &description)
+        : QUndoCommand(description)
+        , _view(view)
+        , _before(before)
+        , _after(after)
+        , _firstRedo(true)
+    {
     }
-    flush();
-    return removedPart;
-}
-}
 
-EBBoardView::EBBoardView(QWidget *parent)
+    void undo() override
+    {
+        _view->_scene->restoreStrokes(_before);
+    }
+
+    void redo() override
+    {
+        // 入栈时 Qt 会立即调用 redo；实时绘制已把场景置于操作后状态。
+        if (_firstRedo) {
+            _firstRedo = false;
+            return;
+        }
+        _view->_scene->restoreStrokes(_after);
+    }
+
+private:
+    EBBoardView *_view;
+    Snapshot _before;
+    Snapshot _after;
+    bool _firstRedo;
+};
+
+EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
     : QGraphicsView(parent)
-    , _scene(new QGraphicsScene(this))
-    , _pageRect(kPageMargin, kPageMargin, kPageWidth, kPageHeight)
+    , _document(document)
+    , _scene(new EBBoardScene(this))
     , _activeStroke(nullptr)
     , _drawingTool(DrawingTool::Pen)
     , _activeTool(DrawingTool::Pen)
     , _erasing(false)
     , _pointing(false)
-    , _pointerItem(nullptr)
+    , _undoStack(new QUndoStack(this))
+    , _editActive(false)
+    , _editChanged(false)
+    , _zoomFactor(1.0)
+    , _viewCenter(_scene->sceneRect().center())
+    , _viewStateReady(false)
 {
+    Q_ASSERT(_document);
+    _scene->showPage(*_document->currentPage());
     setObjectName(QStringLiteral("boardView"));
+    _undoStack->setObjectName(QStringLiteral("boardUndoStack"));
+    _undoStack->setUndoLimit(kMaxHistoryEntries);
     setScene(_scene);
-
-    //宽高分别乘以边距，使addRect添加的矩形居中于sceneRect
-    _scene->setSceneRect(0.0, 0.0,
-                         kPageWidth + 2.0 * kPageMargin,
-                         kPageHeight + 2.0 * kPageMargin);
-    _scene->addRect(_pageRect,
-                    QPen(ebThemeColor(EBThemeColor::BoardBorder)),
-                    QBrush(ebThemeColor(EBThemeColor::Board)));
-
-    // 红色圆点只用于讲解时指示位置，初始隐藏且不计入画笔笔迹。
-    _pointerItem = _scene->addEllipse(-kPointerRadius, -kPointerRadius,
-                                      2.0 * kPointerRadius, 2.0 * kPointerRadius,
-                                      QPen(ebThemeColor(EBThemeColor::BoardPointerBorder), 2.0),
-                                      QBrush(ebThemeColor(EBThemeColor::BoardPointerFill)));
-    _pointerItem->setZValue(2.0);
-    _pointerItem->hide();
-
     setBackgroundBrush(ebThemeColor(EBThemeColor::BoardBackground));
     setRenderHint(QPainter::Antialiasing);
     setFrameShape(QFrame::NoFrame);
-
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-    //在没有按下鼠标按钮时也能收到鼠标移动事件
     setMouseTracking(true);
-    //对实际显示白板的视口控件开启同一功能
     viewport()->setMouseTracking(true);
-
     fitPage();
 }
 
 void EBBoardView::setDrawingTool(DrawingTool tool)
 {
+    // 切换只影响下一次操作，进行中的笔迹继续使用按下时的工具。
     _drawingTool = tool;
+    // 平移只改变视图，不建立笔迹或撤销历史。
+    setDragMode(tool == DrawingTool::Pan ? QGraphicsView::ScrollHandDrag
+                                         : QGraphicsView::NoDrag);
 }
 
 EBBoardView::DrawingTool EBBoardView::drawingTool() const
@@ -148,202 +106,342 @@ EBBoardView::DrawingTool EBBoardView::drawingTool() const
     return _drawingTool;
 }
 
-QPointF EBBoardView::toPagePosition(const QPointF &viewportPos) const
+bool EBBoardView::canUndo() const
 {
-    return mapToScene(viewportPos.toPoint()) - _pageRect.topLeft();
+    return !_editActive && _undoStack->canUndo();
+}
+
+bool EBBoardView::canRedo() const
+{
+    return !_editActive && _undoStack->canRedo();
+}
+
+void EBBoardView::undo()
+{
+    if (!canUndo())
+        return;
+    _undoStack->undo();
+    syncCurrentPageStrokes();
+    emit historyAvailabilityChanged(canUndo(), canRedo());
+}
+
+void EBBoardView::redo()
+{
+    if (!canRedo())
+        return;
+    _undoStack->redo();
+    syncCurrentPageStrokes();
+    emit historyAvailabilityChanged(canUndo(), canRedo());
+}
+
+bool EBBoardView::setCurrentPageIndex(int index)
+{
+    if (!_document->pageAt(index))
+        return false;
+    if (index == _document->currentPageIndex())
+        return true;
+
+    // 先结束旧页上的拖动，再载入新页，撤销命令不能跨页恢复笔迹。
+    _activeStroke = nullptr;
+    _erasing = false;
+    _pointing = false;
+    _scene->hidePointer();
+    finishEdit();
+    _document->setCurrentPageIndex(index);
+    _undoStack->clear();
+    _scene->showPage(*_document->currentPage());
+    emit historyAvailabilityChanged(false, false);
+    emit pagePositionChanged(QPointF(), false);
+    emit currentPageChanged(index);
+    return true;
+}
+
+void EBBoardView::zoomIn()
+{
+    zoomBy(kZoomStep);
+}
+
+void EBBoardView::zoomOut()
+{
+    zoomBy(1.0 / kZoomStep);
+}
+
+qreal EBBoardView::zoomFactor() const
+{
+    return _zoomFactor;
+}
+
+void EBBoardView::setPageColor(PageColor color)
+{
+    if (pageColor() == color)
+        return;
+    _document->currentPage()->setColor(color);
+    _scene->setPageColor(color);
+    emit pageContentChanged(_document->currentPageIndex());
+}
+
+EBBoardView::PageColor EBBoardView::pageColor() const
+{
+    return _scene->pageColor();
+}
+
+void EBBoardView::setPagePattern(PagePattern pattern)
+{
+    if (pagePattern() == pattern)
+        return;
+    _document->currentPage()->setPattern(pattern);
+    _scene->setPagePattern(pattern);
+    emit pageContentChanged(_document->currentPageIndex());
+}
+
+EBBoardView::PagePattern EBBoardView::pagePattern() const
+{
+    return _scene->pagePattern();
 }
 
 QRectF EBBoardView::pageRect() const
 {
-    return _pageRect;
+    return _scene->pageRect();
+}
+
+QPointF EBBoardView::toPagePosition(const QPointF &viewportPosition) const
+{
+    // 视口坐标先映射到场景，再减去页面在场景中的左上角。
+    return mapToScene(viewportPosition.toPoint()) - pageRect().topLeft();
 }
 
 void EBBoardView::resizeEvent(QResizeEvent *event)
 {
+    // 直接使用上次保存的场景中心；此时视口尺寸可能已变化。
     QGraphicsView::resizeEvent(event);
-    fitPage();
+    applyViewState();
+}
+
+void EBBoardView::showEvent(QShowEvent *event)
+{
+    QGraphicsView::showEvent(event);
+    // 从其他工作区返回时，按保存的缩放与中心恢复视图。
+    applyViewState();
+}
+
+void EBBoardView::wheelEvent(QWheelEvent *event)
+{
+    if (!(event->modifiers() & Qt::ControlModifier)) {
+        QGraphicsView::wheelEvent(event);
+        _viewCenter = mapToScene(viewport()->rect().center());
+        return;
+    }
+
+    const QPointF before = mapToScene(event->pos());
+    zoomBy(event->angleDelta().y() >= 0 ? kZoomStep : 1.0 / kZoomStep);
+    // Ctrl + 滚轮时保持鼠标所指的场景位置尽量不动。
+    _viewCenter = mapToScene(viewport()->rect().center())
+                  + before - mapToScene(event->pos());
+    centerOn(_viewCenter);
+    event->accept();
 }
 
 void EBBoardView::mousePressEvent(QMouseEvent *event)
 {
+    if (_drawingTool == DrawingTool::Pan) {
+        QGraphicsView::mousePressEvent(event);
+        return;
+    }
     const QPointF pagePosition = toPagePosition(event->pos());
-    const QRectF pageLocalRect(QPointF(), _pageRect.size());
-    if (event->button() != Qt::LeftButton || !pageLocalRect.contains(pagePosition)) {
+    if (event->button() != Qt::LeftButton
+        || !QRectF(QPointF(), pageRect().size()).contains(pagePosition)) {
         QGraphicsView::mousePressEvent(event);
         return;
     }
 
     _activeTool = _drawingTool;
-
     if (_activeTool == DrawingTool::Eraser) {
+        beginEdit();
         _erasing = true;
         _lastEraserPosition = pagePosition;
-        eraseAt(pagePosition);
+        _editChanged |= _scene->eraseAt(pagePosition, kEraserRadius);
         event->accept();
         return;
     }
     if (_activeTool == DrawingTool::Pointer) {
         _pointing = true;
-        movePointerTo(pagePosition);
+        _scene->showPointerAt(pagePosition);
         event->accept();
         return;
     }
 
+    beginEdit();
     _strokeStart = pagePosition;
-
     QPainterPath path(pagePosition);
+    // 极短首段使单次点击也形成可见圆头笔点。
     path.lineTo(pagePosition + QPointF(0.01, 0.0));
     const bool marker = _activeTool == DrawingTool::Marker;
-    const QColor penColor = marker ?
-                          ebThemeColor(EBThemeColor::BoardMarker) :
-                          ebThemeColor(EBThemeColor::BoardPen);
-    QPen pen(penColor, marker ? kMarkerWidth : kPenWidth,
-             Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
-    _activeStroke = _scene->addPath(path, pen);
-    _activeStroke->setPos(_pageRect.topLeft());
-    _activeStroke->setZValue(1.0);
+    const QPen pen(marker ? ebThemeColor(EBThemeColor::BoardMarker)
+                          : ebThemeColor(EBThemeColor::BoardPen),
+                   marker ? kMarkerWidth : kPenWidth, Qt::SolidLine,
+                   Qt::RoundCap, Qt::RoundJoin);
+    _activeStroke = _scene->addStroke(path, pen);
+    _editChanged = true;
     event->accept();
 }
 
 void EBBoardView::mouseMoveEvent(QMouseEvent *event)
 {
     const QPointF scenePosition = mapToScene(event->pos());
-    emit pagePositionChanged(scenePosition - _pageRect.topLeft(),
-                             _pageRect.contains(scenePosition));
+    emit pagePositionChanged(scenePosition - pageRect().topLeft(),
+                             pageRect().contains(scenePosition));
 
     if (_erasing && (event->buttons() & Qt::LeftButton)) {
         const QPointF current = boundedPagePosition(event->pos());
         eraseAlong(_lastEraserPosition, current);
-        event->accept();
         _lastEraserPosition = current;
+        event->accept();
         return;
     }
     if (_pointing && (event->buttons() & Qt::LeftButton)) {
-        if (_pointerItem->isVisible())
-            movePointerTo(scenePosition - _pageRect.topLeft());
+        if (_scene->pointerVisible())
+            _scene->showPointerAt(scenePosition - pageRect().topLeft());
         event->accept();
+        return;
     }
-
     if (_activeStroke && (event->buttons() & Qt::LeftButton)) {
         updateActiveStroke(boundedPagePosition(event->pos()));
         event->accept();
         return;
     }
-
     QGraphicsView::mouseMoveEvent(event);
+    if (_drawingTool == DrawingTool::Pan && (event->buttons() & Qt::LeftButton))
+        _viewCenter = mapToScene(viewport()->rect().center());
 }
 
 void EBBoardView::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton && (_erasing || _pointing)) {
         if (_erasing)
-            eraseAlong(_lastEraserPosition,  boundedPagePosition(event->pos()));
+            eraseAlong(_lastEraserPosition, boundedPagePosition(event->pos()));
         _erasing = false;
         _pointing = false;
-        _pointerItem->hide();
+        _scene->hidePointer();
+        finishEdit();
         event->accept();
         return;
     }
-
     if (event->button() == Qt::LeftButton && _activeStroke) {
-        QPainterPath path = _activeStroke->path();
-        path.lineTo(boundedPagePosition(event->pos()));
-        _activeStroke->setPath(path);
+        updateActiveStroke(boundedPagePosition(event->pos()));
         _activeStroke = nullptr;
+        finishEdit();
         event->accept();
         return;
     }
+    QGraphicsView::mouseReleaseEvent(event);
+    if (_drawingTool == DrawingTool::Pan && event->button() == Qt::LeftButton)
+        _viewCenter = mapToScene(viewport()->rect().center());
 }
 
 void EBBoardView::leaveEvent(QEvent *event)
 {
-    _pointerItem->hide();
+    _scene->hidePointer();
     emit pagePositionChanged(QPointF(), false);
     QGraphicsView::leaveEvent(event);
 }
 
 void EBBoardView::hideEvent(QHideEvent *event)
 {
+    _viewCenter = mapToScene(viewport()->rect().center());
+    // 模式切换可能发生在鼠标释放前，结束本次编辑以免保留失效图元指针。
+    _activeStroke = nullptr;
     _erasing = false;
     _pointing = false;
-    _pointerItem->hide();
+    _scene->hidePointer();
+    finishEdit();
     QGraphicsView::hideEvent(event);
 }
 
 void EBBoardView::fitPage()
 {
-    //让scene始终居中于窗口
-    fitInView(_scene->sceneRect(), Qt::KeepAspectRatio);
+    _zoomFactor = 1.0;
+    _viewCenter = _scene->sceneRect().center();
+    _viewStateReady = true;
+    applyViewState();
 }
 
-QPointF EBBoardView::boundedPagePosition(const QPoint &viewportPosition) const
+void EBBoardView::applyViewState()
 {
-    //第一步，toPagePosition() 将鼠标在视图中的位置换算为以页面左上角为 (0, 0) 的坐标。
-    //第二步，qBound(最小值, 当前值, 最大值) 把横坐标限制在 0～1200、纵坐标限制在 0～900。
-    const QPointF position = toPagePosition(viewportPosition);
+    if (!_viewStateReady || viewport()->width() <= 0 || viewport()->height() <= 0)
+        return;
+    resetTransform();
+    fitInView(_scene->sceneRect(), Qt::KeepAspectRatio);
+    scale(_zoomFactor, _zoomFactor);
+    centerOn(_viewCenter);
+}
 
-    return QPointF(qBound(0.0, position.x(), _pageRect.width()),
-                   qBound(0.0, position.y(), _pageRect.height()));
+void EBBoardView::zoomBy(qreal factor)
+{
+    const qreal next = qBound(kMinZoomFactor, _zoomFactor * factor, kMaxZoomFactor);
+    if (qFuzzyCompare(next, _zoomFactor))
+        return;
+    _zoomFactor = next;
+    applyViewState();
+}
+
+QPointF EBBoardView::boundedPagePosition(const QPointF &viewportPosition) const
+{
+    const QPointF position = toPagePosition(viewportPosition);
+    return QPointF(qBound(0.0, position.x(), pageRect().width()),
+                   qBound(0.0, position.y(), pageRect().height()));
 }
 
 void EBBoardView::updateActiveStroke(const QPointF &pagePosition)
 {
     if (_activeTool == DrawingTool::Line) {
-        // 每次从固定起点重建路径，所以拖动轨迹不会变成折线。
+        // 直线每次从固定起点重建路径，不保留中途拖动点。
         QPainterPath line(_strokeStart);
         line.lineTo(pagePosition);
         _activeStroke->setPath(line);
     } else {
-        // 画笔和荧光笔都保留鼠标经过的采样点，形成自由笔迹。
         QPainterPath path = _activeStroke->path();
         path.lineTo(pagePosition);
         _activeStroke->setPath(path);
     }
 }
 
-void EBBoardView::eraseAt(const QPointF &pagePosition)
-{
-    const QPointF scenePosition = pagePosition + _pageRect.topLeft();
-    const QRectF touchArea(scenePosition.x() - kEraserRadius,
-                           scenePosition.y() - kEraserRadius,
-                           2.0 * kEraserRadius, 2.0 * kEraserRadius);
-    // 只检查路径图元；页面背景和临时指示点绝不被橡皮裁切。
-    for (QGraphicsItem *item : _scene->items(touchArea, Qt::IntersectsItemShape)) {
-        auto *stroke = qgraphicsitem_cast<QGraphicsPathItem *>(item);
-        if (!stroke)
-            continue;
-
-        QVector<QPainterPath> remaining;
-        // 笔触有宽度：多裁去半个线宽，避免新片段的圆头重新伸入擦除区。
-        const qreal radius = kEraserRadius + stroke->pen().widthF() / 2.0;
-        if (!splitStrokeAt(stroke->path(), stroke->mapFromScene(scenePosition),
-                           radius, remaining))
-            continue;
-
-        const QPen pen = stroke->pen();
-        const QPointF position = stroke->pos();
-        const qreal zValue = stroke->zValue();
-        delete stroke;
-        // 只把圆外的片段放回场景，保留原来的笔色、宽度和页面位置。
-        for (const QPainterPath &part : remaining) {
-            QGraphicsPathItem *kept = _scene->addPath(part, pen);
-            kept->setPos(position);
-            kept->setZValue(zValue);
-        }
-    }
-}
-
 void EBBoardView::eraseAlong(const QPointF &from, const QPointF &to)
 {
+    // 相邻事件之间补点，快速拖动也能连续擦到中间笔迹。
     const int steps = qMax(1, qCeil(QLineF(from, to).length() / kEraserRadius));
-
     for (int index = 1; index <= steps; ++index) {
-        eraseAt(from + (to - from) * (qreal(index) / steps));
+        const QPointF position = from + (to - from) * (qreal(index) / steps);
+        _editChanged |= _scene->eraseAt(position, kEraserRadius);
     }
 }
 
-void EBBoardView::movePointerTo(const QPointF &pagePosition)
+void EBBoardView::beginEdit()
 {
-    _pointerItem->setPos(pagePosition + _pageRect.topLeft());
-    _pointerItem->show();
+    _editBefore = _scene->captureStrokes();
+    _editActive = true;
+    _editChanged = false;
+    emit historyAvailabilityChanged(false, false);
+}
+
+void EBBoardView::finishEdit()
+{
+    if (!_editActive)
+        return;
+    _editActive = false;
+    if (_editChanged) {
+        const QString description = _activeTool == DrawingTool::Eraser
+            ? tr("局部擦除") : tr("绘制笔迹");
+        _undoStack->push(new StrokeEditCommand(this, _editBefore,
+                                               _scene->captureStrokes(), description));
+        syncCurrentPageStrokes();
+    }
+    _editBefore.clear();
+    emit historyAvailabilityChanged(canUndo(), canRedo());
+}
+
+void EBBoardView::syncCurrentPageStrokes()
+{
+    // 场景中的临时指示点不进入页面模型；只同步可恢复的笔迹。
+    _document->currentPage()->setStrokes(_scene->captureStrokes());
+    emit pageContentChanged(_document->currentPageIndex());
 }
