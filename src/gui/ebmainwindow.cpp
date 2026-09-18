@@ -46,6 +46,26 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     QToolBar *modeToolBar = addToolBar(tr("工作模式"));
     modeToolBar->setObjectName(QStringLiteral("modeToolBar"));
     modeToolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+
+    QActionGroup *drawingGroup = new QActionGroup(this);
+    drawingGroup->setExclusive(true);
+    const auto addDrawingTool = [this, modeToolBar, drawingGroup](
+                                    const QString &name, const QString &actionName) {
+        QAction *action = new QAction(name, this);
+        action->setObjectName(actionName);
+        action->setCheckable(true);
+        drawingGroup->addAction(action);
+        modeToolBar->addAction(action);
+        return action;
+    };
+    QAction *penAction = addDrawingTool(tr("画笔"), QStringLiteral("penToolAction"));
+    QAction *markerAction = addDrawingTool(tr("荧光笔"), QStringLiteral("markerToolAction"));
+    QAction *lineAction = addDrawingTool(tr("直线"), QStringLiteral("lineToolAction"));
+    QAction *eraserAction = addDrawingTool(tr("橡皮"), QStringLiteral("eraserToolAction"));
+    QAction *pointerAction = addDrawingTool(tr("指示"), QStringLiteral("pointerToolAction"));
+    penAction->setChecked(true);
+    modeToolBar->addSeparator();
+
     QActionGroup *modeGroup = new QActionGroup(this);
     modeGroup->setExclusive(true);
 
@@ -54,7 +74,7 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     modeToolBar->addWidget(toolbarSpacer);
 
     // 四个占位页使阶段 7 的切换能被看到；真实功能会逐页替换它们。
-    const auto addMode = [this, modeToolBar, modeGroup](
+    const auto addMode = [=](
                              EBApplicationController::MainMode mode,
                              const QString &name,
                              const QString &actionName) {
@@ -80,6 +100,23 @@ EBMainWindow::EBMainWindow(QWidget *parent)
                     statusBar()->clearMessage();
                 }
             });
+
+            connect(penAction, &QAction::triggered, boardView, [boardView]() {
+                boardView->setDrawingTool(EBBoardView::DrawingTool::Pen);
+            });
+            connect(markerAction, &QAction::triggered, boardView, [boardView]() {
+                boardView->setDrawingTool(EBBoardView::DrawingTool::Marker);
+            });
+            connect(lineAction, &QAction::triggered, boardView, [boardView]() {
+                boardView->setDrawingTool(EBBoardView::DrawingTool::Line);
+            });
+            connect(eraserAction, &QAction::triggered, boardView, [boardView]() {
+                boardView->setDrawingTool(EBBoardView::DrawingTool::Eraser);
+            });
+            connect(pointerAction, &QAction::triggered, boardView, [boardView]() {
+                boardView->setDrawingTool(EBBoardView::DrawingTool::Pointer);
+            });
+
             _modeStack->addWidget(boardView);
         }
         else {
@@ -116,6 +153,15 @@ void EBMainWindow::showMode(EBApplicationController::MainMode mode)
         "boardModeAction", "documentModeAction",
         "webModeAction", "desktopModeAction"
     };
+
+    // 非白板页没有绘图表面，禁用工具但保留选中项供返回白板后继续使用。
+    for (const char *name : {"penToolAction", "markerToolAction", "lineToolAction",
+                             "eraserToolAction", "pointerToolAction"}) {
+        QAction *tool = findChild<QAction *>(QString::fromLatin1(name));
+        if (tool)
+            tool->setEnabled(mode == EBApplicationController::MainMode::Board);
+    }
+
     QAction *action = findChild<QAction *>(QString::fromLatin1(actionNames[index]));
     if (action)
         action->setChecked(true);

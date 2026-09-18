@@ -49,6 +49,9 @@ void EBTheme::initLightColor()
     _lightColorList[BoardBorder] = QColor(0xBE, 0xC3, 0xCA);
     _lightColorList[BoardBackground] = QColor(0xE8, 0xEB, 0xEF);
     _lightColorList[BoardPen] = QColor(0x22, 0x2E, 0x40);
+    _lightColorList[BoardMarker] = QColor(0xFF, 0xB8, 0x33, 0x6E);
+    _lightColorList[BoardPointerFill] = QColor(225, 53, 68);
+    _lightColorList[BoardPointerBorder] = Qt::white;
 }
 
 void EBTheme::initDarkColor()
@@ -57,4 +60,7 @@ void EBTheme::initDarkColor()
     _darkColorList[BoardBorder] = QColor(0x44,0x49,0x50);
     _darkColorList[BoardBackground] = QColor(0x1E,0x1E,0x1E);
     _darkColorList[BoardPen] = QColor(0x22, 0x2E, 0x40);
+    _darkColorList[BoardMarker] = QColor(0xFF, 0xB8, 0x33, 0x6E);
+    _darkColorList[BoardPointerFill] = QColor(225, 53, 68);
+    _darkColorList[BoardPointerBorder] = Qt::white;
 }

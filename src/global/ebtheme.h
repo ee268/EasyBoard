@@ -17,6 +17,9 @@ enum EBThemeColor
     BoardBorder,
     BoardBackground,
     BoardPen,
+    BoardMarker,
+    BoardPointerFill,
+    BoardPointerBorder,
     ColorCount
 };
 
