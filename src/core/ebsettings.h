@@ -16,11 +16,17 @@ public:
 
     static QString userDataDir();
 
+    static QString courseDataDir();
+
     static QString logDir();
 
     QByteArray windowGeometry() const;
 
     void setWindowGeometry(const QByteArray& geometry);
+
+    QString lastDocumentPath() const;
+
+    void setLastDocumentPath(const QString &path);
 
     bool save();
 

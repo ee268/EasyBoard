@@ -134,6 +134,53 @@ void EBBoardView::redo()
     emit historyAvailabilityChanged(canUndo(), canRedo());
 }
 
+int EBBoardView::addPage()
+{
+    finishPageInteraction();
+    const int index = _document->addPage();
+    emit pageListChanged();
+    setCurrentPageIndex(index);
+    return index;
+}
+
+int EBBoardView::duplicateCurrentPage()
+{
+    finishPageInteraction();
+    const int index = _document->duplicatePage(_document->currentPageIndex());
+    if (index < 0)
+        return -1;
+    emit pageListChanged();
+    setCurrentPageIndex(index);
+    return index;
+}
+
+bool EBBoardView::removeCurrentPage()
+{
+    if (_document->pageCount() <= 1)
+        return false;
+    finishPageInteraction();
+    if (!_document->removePage(_document->currentPageIndex()))
+        return false;
+    showCurrentPage();
+    emit pageListChanged();
+    emit currentPageChanged(_document->currentPageIndex());
+    return true;
+}
+
+bool EBBoardView::moveCurrentPage(int offset)
+{
+    const int from = _document->currentPageIndex();
+    const int to = from + offset;
+    if (to < 0 || to >= _document->pageCount())
+        return false;
+    finishPageInteraction();
+    if (!_document->movePage(from, to))
+        return false;
+    emit pageListChanged();
+    emit currentPageChanged(_document->currentPageIndex());
+    return true;
+}
+
 bool EBBoardView::setCurrentPageIndex(int index)
 {
     if (!_document->pageAt(index))
@@ -142,18 +189,32 @@ bool EBBoardView::setCurrentPageIndex(int index)
         return true;
 
     // 先结束旧页上的拖动，再载入新页，撤销命令不能跨页恢复笔迹。
+    finishPageInteraction();
+    _document->setCurrentPageIndex(index);
+    showCurrentPage();
+    emit currentPageChanged(index);
+    return true;
+}
+
+void EBBoardView::commitCurrentPage()
+{
+    // 保存前结束尚未释放鼠标的操作，确保模型包含场景中的最新笔迹。
+    finishPageInteraction();
+}
+
+void EBBoardView::reloadDocument()
+{
+    // 文档对象已由主窗口整体替换，丢弃旧文档的交互与撤销状态。
     _activeStroke = nullptr;
     _erasing = false;
     _pointing = false;
+    _editActive = false;
+    _editChanged = false;
+    _editBefore.clear();
     _scene->hidePointer();
-    finishEdit();
-    _document->setCurrentPageIndex(index);
-    _undoStack->clear();
-    _scene->showPage(*_document->currentPage());
-    emit historyAvailabilityChanged(false, false);
-    emit pagePositionChanged(QPointF(), false);
-    emit currentPageChanged(index);
-    return true;
+    showCurrentPage();
+    emit pageListChanged();
+    emit currentPageChanged(_document->currentPageIndex());
 }
 
 void EBBoardView::zoomIn()
@@ -197,6 +258,22 @@ void EBBoardView::setPagePattern(PagePattern pattern)
 EBBoardView::PagePattern EBBoardView::pagePattern() const
 {
     return _scene->pagePattern();
+}
+
+void EBBoardView::setPageSize(PageSize size)
+{
+    if (pageSize() == size)
+        return;
+    finishPageInteraction();
+    _document->currentPage()->setSize(size);
+    _scene->setPageSize(size);
+    fitPage();
+    emit pageContentChanged(_document->currentPageIndex());
+}
+
+EBBoardView::PageSize EBBoardView::pageSize() const
+{
+    return _scene->pageSize();
 }
 
 QRectF EBBoardView::pageRect() const
@@ -437,6 +514,24 @@ void EBBoardView::finishEdit()
     }
     _editBefore.clear();
     emit historyAvailabilityChanged(canUndo(), canRedo());
+}
+
+void EBBoardView::finishPageInteraction()
+{
+    _activeStroke = nullptr;
+    _erasing = false;
+    _pointing = false;
+    _scene->hidePointer();
+    finishEdit();
+}
+
+void EBBoardView::showCurrentPage()
+{
+    _undoStack->clear();
+    _scene->showPage(*_document->currentPage());
+    fitPage();
+    emit historyAvailabilityChanged(false, false);
+    emit pagePositionChanged(QPointF(), false);
 }
 
 void EBBoardView::syncCurrentPageStrokes()

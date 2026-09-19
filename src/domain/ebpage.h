@@ -18,6 +18,10 @@ public:
         Grid,
         Ruled
     };
+    enum class Size {
+        Standard,
+        Widescreen
+    };
     using Strokes = QVector<EBStrokeItem::State>;
 
     Color color() const;
@@ -26,12 +30,16 @@ public:
     Pattern pattern() const;
     void setPattern(Pattern pattern);
 
+    Size size() const;
+    void setSize(Size size);
+
     const Strokes &strokes() const;
     void setStrokes(const Strokes &strokes);
 
 private:
     Color _color = Color::White;
     Pattern _pattern = Pattern::Blank;
+    Size _size = Size::Standard;
     Strokes _strokes;
 };
 

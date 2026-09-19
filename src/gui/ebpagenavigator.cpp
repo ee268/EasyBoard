@@ -38,6 +38,9 @@ EBPageNavigator::EBPageNavigator(EBDocument *document, QWidget *parent)
     , _document(document)
     , _pageList(new QListWidget(this))
     , _pageNumber(new QLabel(this))
+    , _removeButton(new QPushButton(tr("删除"), this))
+    , _moveUpButton(new QPushButton(tr("上移"), this))
+    , _moveDownButton(new QPushButton(tr("下移"), this))
     , _previousButton(new QPushButton(tr("上一页"), this))
     , _nextButton(new QPushButton(tr("下一页"), this))
 {
@@ -54,13 +57,19 @@ EBPageNavigator::EBPageNavigator(EBDocument *document, QWidget *parent)
     layout->setSpacing(8);
     QHBoxLayout *header = new QHBoxLayout;
     QLabel *title = new QLabel(tr("页面"), this);
-    QPushButton *addButton = new QPushButton(tr("＋"), this);
+    QPushButton *addButton = new QPushButton(tr("新增"), this);
+    QPushButton *duplicateButton = new QPushButton(tr("复制"), this);
     addButton->setObjectName(QStringLiteral("addPageButton"));
     addButton->setToolTip(tr("新增页面"));
-    addButton->setFixedWidth(32);
+    duplicateButton->setObjectName(QStringLiteral("duplicatePageButton"));
+    duplicateButton->setToolTip(tr("复制当前页面"));
+    _removeButton->setObjectName(QStringLiteral("removePageButton"));
+    _removeButton->setToolTip(tr("删除当前页面"));
     header->addWidget(title);
     header->addStretch();
     header->addWidget(addButton);
+    header->addWidget(duplicateButton);
+    header->addWidget(_removeButton);
     layout->addLayout(header);
 
     _pageList->setObjectName(QStringLiteral("pageThumbnailList"));
@@ -73,6 +82,15 @@ EBPageNavigator::EBPageNavigator(EBDocument *document, QWidget *parent)
     _pageList->setGridSize(QSize(164, 146));
     layout->addWidget(_pageList, 1);
 
+    QHBoxLayout *order = new QHBoxLayout;
+    _moveUpButton->setObjectName(QStringLiteral("movePageUpButton"));
+    _moveDownButton->setObjectName(QStringLiteral("movePageDownButton"));
+    _moveUpButton->setToolTip(tr("将当前页面向前移动"));
+    _moveDownButton->setToolTip(tr("将当前页面向后移动"));
+    order->addWidget(_moveUpButton);
+    order->addWidget(_moveDownButton);
+    layout->addLayout(order);
+
     QHBoxLayout *footer = new QHBoxLayout;
     _previousButton->setObjectName(QStringLiteral("previousPageButton"));
     _nextButton->setObjectName(QStringLiteral("nextPageButton"));
@@ -84,6 +102,16 @@ EBPageNavigator::EBPageNavigator(EBDocument *document, QWidget *parent)
     layout->addLayout(footer);
 
     connect(addButton, &QPushButton::clicked, this, &EBPageNavigator::addPageRequested);
+    connect(duplicateButton, &QPushButton::clicked,
+            this, &EBPageNavigator::duplicatePageRequested);
+    connect(_removeButton, &QPushButton::clicked,
+            this, &EBPageNavigator::removePageRequested);
+    connect(_moveUpButton, &QPushButton::clicked, this, [this]() {
+        emit movePageRequested(-1);
+    });
+    connect(_moveDownButton, &QPushButton::clicked, this, [this]() {
+        emit movePageRequested(1);
+    });
     connect(_pageList, &QListWidget::currentRowChanged, this, [this](int index) {
         if (index >= 0 && index != _document->currentPageIndex())
             emit pageSelected(index);
@@ -130,4 +158,7 @@ void EBPageNavigator::updateControls()
     _pageNumber->setText(tr("%1 / %2").arg(index + 1).arg(_document->pageCount()));
     _previousButton->setEnabled(index > 0);
     _nextButton->setEnabled(index + 1 < _document->pageCount());
+    _removeButton->setEnabled(_document->pageCount() > 1);
+    _moveUpButton->setEnabled(index > 0);
+    _moveDownButton->setEnabled(index + 1 < _document->pageCount());
 }

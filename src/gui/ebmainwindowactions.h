@@ -24,6 +24,7 @@ public:
 
 signals:
     void fileImportRequested(const QString &filePath);
+    void saveDocumentRequested();
     void quitRequested();
     void modeRequested(EBApplicationController::MainMode mode);
 
@@ -45,6 +46,7 @@ private:
     QAction *_fitPageAction = nullptr;
     QAction *_colorActions[2] = {};
     QAction *_patternActions[3] = {};
+    QAction *_sizeActions[2] = {};
     QAction *_toolActions[6] = {};
     QAction *_modeActions[4] = {};
 };

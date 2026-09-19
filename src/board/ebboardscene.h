@@ -14,6 +14,7 @@ class EBBoardScene : public QGraphicsScene
 public:
     using PageColor = EBPage::Color;
     using PagePattern = EBPage::Pattern;
+    using PageSize = EBPage::Size;
     using Snapshot = EBPage::Strokes;
 
     explicit EBBoardScene(QObject *parent = nullptr);
@@ -24,6 +25,8 @@ public:
     PageColor pageColor() const;
     void setPagePattern(PagePattern pattern);
     PagePattern pagePattern() const;
+    void setPageSize(PageSize size);
+    PageSize pageSize() const;
 
     // 视图只报告操作意图，图元的创建、裁切和恢复统一由场景管理。
     EBStrokeItem *addStroke(const QPainterPath &path, const QPen &pen);
@@ -35,6 +38,7 @@ public:
     bool pointerVisible() const;
 
 private:
+    void refreshPageGeometry();
     void refreshPageBackground();
 
     QRectF _pageRect;
@@ -42,6 +46,7 @@ private:
     QGraphicsEllipseItem *_pointerItem;
     PageColor _pageColor;
     PagePattern _pagePattern;
+    PageSize _pageSize;
 };
 
 #endif

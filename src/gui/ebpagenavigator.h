@@ -8,7 +8,7 @@ class QListWidget;
 class QPushButton;
 class QLabel;
 
-// 左侧缩略图列表只展示文档页面，并把翻页与新增页意图交给主窗口。
+// 左侧缩略图列表展示文档页面，并转发翻页与页面管理意图。
 class EBPageNavigator : public QWidget
 {
     Q_OBJECT
@@ -23,6 +23,9 @@ public:
 signals:
     void pageSelected(int index);
     void addPageRequested();
+    void duplicatePageRequested();
+    void removePageRequested();
+    void movePageRequested(int offset);
 
 private:
     void updateControls();
@@ -30,6 +33,9 @@ private:
     EBDocument *_document;
     QListWidget *_pageList;
     QLabel *_pageNumber;
+    QPushButton *_removeButton;
+    QPushButton *_moveUpButton;
+    QPushButton *_moveDownButton;
     QPushButton *_previousButton;
     QPushButton *_nextButton;
 };

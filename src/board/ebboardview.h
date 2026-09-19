@@ -24,6 +24,7 @@ public:
     };
     using PageColor = EBBoardScene::PageColor;
     using PagePattern = EBBoardScene::PagePattern;
+    using PageSize = EBBoardScene::PageSize;
 
     explicit EBBoardView(EBDocument *document, QWidget *parent = nullptr);
 
@@ -33,7 +34,13 @@ public:
     bool canRedo() const;
     void undo();
     void redo();
+    int addPage();
+    int duplicateCurrentPage();
+    bool removeCurrentPage();
+    bool moveCurrentPage(int offset);
     bool setCurrentPageIndex(int index);
+    void commitCurrentPage();
+    void reloadDocument();
 
     // 缩放倍数相对于“适应页面”；平移中心保存在场景坐标中。
     void zoomIn();
@@ -46,6 +53,8 @@ public:
     PageColor pageColor() const;
     void setPagePattern(PagePattern pattern);
     PagePattern pagePattern() const;
+    void setPageSize(PageSize size);
+    PageSize pageSize() const;
     QRectF pageRect() const;
     QPointF toPagePosition(const QPointF &viewportPosition) const;
 
@@ -54,6 +63,7 @@ signals:
     void historyAvailabilityChanged(bool undoAvailable, bool redoAvailable);
     void currentPageChanged(int index);
     void pageContentChanged(int index);
+    void pageListChanged();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -76,6 +86,8 @@ private:
     void eraseAlong(const QPointF &from, const QPointF &to);
     void beginEdit();
     void finishEdit();
+    void finishPageInteraction();
+    void showCurrentPage();
     void syncCurrentPageStrokes();
 
     EBDocument *_document;

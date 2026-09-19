@@ -11,7 +11,8 @@
 namespace {
 // 页面尺寸和边距属于场景；视图只负责把视口坐标换算为页面坐标。
 constexpr qreal kPageMargin = 80.0;
-constexpr qreal kPageWidth = 1200.0;
+constexpr qreal kStandardPageWidth = 1200.0;
+constexpr qreal kWidescreenPageWidth = 1600.0;
 constexpr qreal kPageHeight = 900.0;
 constexpr qreal kPointerRadius = 7.0;
 constexpr int kPatternSpacing = 40;
@@ -19,14 +20,14 @@ constexpr int kPatternSpacing = 40;
 
 EBBoardScene::EBBoardScene(QObject *parent)
     : QGraphicsScene(parent)
-    , _pageRect(kPageMargin, kPageMargin, kPageWidth, kPageHeight)
+    , _pageRect(kPageMargin, kPageMargin, kStandardPageWidth, kPageHeight)
     , _pageItem(nullptr)
     , _pointerItem(nullptr)
     , _pageColor(PageColor::White)
     , _pagePattern(PagePattern::Blank)
+    , _pageSize(PageSize::Standard)
 {
-    setSceneRect(0.0, 0.0,
-                 kPageWidth + 2.0 * kPageMargin,
+    setSceneRect(0.0, 0.0, kStandardPageWidth + 2.0 * kPageMargin,
                  kPageHeight + 2.0 * kPageMargin);
     _pageItem = addRect(_pageRect, QPen(ebThemeColor(EBThemeColor::BoardBorder)),
                          QBrush(ebThemeColor(EBThemeColor::BoardWhite)));
@@ -49,6 +50,7 @@ QRectF EBBoardScene::pageRect() const
 void EBBoardScene::showPage(const EBPage &page)
 {
     hidePointer();
+    setPageSize(page.size());
     setPageColor(page.color());
     setPagePattern(page.pattern());
     restoreStrokes(page.strokes());
@@ -78,6 +80,19 @@ void EBBoardScene::setPagePattern(PagePattern pattern)
 EBBoardScene::PagePattern EBBoardScene::pagePattern() const
 {
     return _pagePattern;
+}
+
+void EBBoardScene::setPageSize(PageSize size)
+{
+    if (_pageSize == size)
+        return;
+    _pageSize = size;
+    refreshPageGeometry();
+}
+
+EBBoardScene::PageSize EBBoardScene::pageSize() const
+{
+    return _pageSize;
 }
 
 EBStrokeItem *EBBoardScene::addStroke(const QPainterPath &path, const QPen &pen)
@@ -155,6 +170,16 @@ void EBBoardScene::hidePointer()
 bool EBBoardScene::pointerVisible() const
 {
     return _pointerItem->isVisible();
+}
+
+void EBBoardScene::refreshPageGeometry()
+{
+    const qreal width = _pageSize == PageSize::Standard
+        ? kStandardPageWidth : kWidescreenPageWidth;
+    _pageRect = QRectF(kPageMargin, kPageMargin, width, kPageHeight);
+    _pageItem->setRect(_pageRect);
+    setSceneRect(0.0, 0.0, width + 2.0 * kPageMargin,
+                 kPageHeight + 2.0 * kPageMargin);
 }
 
 void EBBoardScene::refreshPageBackground()

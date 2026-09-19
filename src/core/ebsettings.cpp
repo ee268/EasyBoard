@@ -38,6 +38,11 @@ QString EBSettings::logDir()
     return QDir(userDataDir()).absoluteFilePath(QStringLiteral("log"));
 }
 
+QString EBSettings::courseDataDir()
+{
+    return QDir(userDataDir()).absoluteFilePath(QStringLiteral("data"));
+}
+
 QByteArray EBSettings::windowGeometry() const
 {
     return _userSettings->value(QStringLiteral("Window/Geometry")).toByteArray();
@@ -46,6 +51,16 @@ QByteArray EBSettings::windowGeometry() const
 void EBSettings::setWindowGeometry(const QByteArray &geometry)
 {
     _userSettings->setValue(QStringLiteral("Window/Geometry"), geometry);
+}
+
+QString EBSettings::lastDocumentPath() const
+{
+    return _userSettings->value(QStringLiteral("Document/LastPath")).toString();
+}
+
+void EBSettings::setLastDocumentPath(const QString &path)
+{
+    _userSettings->setValue(QStringLiteral("Document/LastPath"), path);
 }
 
 bool EBSettings::save()

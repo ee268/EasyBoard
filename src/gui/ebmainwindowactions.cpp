@@ -29,7 +29,7 @@ EBMainWindowActions::EBMainWindowActions(QMainWindow *window, EBBoardView *board
     createFileMenu();
     createToolBar();
     connect(_boardView, &EBBoardView::currentPageChanged, this, [this](int) {
-        // 切页后菜单勾选状态跟随当前页的背景设置。
+        // 切页后菜单勾选状态跟随当前页的背景和尺寸设置。
         const int color = _boardView->pageColor() == EBBoardView::PageColor::White ? 0 : 1;
         int pattern = 0;
         if (_boardView->pagePattern() == EBBoardView::PagePattern::Grid)
@@ -38,6 +38,8 @@ EBMainWindowActions::EBMainWindowActions(QMainWindow *window, EBBoardView *board
             pattern = 2;
         _colorActions[color]->setChecked(true);
         _patternActions[pattern]->setChecked(true);
+        const int size = _boardView->pageSize() == EBBoardView::PageSize::Standard ? 0 : 1;
+        _sizeActions[size]->setChecked(true);
     });
     // 拖动中禁用历史动作；完成编辑后按实际栈状态重新启用。
     connect(_boardView, &EBBoardView::historyAvailabilityChanged,
@@ -56,10 +58,18 @@ void EBMainWindowActions::createFileMenu()
     importAction->setShortcut(QKeySequence::Open);
     connect(importAction, &QAction::triggered, this, [this]() {
         // 菜单只收集现有文件路径，业务处理仍由应用层完成。
-        const QString path = QFileDialog::getOpenFileName(_window, tr("选择要打开的文件"));
+        const QString path = QFileDialog::getOpenFileName(
+            _window, tr("打开 EasyBoard 文档"), QString(),
+            tr("EasyBoard 文档 (*.json)"));
         if (!path.isEmpty())
             emit fileImportRequested(path);
     });
+
+    QAction *saveAction = fileMenu->addAction(tr("保存"));
+    saveAction->setObjectName(QStringLiteral("saveDocumentAction"));
+    saveAction->setShortcut(QKeySequence::Save);
+    connect(saveAction, &QAction::triggered,
+            this, &EBMainWindowActions::saveDocumentRequested);
 
     fileMenu->addSeparator();
     QAction *quitAction = fileMenu->addAction(tr("退出"));
@@ -148,13 +158,16 @@ void EBMainWindowActions::createBackgroundMenu(QToolBar *toolBar)
     QMenu *backgroundMenu = new QMenu(_backgroundButton);
     QMenu *colorMenu = backgroundMenu->addMenu(tr("页面底色"));
     QMenu *patternMenu = backgroundMenu->addMenu(tr("页面底纹"));
+    QMenu *sizeMenu = backgroundMenu->addMenu(tr("页面尺寸"));
     _backgroundButton->setMenu(backgroundMenu);
     toolBar->addWidget(_backgroundButton);
 
     QActionGroup *colorGroup = new QActionGroup(this);
     QActionGroup *patternGroup = new QActionGroup(this);
+    QActionGroup *sizeGroup = new QActionGroup(this);
     colorGroup->setExclusive(true);
     patternGroup->setExclusive(true);
+    sizeGroup->setExclusive(true);
     const auto choice = [](QMenu *menu, QActionGroup *group,
                            const QString &label, const char *name) {
         QAction *action = menu->addAction(label);
@@ -168,13 +181,18 @@ void EBMainWindowActions::createBackgroundMenu(QToolBar *toolBar)
     QAction *blank = choice(patternMenu, patternGroup, tr("空白"), "blankPatternAction");
     QAction *grid = choice(patternMenu, patternGroup, tr("网格"), "gridPatternAction");
     QAction *ruled = choice(patternMenu, patternGroup, tr("横线"), "ruledPatternAction");
+    QAction *standard = choice(sizeMenu, sizeGroup, tr("常规 4:3"), "standardPageAction");
+    QAction *widescreen = choice(sizeMenu, sizeGroup, tr("宽屏 16:9"), "widescreenPageAction");
     _colorActions[0] = white;
     _colorActions[1] = cream;
     _patternActions[0] = blank;
     _patternActions[1] = grid;
     _patternActions[2] = ruled;
+    _sizeActions[0] = standard;
+    _sizeActions[1] = widescreen;
     white->setChecked(true);
     blank->setChecked(true);
+    standard->setChecked(true);
 
     // 两组动作分别改变场景状态，互不覆盖已有的底色或底纹选择。
     connect(white, &QAction::triggered, _boardView, [this]() {
@@ -191,6 +209,12 @@ void EBMainWindowActions::createBackgroundMenu(QToolBar *toolBar)
     });
     connect(ruled, &QAction::triggered, _boardView, [this]() {
         _boardView->setPagePattern(EBBoardView::PagePattern::Ruled);
+    });
+    connect(standard, &QAction::triggered, _boardView, [this]() {
+        _boardView->setPageSize(EBBoardView::PageSize::Standard);
+    });
+    connect(widescreen, &QAction::triggered, _boardView, [this]() {
+        _boardView->setPageSize(EBBoardView::PageSize::Widescreen);
     });
 }
 

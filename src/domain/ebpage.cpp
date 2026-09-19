@@ -20,6 +20,16 @@ void EBPage::setPattern(Pattern pattern)
     _pattern = pattern;
 }
 
+EBPage::Size EBPage::size() const
+{
+    return _size;
+}
+
+void EBPage::setSize(Size size)
+{
+    _size = size;
+}
+
 const EBPage::Strokes &EBPage::strokes() const
 {
     return _strokes;

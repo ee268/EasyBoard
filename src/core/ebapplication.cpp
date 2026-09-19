@@ -100,8 +100,10 @@ void EBApplication::handleInstanceMessage(const QString &message)
 
     if (message == QStringLiteral("__eboard_activate__"))
         qDebug() << "__eboard_activate__";
-    else
+    else {
         qDebug() << tr("收到待打开文件：%1").arg(message);
+        handleImportFileRequest(message);
+    }
 }
 
 void EBApplication::handleImportFileRequest(const QString &filePath)
@@ -114,6 +116,7 @@ void EBApplication::handleImportFileRequest(const QString &filePath)
     if (!file.isFile()) {
         return;
     }
+    _mainWindow->openDocument(file.absoluteFilePath());
 }
 
 

@@ -18,8 +18,12 @@ public:
     explicit EBMainWindow(QWidget *parent = nullptr);
 
     void showMode(EBApplicationController::MainMode mode);
+    bool openDocument(const QString &path);
 
 private:
+    void saveDocument();
+    void restoreLastDocument();
+
     EBDocument _document;
     QStackedWidget *_modeStack;
     QWidget *_boardWorkspace;
