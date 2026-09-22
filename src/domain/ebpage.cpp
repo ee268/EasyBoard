@@ -39,3 +39,43 @@ void EBPage::setStrokes(const Strokes &strokes)
 {
     _strokes = strokes;
 }
+
+const EBPage::Texts &EBPage::texts() const
+{
+    return _texts;
+}
+
+void EBPage::setTexts(const Texts &texts)
+{
+    _texts = texts;
+}
+
+const EBPage::Images &EBPage::images() const
+{
+    return _images;
+}
+
+void EBPage::setImages(const Images &images)
+{
+    _images = images;
+}
+
+bool EBPage::hasBackgroundImage() const
+{
+    return !_backgroundImage.isNull();
+}
+
+const QImage &EBPage::backgroundImage() const
+{
+    return _backgroundImage;
+}
+
+void EBPage::setBackgroundImage(const QImage &image)
+{
+    _backgroundImage = image;
+}
+
+void EBPage::clearBackgroundImage()
+{
+    _backgroundImage = QImage();
+}

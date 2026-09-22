@@ -14,6 +14,9 @@ public:
         QPen pen;
         QPointF position;
         qreal zValue;
+        QPointF transformOrigin;
+        qreal scale = 1.0;
+        qreal rotation = 0.0;
     };
 
     EBStrokeItem(const QPainterPath &path, const QPen &pen);

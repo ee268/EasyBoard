@@ -9,6 +9,7 @@
 class QStackedWidget;
 class EBBoardView;
 class EBMainWindowActions;
+class EBDocumentLibrary;
 class EBPageNavigator;
 
 class EBMainWindow : public QMainWindow
@@ -19,16 +20,34 @@ public:
 
     void showMode(EBApplicationController::MainMode mode);
     bool openDocument(const QString &path);
+    bool importImage(const QString &path);
+    bool insertImageObject(const QString &path);
+    bool importDocumentPackage(const QString &path);
 
 private:
     void saveDocument();
+    void exportCurrentPageImage();
+    void exportDocumentPdf();
+    void exportDocumentPackage();
+    bool prepareForImportedDocument();
+    bool activateImportedDocument(const EBDocument &document,
+                                  QString *savedPath, QString *error);
+    bool saveCurrentDocument(bool showMessage);
+    bool loadDocument(const QString &path, bool switchToBoard);
     void restoreLastDocument();
+    void refreshDocumentLibrary();
+    void renameDocument(const QString &path, const QString &title);
+    void moveDocumentToTrash(const QString &path);
+    void restoreDocument(const QString &path);
+    void deleteDocument(const QString &path);
+    void resetCurrentDocument();
 
     EBDocument _document;
     QStackedWidget *_modeStack;
     QWidget *_boardWorkspace;
     EBBoardView *_boardView;
     EBPageNavigator *_pageNavigator;
+    EBDocumentLibrary *_documentLibrary;
     EBMainWindowActions *_actions;
 
 signals:

@@ -21,6 +21,19 @@ QString EBDocument::title() const
     return _title;
 }
 
+bool EBDocument::setTitle(const QString &title)
+{
+    const QString normalized = title.trimmed();
+    if (normalized.isEmpty() || normalized.size() > 120)
+        return false;
+    for (const QChar character : normalized) {
+        if (!character.isPrint())
+            return false;
+    }
+    _title = normalized;
+    return true;
+}
+
 QDateTime EBDocument::createdAt() const
 {
     return _createdAt;

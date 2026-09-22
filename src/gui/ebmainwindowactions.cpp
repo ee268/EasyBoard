@@ -2,6 +2,8 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
+#include <QClipboard>
 #include <QFileDialog>
 #include <QIcon>
 #include <QMainWindow>
@@ -12,6 +14,8 @@
 #include <QToolButton>
 
 #include "../board/ebboardview.h"
+#include "../import/ebimageimporter.h"
+#include "../persistence/ebdocumentpackage.h"
 
 namespace {
 QIcon toolbarIcon(const char *name)
@@ -27,6 +31,7 @@ EBMainWindowActions::EBMainWindowActions(QMainWindow *window, EBBoardView *board
     , _boardView(boardView)
 {
     createFileMenu();
+    createEditMenu();
     createToolBar();
     connect(_boardView, &EBBoardView::currentPageChanged, this, [this](int) {
         // 切页后菜单勾选状态跟随当前页的背景和尺寸设置。
@@ -48,19 +53,67 @@ EBMainWindowActions::EBMainWindowActions(QMainWindow *window, EBBoardView *board
         _undoAction->setEnabled(onBoard && canUndo);
         _redoAction->setEnabled(onBoard && canRedo);
     });
+    connect(_boardView, &EBBoardView::selectionAvailabilityChanged,
+            this, [this](bool) {
+        updateObjectActions();
+        updateClipboardActions();
+    });
+    connect(_boardView, &EBBoardView::drawingToolChanged, this,
+            [this](EBBoardView::DrawingTool tool) {
+        const int index = static_cast<int>(tool);
+        if (index >= 0 && index < 8 && _toolActions[index])
+            _toolActions[index]->setChecked(true);
+    });
+    connect(QApplication::clipboard(), &QClipboard::dataChanged,
+            this, &EBMainWindowActions::updateClipboardActions);
 }
 
 void EBMainWindowActions::createFileMenu()
 {
     QMenu *fileMenu = _window->menuBar()->addMenu(tr("文件(&F)"));
-    QAction *importAction = fileMenu->addAction(tr("打开..."));
-    importAction->setObjectName(QStringLiteral("openFileAction"));
-    importAction->setShortcut(QKeySequence::Open);
-    connect(importAction, &QAction::triggered, this, [this]() {
-        // 菜单只收集现有文件路径，业务处理仍由应用层完成。
+    QAction *openAction = fileMenu->addAction(tr("打开文档..."));
+    openAction->setObjectName(QStringLiteral("openFileAction"));
+    openAction->setShortcut(QKeySequence::Open);
+    connect(openAction, &QAction::triggered, this, [this]() {
         const QString path = QFileDialog::getOpenFileName(
             _window, tr("打开 EasyBoard 文档"), QString(),
             tr("EasyBoard 文档 (*.json)"));
+        if (!path.isEmpty())
+            emit fileImportRequested(path);
+    });
+
+    QAction *importAction = fileMenu->addAction(tr("导入图片为新文档..."));
+    importAction->setObjectName(QStringLiteral("importImageAction"));
+    importAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_I));
+    connect(importAction, &QAction::triggered, this, [this]() {
+        // 菜单只收集图片路径，应用层统一处理菜单和实例间请求。
+        const QString path = QFileDialog::getOpenFileName(
+            _window, tr("导入图片为新文档"), QString(),
+            EBImageImporter::fileDialogFilter());
+        if (!path.isEmpty())
+            emit fileImportRequested(path);
+    });
+
+    _insertImageObjectAction = fileMenu->addAction(tr("插入图片对象..."));
+    _insertImageObjectAction->setObjectName(
+        QStringLiteral("insertImageObjectAction"));
+    _insertImageObjectAction->setShortcut(
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I));
+    connect(_insertImageObjectAction, &QAction::triggered, this, [this]() {
+        const QString path = QFileDialog::getOpenFileName(
+            _window, tr("插入图片对象"), QString(),
+            EBImageImporter::fileDialogFilter());
+        if (!path.isEmpty())
+            emit imageObjectInsertRequested(path);
+    });
+
+    QAction *importPackageAction = fileMenu->addAction(tr("导入课程文档包..."));
+    importPackageAction->setObjectName(
+        QStringLiteral("importDocumentPackageAction"));
+    connect(importPackageAction, &QAction::triggered, this, [this]() {
+        const QString path = QFileDialog::getOpenFileName(
+            _window, tr("导入 EasyBoard 课程文档包"), QString(),
+            EBDocumentPackage::fileDialogFilter());
         if (!path.isEmpty())
             emit fileImportRequested(path);
     });
@@ -72,10 +125,48 @@ void EBMainWindowActions::createFileMenu()
             this, &EBMainWindowActions::saveDocumentRequested);
 
     fileMenu->addSeparator();
+    QAction *exportPageAction = fileMenu->addAction(tr("导出当前页图片..."));
+    exportPageAction->setObjectName(QStringLiteral("exportPageImageAction"));
+    connect(exportPageAction, &QAction::triggered,
+            this, &EBMainWindowActions::exportPageImageRequested);
+    QAction *exportPdfAction = fileMenu->addAction(tr("导出整份文档 PDF..."));
+    exportPdfAction->setObjectName(QStringLiteral("exportDocumentPdfAction"));
+    connect(exportPdfAction, &QAction::triggered,
+            this, &EBMainWindowActions::exportDocumentPdfRequested);
+    QAction *exportPackageAction = fileMenu->addAction(tr("导出课程文档包..."));
+    exportPackageAction->setObjectName(
+        QStringLiteral("exportDocumentPackageAction"));
+    connect(exportPackageAction, &QAction::triggered,
+            this, &EBMainWindowActions::exportDocumentPackageRequested);
+
+    fileMenu->addSeparator();
     QAction *quitAction = fileMenu->addAction(tr("退出"));
     quitAction->setObjectName(QStringLiteral("quitAction"));
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, this, &EBMainWindowActions::quitRequested);
+}
+
+void EBMainWindowActions::createEditMenu()
+{
+    QMenu *editMenu = _window->menuBar()->addMenu(tr("编辑(&E)"));
+    _cutAction = editMenu->addAction(tr("剪切"));
+    _cutAction->setObjectName(QStringLiteral("cutObjectAction"));
+    _cutAction->setShortcut(QKeySequence::Cut);
+    _copyAction = editMenu->addAction(tr("复制"));
+    _copyAction->setObjectName(QStringLiteral("copyObjectAction"));
+    _copyAction->setShortcut(QKeySequence::Copy);
+    _pasteAction = editMenu->addAction(tr("粘贴"));
+    _pasteAction->setObjectName(QStringLiteral("pasteObjectAction"));
+    _pasteAction->setShortcut(QKeySequence::Paste);
+    _cutAction->setEnabled(false);
+    _copyAction->setEnabled(false);
+    _pasteAction->setEnabled(false);
+    connect(_cutAction, &QAction::triggered,
+            _boardView, &EBBoardView::cutSelectedObject);
+    connect(_copyAction, &QAction::triggered,
+            _boardView, &EBBoardView::copySelectedObject);
+    connect(_pasteAction, &QAction::triggered,
+            _boardView, &EBBoardView::pasteObject);
 }
 
 void EBMainWindowActions::createToolBar()
@@ -95,6 +186,9 @@ void EBMainWindowActions::createToolBar()
         "QToolBar QToolButton:pressed { background: #C7E9E2; }"
         "QToolBar::separator { background: #D8E2E6; width: 1px; margin: 7px 6px; }"));
     createBackgroundMenu(toolBar);
+    _insertImageObjectAction->setIcon(toolbarIcon("image_object"));
+    _insertImageObjectAction->setToolTip(tr("插入图片对象"));
+    toolBar->addAction(_insertImageObjectAction);
     toolBar->addSeparator();
 
     createZoomActions(toolBar);
@@ -117,6 +211,18 @@ void EBMainWindowActions::createToolBar()
     toolBar->addSeparator();
 
     createDrawingActions(toolBar);
+    toolBar->addSeparator();
+    _cutAction->setIcon(toolbarIcon("cut"));
+    _copyAction->setIcon(toolbarIcon("copy"));
+    _pasteAction->setIcon(toolbarIcon("paste"));
+    _cutAction->setToolTip(tr("剪切"));
+    _copyAction->setToolTip(tr("复制"));
+    _pasteAction->setToolTip(tr("粘贴"));
+    toolBar->addAction(_cutAction);
+    toolBar->addAction(_copyAction);
+    toolBar->addAction(_pasteAction);
+    toolBar->addSeparator();
+    createObjectActions(toolBar);
     toolBar->addSeparator();
     QWidget *spacer = new QWidget(toolBar);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -222,17 +328,21 @@ void EBMainWindowActions::createDrawingActions(QToolBar *toolBar)
 {
     QActionGroup *group = new QActionGroup(this);
     group->setExclusive(true);
-    const QString labels[] = {tr("画笔"), tr("荧光笔"), tr("直线"),
-                              tr("橡皮"), tr("指示"), tr("平移")};
-    const char *names[] = {"penToolAction", "markerToolAction", "lineToolAction",
-                           "eraserToolAction", "pointerToolAction", "panToolAction"};
-    const char *icons[] = {"pen", "marker", "line", "eraser", "pointer", "pan"};
+    const QString labels[] = {tr("选择"), tr("文本"), tr("画笔"), tr("荧光笔"),
+                              tr("直线"), tr("橡皮"), tr("指示"), tr("平移")};
+    const char *names[] = {"selectToolAction", "textToolAction", "penToolAction",
+                           "markerToolAction", "lineToolAction", "eraserToolAction",
+                           "pointerToolAction", "panToolAction"};
+    const char *icons[] = {"select", "text", "pen", "marker", "line", "eraser",
+                           "pointer", "pan"};
     const EBBoardView::DrawingTool tools[] = {
-        EBBoardView::DrawingTool::Pen, EBBoardView::DrawingTool::Marker,
+        EBBoardView::DrawingTool::Select, EBBoardView::DrawingTool::Text,
+        EBBoardView::DrawingTool::Pen,
+        EBBoardView::DrawingTool::Marker,
         EBBoardView::DrawingTool::Line, EBBoardView::DrawingTool::Eraser,
         EBBoardView::DrawingTool::Pointer, EBBoardView::DrawingTool::Pan
     };
-    for (int index = 0; index < 6; ++index) {
+    for (int index = 0; index < 8; ++index) {
         QAction *action = new QAction(toolbarIcon(icons[index]), labels[index], this);
         action->setObjectName(QString::fromLatin1(names[index]));
         action->setToolTip(labels[index]);
@@ -244,7 +354,40 @@ void EBMainWindowActions::createDrawingActions(QToolBar *toolBar)
             _boardView->setDrawingTool(tool);
         });
     }
-    _toolActions[0]->setChecked(true);
+    _toolActions[1]->setToolTip(tr("文本（Ctrl+Enter 完成编辑）"));
+    _toolActions[2]->setChecked(true);
+}
+
+void EBMainWindowActions::createObjectActions(QToolBar *toolBar)
+{
+    const QString labels[] = {tr("放大对象"), tr("缩小对象"),
+                              tr("逆时针旋转"), tr("顺时针旋转"),
+                              tr("删除对象")};
+    const char *names[] = {"scaleObjectUpAction", "scaleObjectDownAction",
+                           "rotateObjectLeftAction", "rotateObjectRightAction",
+                           "deleteObjectAction"};
+    const char *icons[] = {"object_scale_up", "object_scale_down",
+                           "object_rotate_left", "object_rotate_right",
+                           "object_delete"};
+    for (int index = 0; index < 5; ++index) {
+        QAction *action = toolBar->addAction(toolbarIcon(icons[index]),
+                                              labels[index]);
+        action->setObjectName(QString::fromLatin1(names[index]));
+        action->setToolTip(labels[index]);
+        action->setEnabled(false);
+        _objectActions[index] = action;
+    }
+    connect(_objectActions[0], &QAction::triggered, _boardView,
+            [this]() { _boardView->scaleSelectedObject(1.1); });
+    connect(_objectActions[1], &QAction::triggered, _boardView,
+            [this]() { _boardView->scaleSelectedObject(1.0 / 1.1); });
+    connect(_objectActions[2], &QAction::triggered, _boardView,
+            [this]() { _boardView->rotateSelectedObject(-15.0); });
+    connect(_objectActions[3], &QAction::triggered, _boardView,
+            [this]() { _boardView->rotateSelectedObject(15.0); });
+    _objectActions[4]->setShortcut(QKeySequence::Delete);
+    connect(_objectActions[4], &QAction::triggered,
+            _boardView, &EBBoardView::deleteSelectedObject);
 }
 
 void EBMainWindowActions::createModeActions(QToolBar *toolBar)
@@ -276,14 +419,41 @@ void EBMainWindowActions::setMode(EBApplicationController::MainMode mode)
         return;
     _modeActions[index]->setChecked(true);
     const bool onBoard = mode == EBApplicationController::MainMode::Board;
+    _boardModeActive = onBoard;
     for (QAction *tool : _toolActions)
         tool->setEnabled(onBoard);
     _backgroundButton->setEnabled(onBoard);
     _zoomInAction->setEnabled(onBoard);
     _zoomOutAction->setEnabled(onBoard);
     _fitPageAction->setEnabled(onBoard);
+    _insertImageObjectAction->setEnabled(onBoard);
     _undoAction->setEnabled(onBoard && _boardView->canUndo());
     _redoAction->setEnabled(onBoard && _boardView->canRedo());
+    updateObjectActions();
+    updateClipboardActions();
+}
+
+void EBMainWindowActions::updateObjectActions()
+{
+    const bool enabled = _boardModeActive && _boardView->hasSelectedObject();
+    for (QAction *action : _objectActions) {
+        if (action)
+            action->setEnabled(enabled);
+    }
+}
+
+void EBMainWindowActions::updateClipboardActions()
+{
+    const bool selected = _boardModeActive && _boardView->hasSelectedObject();
+    if (_cutAction)
+        _cutAction->setEnabled(selected);
+    if (_copyAction)
+        _copyAction->setEnabled(selected);
+    if (_pasteAction) {
+        _pasteAction->setEnabled(_boardModeActive
+                                 && !_boardView->isTextEditing()
+                                 && _boardView->canPasteObject());
+    }
 }
 
 QString EBMainWindowActions::modeLabel(EBApplicationController::MainMode mode) const

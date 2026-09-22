@@ -6,6 +6,7 @@
 #include "ebboardscene.h"
 
 class QUndoStack;
+class QKeyEvent;
 class EBDocument;
 
 // 视图只负责视口坐标、鼠标操作会话和撤销入口；页面内容交给场景。
@@ -15,6 +16,8 @@ class EBBoardView : public QGraphicsView
 
 public:
     enum class DrawingTool {
+        Select,
+        Text,
         Pen,
         Marker,
         Line,
@@ -34,6 +37,16 @@ public:
     bool canRedo() const;
     void undo();
     void redo();
+    bool hasSelectedObject() const;
+    void scaleSelectedObject(qreal factor);
+    void rotateSelectedObject(qreal degrees);
+    void deleteSelectedObject();
+    void copySelectedObject();
+    void cutSelectedObject();
+    void pasteObject();
+    bool canPasteObject() const;
+    bool isTextEditing() const;
+    bool insertImageObject(const EBImageItem::State &state);
     int addPage();
     int duplicateCurrentPage();
     bool removeCurrentPage();
@@ -64,11 +77,14 @@ signals:
     void currentPageChanged(int index);
     void pageContentChanged(int index);
     void pageListChanged();
+    void selectionAvailabilityChanged(bool available);
+    void drawingToolChanged(DrawingTool tool);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
     void showEvent(QShowEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -77,13 +93,20 @@ protected:
 
 private:
     using Snapshot = EBBoardScene::Snapshot;
-    class StrokeEditCommand;
+    class PageEditCommand;
 
     void applyViewState();
     void zoomBy(qreal factor);
     QPointF boundedPagePosition(const QPointF &viewportPosition) const;
     void updateActiveStroke(const QPointF &pagePosition);
     void eraseAlong(const QPointF &from, const QPointF &to);
+    void updateObjectMove(const QPointF &scenePosition);
+    void finishObjectMove();
+    void startTextEditing(EBTextItem *text, bool newlyCreated);
+    void finishTextEditing();
+    void keepObjectInsidePage(QGraphicsItem *item);
+    void commitObjectEdit(const Snapshot &before, const QString &description);
+    void restoreSnapshot(const Snapshot &snapshot);
     void beginEdit();
     void finishEdit();
     void finishPageInteraction();
@@ -93,9 +116,15 @@ private:
     EBDocument *_document;
     EBBoardScene *_scene;
     EBStrokeItem *_activeStroke;
+    QGraphicsItem *_movingObject;
+    EBTextItem *_editingText;
+    QString _textBeforeEdit;
+    bool _editingTextWasNew;
     DrawingTool _drawingTool;
     DrawingTool _activeTool;
     QPointF _strokeStart;
+    QPointF _moveStartScene;
+    QPointF _moveStartPosition;
     bool _erasing;
     QPointF _lastEraserPosition;
     bool _pointing;

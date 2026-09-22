@@ -4,11 +4,22 @@
     </qresource>
     <qresource prefix="/toolbar">
         <file>icons/toolbar/background.svg</file>
+        <file>icons/toolbar/image_object.svg</file>
         <file>icons/toolbar/zoom_in.svg</file>
         <file>icons/toolbar/zoom_out.svg</file>
         <file>icons/toolbar/fit_page.svg</file>
         <file>icons/toolbar/undo.svg</file>
         <file>icons/toolbar/redo.svg</file>
+        <file>icons/toolbar/select.svg</file>
+        <file>icons/toolbar/text.svg</file>
+        <file>icons/toolbar/cut.svg</file>
+        <file>icons/toolbar/copy.svg</file>
+        <file>icons/toolbar/paste.svg</file>
+        <file>icons/toolbar/object_scale_up.svg</file>
+        <file>icons/toolbar/object_scale_down.svg</file>
+        <file>icons/toolbar/object_rotate_left.svg</file>
+        <file>icons/toolbar/object_rotate_right.svg</file>
+        <file>icons/toolbar/object_delete.svg</file>
         <file>icons/toolbar/pen.svg</file>
         <file>icons/toolbar/marker.svg</file>
         <file>icons/toolbar/line.svg</file>

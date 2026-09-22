@@ -8,6 +8,7 @@
 #include "ebpage.h"
 
 class EBDocumentStorage;
+class EBDocumentPackage;
 
 // 一个文档至少包含一页，页面顺序与缩略图导航顺序一致。
 class EBDocument
@@ -17,6 +18,7 @@ public:
 
     QString id() const;
     QString title() const;
+    bool setTitle(const QString &title);
     QDateTime createdAt() const;
 
     int pageCount() const;
@@ -33,6 +35,7 @@ public:
 
 private:
     friend class EBDocumentStorage;
+    friend class EBDocumentPackage;
 
     QVector<EBPage> _pages;
     int _currentPageIndex;

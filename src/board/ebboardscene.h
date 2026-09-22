@@ -6,6 +6,7 @@
 #include "../domain/ebpage.h"
 
 class QGraphicsEllipseItem;
+class QGraphicsPixmapItem;
 class QGraphicsRectItem;
 
 // 场景显示当前页面的背景、临时指示点和全部笔迹图元。
@@ -15,7 +16,12 @@ public:
     using PageColor = EBPage::Color;
     using PagePattern = EBPage::Pattern;
     using PageSize = EBPage::Size;
-    using Snapshot = EBPage::Strokes;
+    using StrokeSnapshot = EBPage::Strokes;
+    struct Snapshot {
+        EBPage::Strokes strokes;
+        EBPage::Texts texts;
+        EBPage::Images images;
+    };
 
     explicit EBBoardScene(QObject *parent = nullptr);
 
@@ -30,9 +36,27 @@ public:
 
     // 视图只报告操作意图，图元的创建、裁切和恢复统一由场景管理。
     EBStrokeItem *addStroke(const QPainterPath &path, const QPen &pen);
+    EBTextItem *addText(const QString &text, const QFont &font,
+                        const QColor &color);
+    EBImageItem *addImage(const EBImageItem::State &state);
     bool eraseAt(const QPointF &pagePosition, qreal radius);
-    Snapshot captureStrokes() const;
-    void restoreStrokes(const Snapshot &snapshot);
+    StrokeSnapshot captureStrokes() const;
+    void restoreStrokes(const StrokeSnapshot &snapshot);
+    EBPage::Texts captureTexts() const;
+    void restoreTexts(const EBPage::Texts &texts);
+    EBPage::Images captureImages() const;
+    void restoreImages(const EBPage::Images &images);
+    Snapshot captureSnapshot() const;
+    void restoreSnapshot(const Snapshot &snapshot);
+    EBStrokeItem *strokeAt(const QPointF &scenePosition,
+                           qreal tolerance = 6.0) const;
+    EBTextItem *textAt(const QPointF &scenePosition) const;
+    QGraphicsItem *objectAt(const QPointF &scenePosition,
+                            qreal tolerance = 6.0) const;
+    EBStrokeItem *selectedStroke() const;
+    QGraphicsItem *selectedObject() const;
+    void setObjectInteractionEnabled(bool enabled);
+    bool objectInteractionEnabled() const;
     void showPointerAt(const QPointF &pagePosition);
     void hidePointer();
     bool pointerVisible() const;
@@ -40,13 +64,17 @@ public:
 private:
     void refreshPageGeometry();
     void refreshPageBackground();
+    void refreshPageImage();
 
     QRectF _pageRect;
     QGraphicsRectItem *_pageItem;
+    QGraphicsPixmapItem *_pageImageItem;
     QGraphicsEllipseItem *_pointerItem;
     PageColor _pageColor;
     PagePattern _pagePattern;
     PageSize _pageSize;
+    QImage _pageBackgroundImage;
+    bool _objectInteractionEnabled;
 };
 
 #endif

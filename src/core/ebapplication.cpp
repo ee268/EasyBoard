@@ -116,7 +116,12 @@ void EBApplication::handleImportFileRequest(const QString &filePath)
     if (!file.isFile()) {
         return;
     }
-    _mainWindow->openDocument(file.absoluteFilePath());
+    if (file.suffix().compare(QStringLiteral("json"), Qt::CaseInsensitive) == 0)
+        _mainWindow->openDocument(file.absoluteFilePath());
+    else if (file.suffix().compare(QStringLiteral("ebz"), Qt::CaseInsensitive) == 0)
+        _mainWindow->importDocumentPackage(file.absoluteFilePath());
+    else
+        _mainWindow->importImage(file.absoluteFilePath());
 }
 
 

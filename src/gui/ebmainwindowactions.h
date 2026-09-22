@@ -24,17 +24,25 @@ public:
 
 signals:
     void fileImportRequested(const QString &filePath);
+    void imageObjectInsertRequested(const QString &filePath);
     void saveDocumentRequested();
+    void exportPageImageRequested();
+    void exportDocumentPdfRequested();
+    void exportDocumentPackageRequested();
     void quitRequested();
     void modeRequested(EBApplicationController::MainMode mode);
 
 private:
     void createFileMenu();
+    void createEditMenu();
     void createToolBar();
     void createBackgroundMenu(QToolBar *toolBar);
     void createZoomActions(QToolBar *toolBar);
     void createDrawingActions(QToolBar *toolBar);
+    void createObjectActions(QToolBar *toolBar);
     void createModeActions(QToolBar *toolBar);
+    void updateObjectActions();
+    void updateClipboardActions();
 
     QMainWindow *_window;
     EBBoardView *_boardView;
@@ -44,11 +52,17 @@ private:
     QAction *_zoomInAction = nullptr;
     QAction *_zoomOutAction = nullptr;
     QAction *_fitPageAction = nullptr;
+    QAction *_insertImageObjectAction = nullptr;
+    QAction *_cutAction = nullptr;
+    QAction *_copyAction = nullptr;
+    QAction *_pasteAction = nullptr;
     QAction *_colorActions[2] = {};
     QAction *_patternActions[3] = {};
     QAction *_sizeActions[2] = {};
-    QAction *_toolActions[6] = {};
+    QAction *_toolActions[8] = {};
+    QAction *_objectActions[5] = {};
     QAction *_modeActions[4] = {};
+    bool _boardModeActive = false;
 };
 
 #endif

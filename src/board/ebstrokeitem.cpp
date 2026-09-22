@@ -9,11 +9,13 @@ EBStrokeItem::EBStrokeItem(const QPainterPath &path, const QPen &pen)
     : QGraphicsPathItem(path)
 {
     setPen(pen);
+    setTransformOriginPoint(path.boundingRect().center());
 }
 
 EBStrokeItem::State EBStrokeItem::state() const
 {
-    return {path(), pen(), pos(), zValue()};
+    return {path(), pen(), pos(), zValue(), transformOriginPoint(),
+            scale(), rotation()};
 }
 
 void EBStrokeItem::applyState(const State &state)
@@ -22,6 +24,9 @@ void EBStrokeItem::applyState(const State &state)
     setPen(state.pen);
     setPos(state.position);
     setZValue(state.zValue);
+    setTransformOriginPoint(state.transformOrigin);
+    setScale(state.scale);
+    setRotation(state.rotation);
 }
 
 bool EBStrokeItem::splitAt(const QPointF &center, qreal radius,

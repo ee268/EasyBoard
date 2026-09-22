@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+    <title>选择</title>
+    <g fill="none" stroke="#173C56" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 3l12 9-6 1 4 6-3 2-4-7-3 4z"/>
+        <path d="M17 4h3v3M20 17v3h-3" stroke="#36B9AC"/>
+    </g>
+</svg>
