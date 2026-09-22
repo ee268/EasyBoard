@@ -16,6 +16,7 @@
         <file>icons/toolbar/cut.svg</file>
         <file>icons/toolbar/copy.svg</file>
         <file>icons/toolbar/paste.svg</file>
+        <file>icons/toolbar/duplicate.svg</file>
         <file>icons/toolbar/object_to_back.svg</file>
         <file>icons/toolbar/object_backward.svg</file>
         <file>icons/toolbar/object_forward.svg</file>
@@ -27,6 +28,8 @@
         <file>icons/toolbar/object_delete.svg</file>
         <file>icons/toolbar/object_group.svg</file>
         <file>icons/toolbar/object_ungroup.svg</file>
+        <file>icons/toolbar/object_lock.svg</file>
+        <file>icons/toolbar/object_unlock.svg</file>
         <file>icons/toolbar/object_arrange.svg</file>
         <file>icons/toolbar/object_align_left.svg</file>
         <file>icons/toolbar/object_align_hcenter.svg</file>

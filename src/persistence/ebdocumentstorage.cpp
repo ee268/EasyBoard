@@ -87,6 +87,8 @@ QJsonObject strokeObject(const EBStrokeItem::State &stroke)
     };
     if (!stroke.groupId.isEmpty())
         object.insert(QStringLiteral("groupId"), stroke.groupId);
+    if (stroke.locked)
+        object.insert(QStringLiteral("locked"), true);
     return object;
 }
 
@@ -120,6 +122,8 @@ QJsonObject textObject(const EBTextItem::State &text)
     };
     if (!text.groupId.isEmpty())
         object.insert(QStringLiteral("groupId"), text.groupId);
+    if (text.locked)
+        object.insert(QStringLiteral("locked"), true);
     return object;
 }
 
@@ -144,6 +148,8 @@ QJsonObject imageObject(const EBImageItem::State &image)
     };
     if (!image.groupId.isEmpty())
         object.insert(QStringLiteral("groupId"), image.groupId);
+    if (image.locked)
+        object.insert(QStringLiteral("locked"), true);
     return object;
 }
 
@@ -305,6 +311,19 @@ bool readGroupId(const QJsonObject &object, QString *groupId)
     return true;
 }
 
+bool readLocked(const QJsonObject &object, bool *locked)
+{
+    const QJsonValue value = object.value(QStringLiteral("locked"));
+    if (value.isUndefined()) {
+        *locked = false;
+        return true;
+    }
+    if (!value.isBool())
+        return false;
+    *locked = value.toBool();
+    return true;
+}
+
 bool readStroke(const QJsonObject &object, EBStrokeItem::State *stroke)
 {
     QPainterPath path;
@@ -329,16 +348,17 @@ bool readStroke(const QJsonObject &object, EBStrokeItem::State *stroke)
     const qreal scale = object.value(QStringLiteral("scale")).toDouble(1.0);
     const qreal rotation = object.value(QStringLiteral("rotation")).toDouble(0.0);
     QString groupId;
+    bool locked = false;
     if (!qIsFinite(scale) || scale <= 0.0 || scale > 20.0
         || !qIsFinite(rotation)
         || !qIsFinite(transformOrigin.x()) || !qIsFinite(transformOrigin.y())
-        || !readGroupId(object, &groupId))
+        || !readGroupId(object, &groupId) || !readLocked(object, &locked))
         return false;
     *stroke = {path, pen,
                QPointF(position.value(QStringLiteral("x")).toDouble(),
                        position.value(QStringLiteral("y")).toDouble()),
                object.value(QStringLiteral("z")).toDouble(),
-               transformOrigin, scale, rotation, groupId};
+               transformOrigin, scale, rotation, groupId, locked};
     return true;
 }
 
@@ -361,6 +381,7 @@ bool readText(const QJsonObject &object, EBTextItem::State *text)
     const qreal rotation = object.value(QStringLiteral("rotation")).toDouble();
     const qreal textWidth = object.value(QStringLiteral("textWidth")).toDouble(-1.0);
     QString groupId;
+    bool locked = false;
     if (content.isEmpty() || content.size() > kMaxTextLength
         || family.isEmpty() || family.size() > 256
         || pointSize < 6.0 || pointSize > 200.0
@@ -374,7 +395,7 @@ bool readText(const QJsonObject &object, EBTextItem::State *text)
         || !qIsFinite(scale) || scale <= 0.0 || scale > 20.0
         || !qIsFinite(rotation)
         || !qIsFinite(textWidth) || textWidth < 40.0 || textWidth > 2000.0
-        || !readGroupId(object, &groupId))
+        || !readGroupId(object, &groupId) || !readLocked(object, &locked))
         return false;
     QFont font(family);
     font.setPointSizeF(pointSize);
@@ -382,7 +403,8 @@ bool readText(const QJsonObject &object, EBTextItem::State *text)
     font.setItalic(fontJson.value(QStringLiteral("italic")).toBool(false));
     font.setUnderline(fontJson.value(QStringLiteral("underline")).toBool(false));
     *text = {content, font, color, QPointF(x, y), z,
-             QPointF(originX, originY), scale, rotation, textWidth, groupId};
+             QPointF(originX, originY), scale, rotation, textWidth, groupId,
+             locked};
     return true;
 }
 
@@ -424,15 +446,17 @@ bool readImage(const QJsonObject &object, EBImageItem::State *image)
     const qreal scale = object.value(QStringLiteral("scale")).toDouble(-1.0);
     const qreal rotation = object.value(QStringLiteral("rotation")).toDouble();
     QString groupId;
+    bool locked = false;
     if (!qIsFinite(width) || !qIsFinite(height)
         || width <= 0.0 || height <= 0.0 || width > 10000.0 || height > 10000.0
         || !qIsFinite(x) || !qIsFinite(y) || !qIsFinite(z)
         || !qIsFinite(originX) || !qIsFinite(originY)
         || !qIsFinite(scale) || scale <= 0.0 || scale > 20.0
-        || !qIsFinite(rotation) || !readGroupId(object, &groupId))
+        || !qIsFinite(rotation) || !readGroupId(object, &groupId)
+        || !readLocked(object, &locked))
         return false;
     *image = {format, data, QSizeF(width, height), QPointF(x, y), z,
-              QPointF(originX, originY), scale, rotation, groupId};
+              QPointF(originX, originY), scale, rotation, groupId, locked};
     return true;
 }
 

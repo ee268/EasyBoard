@@ -75,6 +75,11 @@ public:
     QVector<QGraphicsItem *> objectsInRect(const QRectF &sceneRect) const;
     bool hasObjects() const;
     void selectAllObjects();
+    bool isObjectLocked(QGraphicsItem *object) const;
+    bool selectedObjectsEditable() const;
+    bool canLockSelectedObjects() const;
+    bool canUnlockSelectedObjects() const;
+    bool setSelectedObjectsLocked(bool locked);
     void setObjectSelected(QGraphicsItem *object, bool selected);
     bool canGroupSelectedObjects() const;
     bool canUngroupSelectedObjects() const;
@@ -96,6 +101,7 @@ private:
     QVector<QGraphicsItem *> objectItems() const;
     QString objectGroupId(QGraphicsItem *object) const;
     void setObjectGroupId(QGraphicsItem *object, const QString &groupId);
+    void setObjectLocked(QGraphicsItem *object, bool locked);
     QVector<QVector<QGraphicsItem *>> selectedObjectUnits() const;
     void refreshPageGeometry();
     void refreshPageBackground();

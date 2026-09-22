@@ -53,7 +53,7 @@ bool EBImageItem::isValid() const
 EBImageItem::State EBImageItem::state() const
 {
     return {_format, _data, _size, pos(), zValue(), transformOriginPoint(),
-            scale(), rotation(), _groupId};
+            scale(), rotation(), _groupId, _locked};
 }
 
 void EBImageItem::applyState(const State &state)
@@ -68,6 +68,7 @@ void EBImageItem::applyState(const State &state)
     setScale(state.scale);
     setRotation(state.rotation);
     _groupId = state.groupId;
+    _locked = state.locked;
 }
 
 QString EBImageItem::groupId() const
@@ -78,6 +79,16 @@ QString EBImageItem::groupId() const
 void EBImageItem::setGroupId(const QString &groupId)
 {
     _groupId = groupId;
+}
+
+bool EBImageItem::isLocked() const
+{
+    return _locked;
+}
+
+void EBImageItem::setLocked(bool locked)
+{
+    _locked = locked;
 }
 
 bool EBImageItem::naturalSize(Format format, const QByteArray &data,

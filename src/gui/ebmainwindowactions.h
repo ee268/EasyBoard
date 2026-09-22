@@ -45,6 +45,7 @@ private:
     void updateClipboardActions();
     void updateLayerActions();
     void updateGroupActions();
+    void updateLockActions();
     void updateArrangeActions();
     void updateSelectAllAction();
 
@@ -61,9 +62,12 @@ private:
     QAction *_cutAction = nullptr;
     QAction *_copyAction = nullptr;
     QAction *_pasteAction = nullptr;
+    QAction *_duplicateAction = nullptr;
     QAction *_selectAllAction = nullptr;
     QAction *_groupAction = nullptr;
     QAction *_ungroupAction = nullptr;
+    QAction *_lockAction = nullptr;
+    QAction *_unlockAction = nullptr;
     QAction *_colorActions[2] = {};
     QAction *_patternActions[3] = {};
     QAction *_sizeActions[2] = {};

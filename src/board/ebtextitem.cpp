@@ -24,7 +24,8 @@ EBTextItem::EBTextItem(const QString &text, const QFont &font,
 EBTextItem::State EBTextItem::state() const
 {
     return {toPlainText(), font(), defaultTextColor(), pos(), zValue(),
-            transformOriginPoint(), scale(), rotation(), textWidth(), _groupId};
+            transformOriginPoint(), scale(), rotation(), textWidth(), _groupId,
+            _locked};
 }
 
 void EBTextItem::applyState(const State &state)
@@ -39,6 +40,7 @@ void EBTextItem::applyState(const State &state)
     setScale(state.scale);
     setRotation(state.rotation);
     _groupId = state.groupId;
+    _locked = state.locked;
 }
 
 void EBTextItem::refreshTransformOrigin()
@@ -55,4 +57,14 @@ QString EBTextItem::groupId() const
 void EBTextItem::setGroupId(const QString &groupId)
 {
     _groupId = groupId;
+}
+
+bool EBTextItem::isLocked() const
+{
+    return _locked;
+}
+
+void EBTextItem::setLocked(bool locked)
+{
+    _locked = locked;
 }

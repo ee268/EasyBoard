@@ -20,6 +20,7 @@ public:
         qreal rotation = 0.0;
         qreal textWidth = 360.0;
         QString groupId;
+        bool locked = false;
     };
 
     EBTextItem(const QString &text, const QFont &font, const QColor &color);
@@ -29,9 +30,12 @@ public:
     void refreshTransformOrigin();
     QString groupId() const;
     void setGroupId(const QString &groupId);
+    bool isLocked() const;
+    void setLocked(bool locked);
 
 private:
     QString _groupId;
+    bool _locked = false;
 };
 
 #endif

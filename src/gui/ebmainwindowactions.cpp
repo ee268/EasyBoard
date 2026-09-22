@@ -55,6 +55,7 @@ EBMainWindowActions::EBMainWindowActions(QMainWindow *window, EBBoardView *board
         _redoAction->setEnabled(onBoard && canRedo);
         updateLayerActions();
         updateGroupActions();
+        updateLockActions();
         updateArrangeActions();
         updateSelectAllAction();
     });
@@ -64,6 +65,7 @@ EBMainWindowActions::EBMainWindowActions(QMainWindow *window, EBBoardView *board
         updateClipboardActions();
         updateLayerActions();
         updateGroupActions();
+        updateLockActions();
         updateArrangeActions();
         updateSelectAllAction();
     });
@@ -176,6 +178,13 @@ void EBMainWindowActions::createEditMenu()
             _boardView, &EBBoardView::copySelectedObject);
     connect(_pasteAction, &QAction::triggered,
             _boardView, &EBBoardView::pasteObject);
+    _duplicateAction = editMenu->addAction(toolbarIcon("duplicate"),
+                                            tr("快速复制"));
+    _duplicateAction->setObjectName(QStringLiteral("duplicateObjectsAction"));
+    _duplicateAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
+    _duplicateAction->setEnabled(false);
+    connect(_duplicateAction, &QAction::triggered,
+            _boardView, &EBBoardView::duplicateSelectedObjects);
     _selectAllAction = editMenu->addAction(toolbarIcon("select_all"),
                                             tr("全选"));
     _selectAllAction->setObjectName(QStringLiteral("selectAllObjectsAction"));
@@ -198,6 +207,22 @@ void EBMainWindowActions::createEditMenu()
             _boardView, &EBBoardView::groupSelectedObjects);
     connect(_ungroupAction, &QAction::triggered,
             _boardView, &EBBoardView::ungroupSelectedObjects);
+
+    _lockAction = editMenu->addAction(toolbarIcon("object_lock"),
+                                      tr("锁定对象"));
+    _lockAction->setObjectName(QStringLiteral("lockObjectsAction"));
+    _lockAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_L));
+    _lockAction->setEnabled(false);
+    _unlockAction = editMenu->addAction(toolbarIcon("object_unlock"),
+                                        tr("解锁对象"));
+    _unlockAction->setObjectName(QStringLiteral("unlockObjectsAction"));
+    _unlockAction->setShortcut(
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L));
+    _unlockAction->setEnabled(false);
+    connect(_lockAction, &QAction::triggered,
+            _boardView, &EBBoardView::lockSelectedObjects);
+    connect(_unlockAction, &QAction::triggered,
+            _boardView, &EBBoardView::unlockSelectedObjects);
 
     QMenu *arrangeMenu = editMenu->addMenu(toolbarIcon("object_arrange"),
                                             tr("对齐与分布"));
@@ -306,18 +331,25 @@ void EBMainWindowActions::createToolBar()
     _cutAction->setIcon(toolbarIcon("cut"));
     _copyAction->setIcon(toolbarIcon("copy"));
     _pasteAction->setIcon(toolbarIcon("paste"));
+    _duplicateAction->setIcon(toolbarIcon("duplicate"));
     _cutAction->setToolTip(tr("剪切"));
     _copyAction->setToolTip(tr("复制"));
     _pasteAction->setToolTip(tr("粘贴"));
+    _duplicateAction->setToolTip(tr("快速复制（Ctrl+D）"));
     toolBar->addAction(_cutAction);
     toolBar->addAction(_copyAction);
     toolBar->addAction(_pasteAction);
+    toolBar->addAction(_duplicateAction);
     _groupAction->setIcon(toolbarIcon("object_group"));
     _ungroupAction->setIcon(toolbarIcon("object_ungroup"));
     _groupAction->setToolTip(tr("组合（Ctrl+G）"));
     _ungroupAction->setToolTip(tr("取消组合（Ctrl+Shift+G）"));
     toolBar->addAction(_groupAction);
     toolBar->addAction(_ungroupAction);
+    _lockAction->setToolTip(tr("锁定对象（Ctrl+L）"));
+    _unlockAction->setToolTip(tr("解锁对象（Ctrl+Shift+L）"));
+    toolBar->addAction(_lockAction);
+    toolBar->addAction(_unlockAction);
     _arrangeButton = new QToolButton(toolBar);
     _arrangeButton->setObjectName(QStringLiteral("arrangeObjectsButton"));
     _arrangeButton->setIcon(toolbarIcon("object_arrange"));
@@ -552,13 +584,15 @@ void EBMainWindowActions::setMode(EBApplicationController::MainMode mode)
     updateClipboardActions();
     updateLayerActions();
     updateGroupActions();
+    updateLockActions();
     updateArrangeActions();
     updateSelectAllAction();
 }
 
 void EBMainWindowActions::updateObjectActions()
 {
-    const bool enabled = _boardModeActive && _boardView->hasSelectedObject();
+    const bool enabled = _boardModeActive
+        && _boardView->hasEditableSelectedObjects();
     for (QAction *action : _objectActions) {
         if (action)
             action->setEnabled(enabled);
@@ -568,10 +602,14 @@ void EBMainWindowActions::updateObjectActions()
 void EBMainWindowActions::updateClipboardActions()
 {
     const bool selected = _boardModeActive && _boardView->hasSelectedObject();
+    const bool editable = _boardModeActive
+        && _boardView->hasEditableSelectedObjects();
     if (_cutAction)
-        _cutAction->setEnabled(selected);
+        _cutAction->setEnabled(editable);
     if (_copyAction)
         _copyAction->setEnabled(selected);
+    if (_duplicateAction)
+        _duplicateAction->setEnabled(selected);
     if (_pasteAction) {
         _pasteAction->setEnabled(_boardModeActive
                                  && !_boardView->isTextEditing()
@@ -604,6 +642,18 @@ void EBMainWindowActions::updateGroupActions()
     if (_ungroupAction) {
         _ungroupAction->setEnabled(_boardModeActive
                                    && _boardView->canUngroupSelectedObjects());
+    }
+}
+
+void EBMainWindowActions::updateLockActions()
+{
+    if (_lockAction) {
+        _lockAction->setEnabled(_boardModeActive
+                                && _boardView->canLockSelectedObjects());
+    }
+    if (_unlockAction) {
+        _unlockAction->setEnabled(_boardModeActive
+                                  && _boardView->canUnlockSelectedObjects());
     }
 }
 

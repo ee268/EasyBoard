@@ -11,7 +11,7 @@
 
 namespace {
 constexpr quint32 kClipboardMagic = 0x45424f42; // EBOB
-constexpr quint16 kClipboardVersion = 3;
+constexpr quint16 kClipboardVersion = 4;
 constexpr int kMaximumObjectCount = 1000;
 constexpr int kMaximumPayloadSize = 70 * 1024 * 1024;
 
@@ -65,17 +65,19 @@ void writeObject(QDataStream &stream, const EBObjectClipboard::Object &object)
         const auto &state = object.stroke;
         stream << state.path << state.pen << state.position << state.zValue
                << state.transformOrigin << state.scale << state.rotation
-               << state.groupId;
+               << state.groupId << state.locked;
     } else if (object.type == EBObjectClipboard::Type::Text) {
         const auto &state = object.text;
         stream << state.text << state.font << state.color << state.position
                << state.zValue << state.transformOrigin << state.scale
-               << state.rotation << state.textWidth << state.groupId;
+               << state.rotation << state.textWidth << state.groupId
+               << state.locked;
     } else {
         const auto &state = object.image;
         stream << static_cast<quint8>(state.format) << state.data << state.size
                << state.position << state.zValue << state.transformOrigin
-               << state.scale << state.rotation << state.groupId;
+               << state.scale << state.rotation << state.groupId
+               << state.locked;
     }
 }
 
@@ -91,6 +93,8 @@ bool readObject(QDataStream &stream, quint16 version,
                >> state.transformOrigin >> state.scale >> state.rotation;
         if (version >= 3)
             stream >> state.groupId;
+        if (version >= 4)
+            stream >> state.locked;
         return !state.path.isEmpty() && state.pen.color().isValid()
             && validGroupId(state.groupId)
             && validTransform(state.position, state.zValue,
@@ -104,6 +108,8 @@ bool readObject(QDataStream &stream, quint16 version,
                >> state.rotation >> state.textWidth;
         if (version >= 3)
             stream >> state.groupId;
+        if (version >= 4)
+            stream >> state.locked;
         return !state.text.isEmpty() && state.text.size() <= 100000
             && validGroupId(state.groupId)
             && state.color.isValid() && finite(state.textWidth)
@@ -120,6 +126,8 @@ bool readObject(QDataStream &stream, quint16 version,
                >> state.rotation;
         if (version >= 3)
             stream >> state.groupId;
+        if (version >= 4)
+            stream >> state.locked;
         if (rawFormat > static_cast<quint8>(EBImageItem::Format::Svg))
             return false;
         state.format = static_cast<EBImageItem::Format>(rawFormat);
@@ -195,7 +203,7 @@ bool EBObjectClipboard::decode(const QMimeData *mimeData, Objects *objects)
     quint16 version = 0;
     quint32 count = 0;
     stream >> magic >> version >> count;
-    if (magic != kClipboardMagic || (version != 2 && version != kClipboardVersion)
+    if (magic != kClipboardMagic || version < 2 || version > kClipboardVersion
         || count == 0 || count > kMaximumObjectCount)
         return false;
 

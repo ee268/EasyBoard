@@ -157,7 +157,7 @@ bool EBBoardScene::eraseAt(const QPointF &pagePosition, qreal radius)
     // 只裁切自有笔迹图元；页面背景与指示点不会被橡皮影响。
     for (QGraphicsItem *item : items(touchArea, Qt::IntersectsItemShape)) {
         auto *stroke = dynamic_cast<EBStrokeItem *>(item);
-        if (!stroke)
+        if (!stroke || stroke->isLocked())
             continue;
         QVector<QPainterPath> remaining;
         const qreal cutRadius = radius + stroke->pen().widthF() / 2.0;
@@ -373,6 +373,56 @@ void EBBoardScene::selectAllObjects()
         object->setSelected(true);
 }
 
+bool EBBoardScene::isObjectLocked(QGraphicsItem *object) const
+{
+    if (auto *stroke = dynamic_cast<EBStrokeItem *>(object))
+        return stroke->isLocked();
+    if (auto *text = dynamic_cast<EBTextItem *>(object))
+        return text->isLocked();
+    if (auto *image = dynamic_cast<EBImageItem *>(object))
+        return image->isLocked();
+    return false;
+}
+
+bool EBBoardScene::selectedObjectsEditable() const
+{
+    const QVector<QGraphicsItem *> selected = selectedObjects();
+    if (selected.isEmpty())
+        return false;
+    for (QGraphicsItem *object : selected) {
+        if (isObjectLocked(object))
+            return false;
+    }
+    return true;
+}
+
+bool EBBoardScene::canLockSelectedObjects() const
+{
+    for (QGraphicsItem *object : selectedObjects()) {
+        if (!isObjectLocked(object))
+            return true;
+    }
+    return false;
+}
+
+bool EBBoardScene::canUnlockSelectedObjects() const
+{
+    for (QGraphicsItem *object : selectedObjects()) {
+        if (isObjectLocked(object))
+            return true;
+    }
+    return false;
+}
+
+bool EBBoardScene::setSelectedObjectsLocked(bool locked)
+{
+    if (locked ? !canLockSelectedObjects() : !canUnlockSelectedObjects())
+        return false;
+    for (QGraphicsItem *object : selectedObjects())
+        setObjectLocked(object, locked);
+    return true;
+}
+
 void EBBoardScene::setObjectSelected(QGraphicsItem *object, bool selected)
 {
     if (!object)
@@ -390,6 +440,8 @@ void EBBoardScene::setObjectSelected(QGraphicsItem *object, bool selected)
 
 bool EBBoardScene::canGroupSelectedObjects() const
 {
+    if (!selectedObjectsEditable())
+        return false;
     const QVector<QGraphicsItem *> selected = selectedObjects();
     if (selected.size() < 2)
         return false;
@@ -405,6 +457,8 @@ bool EBBoardScene::canGroupSelectedObjects() const
 
 bool EBBoardScene::canUngroupSelectedObjects() const
 {
+    if (!selectedObjectsEditable())
+        return false;
     for (QGraphicsItem *object : selectedObjects()) {
         if (!objectGroupId(object).isEmpty())
             return true;
@@ -433,6 +487,8 @@ bool EBBoardScene::ungroupSelectedObjects()
 bool EBBoardScene::canArrangeSelectedObjects(
     ObjectArrangement arrangement) const
 {
+    if (!selectedObjectsEditable())
+        return false;
     const int unitCount = selectedObjectUnits().size();
     const bool distribution = arrangement == ObjectArrangement::DistributeHorizontal
         || arrangement == ObjectArrangement::DistributeVertical;
@@ -534,6 +590,8 @@ qreal EBBoardScene::nextObjectZValue() const
 
 bool EBBoardScene::canMoveSelectedObjectBackward() const
 {
+    if (!selectedObjectsEditable())
+        return false;
     const QVector<QGraphicsItem *> objects = objectItems();
     const QVector<QGraphicsItem *> selected = selectedObjects();
     if (selected.isEmpty())
@@ -549,6 +607,8 @@ bool EBBoardScene::canMoveSelectedObjectBackward() const
 
 bool EBBoardScene::canMoveSelectedObjectForward() const
 {
+    if (!selectedObjectsEditable())
+        return false;
     const QVector<QGraphicsItem *> objects = objectItems();
     const QVector<QGraphicsItem *> selected = selectedObjects();
     if (selected.isEmpty())
@@ -564,6 +624,8 @@ bool EBBoardScene::canMoveSelectedObjectForward() const
 
 bool EBBoardScene::moveSelectedObject(LayerMove move)
 {
+    if (!selectedObjectsEditable())
+        return false;
     QVector<QGraphicsItem *> objects = objectItems();
     const QVector<QGraphicsItem *> selected = selectedObjects();
     if (selected.isEmpty())
@@ -653,6 +715,16 @@ void EBBoardScene::setObjectGroupId(QGraphicsItem *object,
         text->setGroupId(groupId);
     else if (auto *image = dynamic_cast<EBImageItem *>(object))
         image->setGroupId(groupId);
+}
+
+void EBBoardScene::setObjectLocked(QGraphicsItem *object, bool locked)
+{
+    if (auto *stroke = dynamic_cast<EBStrokeItem *>(object))
+        stroke->setLocked(locked);
+    else if (auto *text = dynamic_cast<EBTextItem *>(object))
+        text->setLocked(locked);
+    else if (auto *image = dynamic_cast<EBImageItem *>(object))
+        image->setLocked(locked);
 }
 
 QVector<QVector<QGraphicsItem *>> EBBoardScene::selectedObjectUnits() const

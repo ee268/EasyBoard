@@ -4,6 +4,7 @@
 #include <QGraphicsView>
 
 #include "ebboardscene.h"
+#include "ebobjectclipboard.h"
 
 class QUndoStack;
 class QKeyEvent;
@@ -40,6 +41,7 @@ public:
     void undo();
     void redo();
     bool hasSelectedObject() const;
+    bool hasEditableSelectedObjects() const;
     bool canSelectAllObjects() const;
     void selectAllObjects();
     void scaleSelectedObject(qreal factor);
@@ -48,6 +50,11 @@ public:
     void copySelectedObject();
     void cutSelectedObject();
     void pasteObject();
+    void duplicateSelectedObjects();
+    bool canLockSelectedObjects() const;
+    bool canUnlockSelectedObjects() const;
+    void lockSelectedObjects();
+    void unlockSelectedObjects();
     bool canPasteObject() const;
     bool isTextEditing() const;
     bool canMoveSelectedObjectBackward() const;
@@ -101,6 +108,7 @@ protected:
     void showEvent(QShowEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -122,6 +130,10 @@ private:
                             Qt::KeyboardModifiers modifiers);
     void updateAreaSelection(const QPoint &viewportPosition);
     void finishAreaSelection();
+    void nudgeSelectedObjects(const QPointF &delta);
+    void finishKeyboardMove();
+    void insertObjects(EBObjectClipboard::Objects objects, bool offsetObjects,
+                       const QString &description);
     void startTextEditing(EBTextItem *text, bool newlyCreated);
     void finishTextEditing();
     void keepObjectInsidePage(QGraphicsItem *item);
@@ -145,6 +157,7 @@ private:
     QVector<QGraphicsItem *> _selectionBaseline;
     Qt::KeyboardModifiers _selectionModifiers;
     bool _selectingArea;
+    bool _keyboardMoving;
     EBTextItem *_editingText;
     QString _textBeforeEdit;
     bool _editingTextWasNew;

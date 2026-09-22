@@ -18,6 +18,7 @@ public:
         qreal scale = 1.0;
         qreal rotation = 0.0;
         QString groupId;
+        bool locked = false;
     };
 
     EBStrokeItem(const QPainterPath &path, const QPen &pen);
@@ -27,6 +28,8 @@ public:
     void applyState(const State &state);
     QString groupId() const;
     void setGroupId(const QString &groupId);
+    bool isLocked() const;
+    void setLocked(bool locked);
 
     // 用圆形橡皮裁切本笔迹；返回 false 表示没有擦到实际路径。
     bool splitAt(const QPointF &center, qreal radius,
@@ -34,6 +37,7 @@ public:
 
 private:
     QString _groupId;
+    bool _locked = false;
 };
 
 #endif

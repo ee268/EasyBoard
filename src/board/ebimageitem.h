@@ -29,6 +29,7 @@ public:
         qreal scale = 1.0;
         qreal rotation = 0.0;
         QString groupId;
+        bool locked = false;
     };
 
     explicit EBImageItem(const State &state);
@@ -43,6 +44,8 @@ public:
     void applyState(const State &state);
     QString groupId() const;
     void setGroupId(const QString &groupId);
+    bool isLocked() const;
+    void setLocked(bool locked);
 
     static bool naturalSize(Format format, const QByteArray &data,
                             QSizeF *size = nullptr);
@@ -57,6 +60,7 @@ private:
     std::unique_ptr<QSvgRenderer> _svgRenderer;
     bool _valid;
     QString _groupId;
+    bool _locked = false;
 };
 
 #endif
