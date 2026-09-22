@@ -15,7 +15,7 @@ EBStrokeItem::EBStrokeItem(const QPainterPath &path, const QPen &pen)
 EBStrokeItem::State EBStrokeItem::state() const
 {
     return {path(), pen(), pos(), zValue(), transformOriginPoint(),
-            scale(), rotation()};
+            scale(), rotation(), _groupId};
 }
 
 void EBStrokeItem::applyState(const State &state)
@@ -27,6 +27,17 @@ void EBStrokeItem::applyState(const State &state)
     setTransformOriginPoint(state.transformOrigin);
     setScale(state.scale);
     setRotation(state.rotation);
+    _groupId = state.groupId;
+}
+
+QString EBStrokeItem::groupId() const
+{
+    return _groupId;
+}
+
+void EBStrokeItem::setGroupId(const QString &groupId)
+{
+    _groupId = groupId;
 }
 
 bool EBStrokeItem::splitAt(const QPointF &center, qreal radius,

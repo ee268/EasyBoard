@@ -10,10 +10,13 @@
 #include <QPainter>
 #include <QMimeData>
 #include <QResizeEvent>
+#include <QRubberBand>
+#include <QSet>
 #include <QShowEvent>
 #include <QTextCursor>
 #include <QUndoCommand>
 #include <QUndoStack>
+#include <QUuid>
 #include <QWheelEvent>
 #include <QtMath>
 
@@ -75,7 +78,9 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
     , _document(document)
     , _scene(new EBBoardScene(this))
     , _activeStroke(nullptr)
-    , _movingObject(nullptr)
+    , _selectionBand(new QRubberBand(QRubberBand::Rectangle, viewport()))
+    , _selectionModifiers(Qt::NoModifier)
+    , _selectingArea(false)
     , _editingText(nullptr)
     , _editingTextWasNew(false)
     , _drawingTool(DrawingTool::Pen)
@@ -117,8 +122,9 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
 
 void EBBoardView::setDrawingTool(DrawingTool tool)
 {
+    finishAreaSelection();
     finishTextEditing();
-    if (_movingObject)
+    if (!_movingObjects.isEmpty())
         finishObjectMove();
     // 切换只影响下一次操作，进行中的笔迹继续使用按下时的工具。
     _drawingTool = tool;
@@ -164,23 +170,41 @@ void EBBoardView::redo()
 }
 bool EBBoardView::hasSelectedObject() const
 {
-    return !_editingText && _scene->selectedObject() != nullptr;
+    return !_editingText && !_scene->selectedObjects().isEmpty();
+}
+
+bool EBBoardView::canSelectAllObjects() const
+{
+    return !_editingText && _scene->hasObjects();
+}
+
+void EBBoardView::selectAllObjects()
+{
+    if (_editingText)
+        return;
+    finishObjectMove();
+    setDrawingTool(DrawingTool::Select);
+    _scene->selectAllObjects();
 }
 
 void EBBoardView::scaleSelectedObject(qreal factor)
 {
     finishTextEditing();
     finishObjectMove();
-    QGraphicsItem *object = _scene->selectedObject();
-    if (!object || factor <= 0.0)
-        return;
-    const qreal scale = qBound(kMinObjectScale, object->scale() * factor,
-                               kMaxObjectScale);
-    if (qFuzzyCompare(scale, object->scale()))
+    const QVector<QGraphicsItem *> objects = _scene->selectedObjects();
+    if (objects.isEmpty() || factor <= 0.0)
         return;
     const Snapshot before = _scene->captureSnapshot();
-    object->setScale(scale);
-    keepObjectInsidePage(object);
+    bool changed = false;
+    for (QGraphicsItem *object : objects) {
+        const qreal scale = qBound(kMinObjectScale, object->scale() * factor,
+                                   kMaxObjectScale);
+        changed |= !qFuzzyCompare(scale, object->scale());
+        object->setScale(scale);
+    }
+    if (!changed)
+        return;
+    keepObjectsInsidePage(objects);
     commitObjectEdit(before, factor > 1.0 ? tr("放大对象") : tr("缩小对象"));
 }
 
@@ -188,12 +212,13 @@ void EBBoardView::rotateSelectedObject(qreal degrees)
 {
     finishTextEditing();
     finishObjectMove();
-    QGraphicsItem *object = _scene->selectedObject();
-    if (!object || qFuzzyIsNull(degrees))
+    const QVector<QGraphicsItem *> objects = _scene->selectedObjects();
+    if (objects.isEmpty() || qFuzzyIsNull(degrees))
         return;
     const Snapshot before = _scene->captureSnapshot();
-    object->setRotation(object->rotation() + degrees);
-    keepObjectInsidePage(object);
+    for (QGraphicsItem *object : objects)
+        object->setRotation(object->rotation() + degrees);
+    keepObjectsInsidePage(objects);
     commitObjectEdit(before, degrees > 0.0 ? tr("顺时针旋转对象")
                                            : tr("逆时针旋转对象"));
 }
@@ -202,11 +227,12 @@ void EBBoardView::deleteSelectedObject()
 {
     finishTextEditing();
     finishObjectMove();
-    QGraphicsItem *object = _scene->selectedObject();
-    if (!object)
+    const QVector<QGraphicsItem *> objects = _scene->selectedObjects();
+    if (objects.isEmpty())
         return;
     const Snapshot before = _scene->captureSnapshot();
-    delete object;
+    for (QGraphicsItem *object : objects)
+        delete object;
     commitObjectEdit(before, tr("删除对象"));
 }
 
@@ -216,7 +242,7 @@ void EBBoardView::copySelectedObject()
         return;
     finishObjectMove();
     if (QMimeData *mimeData = EBObjectClipboard::createMimeData(
-            _scene->selectedObject()))
+            _scene->selectedObjects()))
         QApplication::clipboard()->setMimeData(mimeData);
 }
 
@@ -248,8 +274,9 @@ void EBBoardView::pasteObject()
     if (_editingText)
         return;
     const QMimeData *mimeData = QApplication::clipboard()->mimeData();
+    EBObjectClipboard::Objects objects;
+    const bool internal = EBObjectClipboard::decode(mimeData, &objects);
     EBObjectClipboard::Object object;
-    const bool internal = EBObjectClipboard::decode(mimeData, &object);
 
     if (!internal && mimeData->hasFormat(QStringLiteral("image/svg+xml"))) {
         object.type = EBObjectClipboard::Type::Image;
@@ -278,57 +305,185 @@ void EBBoardView::pasteObject()
             object.text.color = ebThemeColor(EBThemeColor::BoardPen);
         }
     }
-    if (object.type == EBObjectClipboard::Type::Invalid)
-        return;
+    if (!internal) {
+        if (object.type == EBObjectClipboard::Type::Invalid)
+            return;
+        objects.append(object);
+    } else {
+        // 副本使用新的组合标识，避免粘贴后与原对象联动。
+        EBObjectClipboard::remapGroupIds(&objects);
+    }
 
     finishPageInteraction();
     setDrawingTool(DrawingTool::Select);
     const Snapshot before = _scene->captureSnapshot();
-    QGraphicsItem *item = nullptr;
-    if (object.type == EBObjectClipboard::Type::Stroke) {
-        if (internal)
-            object.stroke.position += QPointF(kPasteOffset, kPasteOffset);
-        EBStrokeItem *stroke = _scene->addStroke(object.stroke.path,
-                                                 object.stroke.pen);
-        stroke->applyState(object.stroke);
-        item = stroke;
-    } else if (object.type == EBObjectClipboard::Type::Text) {
-        EBTextItem *text = _scene->addText(object.text.text, object.text.font,
-                                           object.text.color);
-        if (internal) {
-            object.text.position += QPointF(kPasteOffset, kPasteOffset);
-            text->applyState(object.text);
-        } else {
-            text->setPos(pageRect().center()
-                         - QPointF(text->boundingRect().width() / 2.0,
-                                   text->boundingRect().height() / 2.0));
-            text->refreshTransformOrigin();
-        }
-        item = text;
-    } else if (object.type == EBObjectClipboard::Type::Image) {
-        if (internal) {
-            object.image.position += QPointF(kPasteOffset, kPasteOffset);
-        } else {
-            const qreal fit = qMin(1.0, qMin(
-                pageRect().width() * 0.6 / object.image.size.width(),
-                pageRect().height() * 0.6 / object.image.size.height()));
-            object.image.size *= fit;
-            object.image.position = pageRect().center()
-                - QPointF(object.image.size.width() / 2.0,
-                          object.image.size.height() / 2.0);
-            object.image.zValue = 0.8;
-            object.image.transformOrigin = QPointF(
-                object.image.size.width() / 2.0,
-                object.image.size.height() / 2.0);
-        }
-        item = _scene->addImage(object.image);
-    }
-    if (!item)
-        return;
-    keepObjectInsidePage(item);
+    qreal pastedZValue = _scene->nextObjectZValue();
     _scene->clearSelection();
-    item->setSelected(true);
+    QVector<QGraphicsItem *> pastedItems;
+    for (EBObjectClipboard::Object &entry : objects) {
+        QGraphicsItem *item = nullptr;
+        if (entry.type == EBObjectClipboard::Type::Stroke) {
+            if (internal)
+                entry.stroke.position += QPointF(kPasteOffset, kPasteOffset);
+            entry.stroke.zValue = pastedZValue++;
+            EBStrokeItem *stroke = _scene->addStroke(entry.stroke.path,
+                                                     entry.stroke.pen);
+            stroke->applyState(entry.stroke);
+            item = stroke;
+        } else if (entry.type == EBObjectClipboard::Type::Text) {
+            EBTextItem *text = _scene->addText(entry.text.text,
+                                               entry.text.font,
+                                               entry.text.color);
+            if (internal) {
+                entry.text.position += QPointF(kPasteOffset, kPasteOffset);
+                entry.text.zValue = pastedZValue++;
+                text->applyState(entry.text);
+            } else {
+                text->setPos(pageRect().center()
+                             - QPointF(text->boundingRect().width() / 2.0,
+                                       text->boundingRect().height() / 2.0));
+                text->setZValue(pastedZValue++);
+                text->refreshTransformOrigin();
+            }
+            item = text;
+        } else if (entry.type == EBObjectClipboard::Type::Image) {
+            if (internal) {
+                entry.image.position += QPointF(kPasteOffset, kPasteOffset);
+            } else {
+                const qreal fit = qMin(1.0, qMin(
+                    pageRect().width() * 0.6 / entry.image.size.width(),
+                    pageRect().height() * 0.6 / entry.image.size.height()));
+                entry.image.size *= fit;
+                entry.image.position = pageRect().center()
+                    - QPointF(entry.image.size.width() / 2.0,
+                              entry.image.size.height() / 2.0);
+                entry.image.transformOrigin = QPointF(
+                    entry.image.size.width() / 2.0,
+                    entry.image.size.height() / 2.0);
+            }
+            entry.image.zValue = pastedZValue++;
+            item = _scene->addImage(entry.image);
+        }
+        if (!item) {
+            restoreSnapshot(before);
+            return;
+        }
+        item->setSelected(true);
+        pastedItems.append(item);
+    }
+    keepObjectsInsidePage(pastedItems);
     commitObjectEdit(before, tr("粘贴对象"));
+}
+
+bool EBBoardView::canMoveSelectedObjectBackward() const
+{
+    return !_editingText && _scene->canMoveSelectedObjectBackward();
+}
+
+bool EBBoardView::canMoveSelectedObjectForward() const
+{
+    return !_editingText && _scene->canMoveSelectedObjectForward();
+}
+
+bool EBBoardView::canGroupSelectedObjects() const
+{
+    return !_editingText && _scene->canGroupSelectedObjects();
+}
+
+bool EBBoardView::canUngroupSelectedObjects() const
+{
+    return !_editingText && _scene->canUngroupSelectedObjects();
+}
+
+void EBBoardView::groupSelectedObjects()
+{
+    finishTextEditing();
+    finishObjectMove();
+    if (!_scene->canGroupSelectedObjects())
+        return;
+    const Snapshot before = _scene->captureSnapshot();
+    const QString groupId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if (_scene->groupSelectedObjects(groupId))
+        commitObjectEdit(before, tr("组合对象"));
+}
+
+void EBBoardView::ungroupSelectedObjects()
+{
+    finishTextEditing();
+    finishObjectMove();
+    if (!_scene->canUngroupSelectedObjects())
+        return;
+    const Snapshot before = _scene->captureSnapshot();
+    if (_scene->ungroupSelectedObjects())
+        commitObjectEdit(before, tr("取消组合"));
+}
+
+bool EBBoardView::canArrangeSelectedObjects(ObjectArrangement arrangement) const
+{
+    return !_editingText && _scene->canArrangeSelectedObjects(arrangement);
+}
+
+void EBBoardView::arrangeSelectedObjects(ObjectArrangement arrangement)
+{
+    finishTextEditing();
+    finishObjectMove();
+    if (!_scene->canArrangeSelectedObjects(arrangement))
+        return;
+    const Snapshot before = _scene->captureSnapshot();
+    if (!_scene->arrangeSelectedObjects(arrangement))
+        return;
+    QString description;
+    switch (arrangement) {
+    case ObjectArrangement::AlignLeft:
+        description = tr("对象左对齐");
+        break;
+    case ObjectArrangement::AlignHorizontalCenter:
+        description = tr("对象水平居中");
+        break;
+    case ObjectArrangement::AlignRight:
+        description = tr("对象右对齐");
+        break;
+    case ObjectArrangement::AlignTop:
+        description = tr("对象顶部对齐");
+        break;
+    case ObjectArrangement::AlignVerticalCenter:
+        description = tr("对象垂直居中");
+        break;
+    case ObjectArrangement::AlignBottom:
+        description = tr("对象底部对齐");
+        break;
+    case ObjectArrangement::DistributeHorizontal:
+        description = tr("对象水平等距分布");
+        break;
+    case ObjectArrangement::DistributeVertical:
+        description = tr("对象垂直等距分布");
+        break;
+    }
+    commitObjectEdit(before, description);
+}
+
+void EBBoardView::sendSelectedObjectToBack()
+{
+    moveSelectedObjectLayer(EBBoardScene::LayerMove::ToBack,
+                            tr("对象置于底层"));
+}
+
+void EBBoardView::moveSelectedObjectBackward()
+{
+    moveSelectedObjectLayer(EBBoardScene::LayerMove::Backward,
+                            tr("对象下移一层"));
+}
+
+void EBBoardView::moveSelectedObjectForward()
+{
+    moveSelectedObjectLayer(EBBoardScene::LayerMove::Forward,
+                            tr("对象上移一层"));
+}
+
+void EBBoardView::bringSelectedObjectToFront()
+{
+    moveSelectedObjectLayer(EBBoardScene::LayerMove::ToFront,
+                            tr("对象置于顶层"));
 }
 
 bool EBBoardView::insertImageObject(const EBImageItem::State &source)
@@ -348,7 +503,7 @@ bool EBBoardView::insertImageObject(const EBImageItem::State &source)
     state.position = pageRect().center()
                      - QPointF(state.size.width() / 2.0,
                                state.size.height() / 2.0);
-    state.zValue = 0.8;
+    state.zValue = _scene->nextObjectZValue();
     state.transformOrigin = QPointF(state.size.width() / 2.0,
                                     state.size.height() / 2.0);
     state.scale = 1.0;
@@ -434,7 +589,8 @@ void EBBoardView::reloadDocument()
 {
     // 文档对象已由主窗口整体替换，丢弃旧文档的交互与撤销状态。
     _activeStroke = nullptr;
-    _movingObject = nullptr;
+    _movingObjects.clear();
+    _moveStartPositions.clear();
     _editingText = nullptr;
     _editingTextWasNew = false;
     _erasing = false;
@@ -600,19 +756,31 @@ void EBBoardView::mousePressEvent(QMouseEvent *event)
         && event->button() == Qt::LeftButton) {
         QGraphicsItem *object = pageRect().contains(scenePosition)
             ? _scene->objectAt(scenePosition) : nullptr;
+        const bool extendSelection = event->modifiers()
+            & (Qt::ControlModifier | Qt::ShiftModifier);
         if (!object) {
-            _scene->clearSelection();
+            if (pageRect().contains(scenePosition))
+                startAreaSelection(event->pos(), event->modifiers());
+            else if (!extendSelection)
+                _scene->clearSelection();
+            event->accept();
+            return;
+        }
+        if (extendSelection) {
+            _scene->setObjectSelected(object, !object->isSelected());
             event->accept();
             return;
         }
         if (!object->isSelected()) {
             _scene->clearSelection();
-            object->setSelected(true);
+            _scene->setObjectSelected(object, true);
         }
         _activeTool = DrawingTool::Select;
-        _movingObject = object;
+        _movingObjects = _scene->selectedObjects();
+        _moveStartPositions.clear();
+        for (QGraphicsItem *selected : _movingObjects)
+            _moveStartPositions.append(selected->pos());
         _moveStartScene = scenePosition;
-        _moveStartPosition = object->pos();
         beginEdit();
         event->accept();
         return;
@@ -660,7 +828,13 @@ void EBBoardView::mouseMoveEvent(QMouseEvent *event)
     emit pagePositionChanged(scenePosition - pageRect().topLeft(),
                              pageRect().contains(scenePosition));
 
-    if (_movingObject && (event->buttons() & Qt::LeftButton)) {
+    if (_selectingArea && (event->buttons() & Qt::LeftButton)) {
+        updateAreaSelection(event->pos());
+        event->accept();
+        return;
+    }
+
+    if (!_movingObjects.isEmpty() && (event->buttons() & Qt::LeftButton)) {
         updateObjectMove(scenePosition);
         event->accept();
         return;
@@ -690,7 +864,13 @@ void EBBoardView::mouseMoveEvent(QMouseEvent *event)
 
 void EBBoardView::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton && _movingObject) {
+    if (event->button() == Qt::LeftButton && _selectingArea) {
+        updateAreaSelection(event->pos());
+        finishAreaSelection();
+        event->accept();
+        return;
+    }
+    if (event->button() == Qt::LeftButton && !_movingObjects.isEmpty()) {
         updateObjectMove(mapToScene(event->pos()));
         finishObjectMove();
         event->accept();
@@ -730,6 +910,7 @@ void EBBoardView::hideEvent(QHideEvent *event)
     _viewCenter = mapToScene(viewport()->rect().center());
     // 模式切换可能发生在鼠标释放前，结束本次编辑以免保留失效图元指针。
     finishTextEditing();
+    finishAreaSelection();
     finishObjectMove();
     _activeStroke = nullptr;
     _erasing = false;
@@ -802,19 +983,76 @@ void EBBoardView::eraseAlong(const QPointF &from, const QPointF &to)
 
 void EBBoardView::updateObjectMove(const QPointF &scenePosition)
 {
-    if (!_movingObject)
+    if (_movingObjects.isEmpty())
         return;
-    _movingObject->setPos(_moveStartPosition + scenePosition - _moveStartScene);
-    keepObjectInsidePage(_movingObject);
+    const QPointF delta = scenePosition - _moveStartScene;
+    for (int index = 0; index < _movingObjects.size(); ++index)
+        _movingObjects.at(index)->setPos(_moveStartPositions.at(index) + delta);
+    keepObjectsInsidePage(_movingObjects);
 }
 
 void EBBoardView::finishObjectMove()
 {
-    if (!_movingObject)
+    if (_movingObjects.isEmpty())
         return;
-    _editChanged = _movingObject->pos() != _moveStartPosition;
-    _movingObject = nullptr;
+    for (int index = 0; index < _movingObjects.size(); ++index)
+        _editChanged |= _movingObjects.at(index)->pos()
+                        != _moveStartPositions.at(index);
+    _movingObjects.clear();
+    _moveStartPositions.clear();
     finishEdit();
+}
+
+void EBBoardView::startAreaSelection(
+    const QPoint &viewportPosition, Qt::KeyboardModifiers modifiers)
+{
+    _selectingArea = true;
+    _selectionOrigin = viewportPosition;
+    _selectionModifiers = modifiers;
+    _selectionBaseline = _scene->selectedObjects();
+    _selectionBand->setGeometry(QRect(_selectionOrigin, QSize()));
+    _selectionBand->show();
+    updateAreaSelection(viewportPosition);
+}
+
+void EBBoardView::updateAreaSelection(const QPoint &viewportPosition)
+{
+    if (!_selectingArea)
+        return;
+    const QRect viewportRect = QRect(_selectionOrigin, viewportPosition)
+        .normalized().intersected(viewport()->rect());
+    _selectionBand->setGeometry(viewportRect);
+    const QRectF sceneRect = mapToScene(viewportRect).boundingRect()
+        .intersected(pageRect());
+    const QVector<QGraphicsItem *> hits = sceneRect.isEmpty()
+        ? QVector<QGraphicsItem *>() : _scene->objectsInRect(sceneRect);
+
+    QSet<QGraphicsItem *> desired;
+    const bool toggle = _selectionModifiers & Qt::ControlModifier;
+    const bool extend = _selectionModifiers & Qt::ShiftModifier;
+    if (toggle || extend) {
+        for (QGraphicsItem *object : _selectionBaseline)
+            desired.insert(object);
+    }
+    for (QGraphicsItem *object : hits) {
+        if (toggle && desired.contains(object))
+            desired.remove(object);
+        else
+            desired.insert(object);
+    }
+    _scene->clearSelection();
+    for (QGraphicsItem *object : desired)
+        object->setSelected(true);
+}
+
+void EBBoardView::finishAreaSelection()
+{
+    if (!_selectingArea)
+        return;
+    _selectionBand->hide();
+    _selectionBaseline.clear();
+    _selectionModifiers = Qt::NoModifier;
+    _selectingArea = false;
 }
 
 void EBBoardView::startTextEditing(EBTextItem *text, bool newlyCreated)
@@ -887,6 +1125,38 @@ void EBBoardView::keepObjectInsidePage(QGraphicsItem *object)
     object->moveBy(offset.x(), offset.y());
 }
 
+void EBBoardView::keepObjectsInsidePage(
+    const QVector<QGraphicsItem *> &objects)
+{
+    if (objects.isEmpty())
+        return;
+    QRectF bounds;
+    const QRectF page = pageRect();
+    for (QGraphicsItem *object : objects) {
+        const QRectF objectBounds = object->sceneBoundingRect();
+        if (objectBounds.width() > page.width()
+            || objectBounds.height() > page.height())
+            keepObjectInsidePage(object);
+        bounds = bounds.isNull() ? object->sceneBoundingRect()
+                                 : bounds.united(object->sceneBoundingRect());
+    }
+    QPointF offset;
+    if (bounds.width() <= page.width()) {
+        if (bounds.left() < page.left())
+            offset.rx() = page.left() - bounds.left();
+        else if (bounds.right() > page.right())
+            offset.rx() = page.right() - bounds.right();
+    }
+    if (bounds.height() <= page.height()) {
+        if (bounds.top() < page.top())
+            offset.ry() = page.top() - bounds.top();
+        else if (bounds.bottom() > page.bottom())
+            offset.ry() = page.bottom() - bounds.bottom();
+    }
+    for (QGraphicsItem *object : objects)
+        object->moveBy(offset.x(), offset.y());
+}
+
 void EBBoardView::commitObjectEdit(const Snapshot &before,
                                    const QString &description)
 {
@@ -896,9 +1166,21 @@ void EBBoardView::commitObjectEdit(const Snapshot &before,
     emit historyAvailabilityChanged(canUndo(), canRedo());
 }
 
+void EBBoardView::moveSelectedObjectLayer(EBBoardScene::LayerMove move,
+                                          const QString &description)
+{
+    finishTextEditing();
+    finishObjectMove();
+    const Snapshot before = _scene->captureSnapshot();
+    if (!_scene->moveSelectedObject(move))
+        return;
+    commitObjectEdit(before, description);
+}
+
 void EBBoardView::restoreSnapshot(const Snapshot &snapshot)
 {
-    _movingObject = nullptr;
+    _movingObjects.clear();
+    _moveStartPositions.clear();
     _editingText = nullptr;
     _scene->restoreSnapshot(snapshot);
 }
@@ -936,6 +1218,7 @@ void EBBoardView::finishPageInteraction()
 {
     finishTextEditing();
     finishObjectMove();
+    finishAreaSelection();
     _activeStroke = nullptr;
     _erasing = false;
     _pointing = false;
@@ -945,7 +1228,9 @@ void EBBoardView::finishPageInteraction()
 
 void EBBoardView::showCurrentPage()
 {
-    _movingObject = nullptr;
+    finishAreaSelection();
+    _movingObjects.clear();
+    _moveStartPositions.clear();
     _editingText = nullptr;
     _undoStack->clear();
     _scene->showPage(*_document->currentPage());

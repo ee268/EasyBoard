@@ -4,9 +4,13 @@
 #include <QGraphicsPixmapItem>
 #include <QGraphicsRectItem>
 #include <QImage>
+#include <QHash>
 #include <QPainter>
 #include <QPixmap>
+#include <QSet>
 #include <QtMath>
+
+#include <algorithm>
 
 #include "../global/ebtheme.h"
 
@@ -18,6 +22,8 @@ constexpr qreal kWidescreenPageWidth = 1600.0;
 constexpr qreal kPageHeight = 900.0;
 constexpr qreal kPointerRadius = 7.0;
 constexpr int kPatternSpacing = 40;
+constexpr qreal kFirstObjectZValue = 1.0;
+constexpr qreal kPointerZValue = 1000000.0;
 }
 
 EBBoardScene::EBBoardScene(QObject *parent)
@@ -47,7 +53,7 @@ EBBoardScene::EBBoardScene(QObject *parent)
                               2.0 * kPointerRadius, 2.0 * kPointerRadius,
                               QPen(ebThemeColor(EBThemeColor::BoardPointerBorder), 2.0),
                               QBrush(ebThemeColor(EBThemeColor::BoardPointerFill)));
-    _pointerItem->setZValue(2.0);
+    _pointerItem->setZValue(kPointerZValue);
     _pointerItem->hide();
 }
 
@@ -113,7 +119,7 @@ EBStrokeItem *EBBoardScene::addStroke(const QPainterPath &path, const QPen &pen)
                     _objectInteractionEnabled);
     addItem(stroke);
     stroke->setPos(_pageRect.topLeft());
-    stroke->setZValue(1.0);
+    stroke->setZValue(nextObjectZValue());
     return stroke;
 }
 
@@ -125,7 +131,7 @@ EBTextItem *EBBoardScene::addText(const QString &text, const QFont &font,
                   _objectInteractionEnabled);
     item->setTextInteractionFlags(Qt::NoTextInteraction);
     addItem(item);
-    item->setZValue(1.1);
+    item->setZValue(nextObjectZValue());
     return item;
 }
 
@@ -316,13 +322,283 @@ EBStrokeItem *EBBoardScene::selectedStroke() const
 
 QGraphicsItem *EBBoardScene::selectedObject() const
 {
-    for (QGraphicsItem *item : selectedItems()) {
+    const QVector<QGraphicsItem *> objects = selectedObjects();
+    return objects.isEmpty() ? nullptr : objects.constLast();
+}
+
+QVector<QGraphicsItem *> EBBoardScene::selectedObjects() const
+{
+    QVector<QGraphicsItem *> selected;
+    for (QGraphicsItem *item : objectItems()) {
+        if (item->isSelected())
+            selected.append(item);
+    }
+    return selected;
+}
+
+QVector<QGraphicsItem *> EBBoardScene::objectsInRect(
+    const QRectF &sceneRect) const
+{
+    QSet<QGraphicsItem *> hits;
+    QSet<QString> groupIds;
+    for (QGraphicsItem *item : items(sceneRect, Qt::IntersectsItemShape,
+                                     Qt::AscendingOrder)) {
         if (dynamic_cast<EBStrokeItem *>(item)
             || dynamic_cast<EBTextItem *>(item)
-            || dynamic_cast<EBImageItem *>(item))
-            return item;
+            || dynamic_cast<EBImageItem *>(item)) {
+            hits.insert(item);
+            const QString groupId = objectGroupId(item);
+            if (!groupId.isEmpty())
+                groupIds.insert(groupId);
+        }
     }
-    return nullptr;
+
+    QVector<QGraphicsItem *> result;
+    for (QGraphicsItem *object : objectItems()) {
+        if (hits.contains(object)
+            || groupIds.contains(objectGroupId(object)))
+            result.append(object);
+    }
+    return result;
+}
+
+bool EBBoardScene::hasObjects() const
+{
+    return !objectItems().isEmpty();
+}
+
+void EBBoardScene::selectAllObjects()
+{
+    for (QGraphicsItem *object : objectItems())
+        object->setSelected(true);
+}
+
+void EBBoardScene::setObjectSelected(QGraphicsItem *object, bool selected)
+{
+    if (!object)
+        return;
+    const QString groupId = objectGroupId(object);
+    if (groupId.isEmpty()) {
+        object->setSelected(selected);
+        return;
+    }
+    for (QGraphicsItem *candidate : objectItems()) {
+        if (objectGroupId(candidate) == groupId)
+            candidate->setSelected(selected);
+    }
+}
+
+bool EBBoardScene::canGroupSelectedObjects() const
+{
+    const QVector<QGraphicsItem *> selected = selectedObjects();
+    if (selected.size() < 2)
+        return false;
+    const QString groupId = objectGroupId(selected.first());
+    if (groupId.isEmpty())
+        return true;
+    for (QGraphicsItem *object : selected) {
+        if (objectGroupId(object) != groupId)
+            return true;
+    }
+    return false;
+}
+
+bool EBBoardScene::canUngroupSelectedObjects() const
+{
+    for (QGraphicsItem *object : selectedObjects()) {
+        if (!objectGroupId(object).isEmpty())
+            return true;
+    }
+    return false;
+}
+
+bool EBBoardScene::groupSelectedObjects(const QString &groupId)
+{
+    if (groupId.isEmpty() || !canGroupSelectedObjects())
+        return false;
+    for (QGraphicsItem *object : selectedObjects())
+        setObjectGroupId(object, groupId);
+    return true;
+}
+
+bool EBBoardScene::ungroupSelectedObjects()
+{
+    if (!canUngroupSelectedObjects())
+        return false;
+    for (QGraphicsItem *object : selectedObjects())
+        setObjectGroupId(object, QString());
+    return true;
+}
+
+bool EBBoardScene::canArrangeSelectedObjects(
+    ObjectArrangement arrangement) const
+{
+    const int unitCount = selectedObjectUnits().size();
+    const bool distribution = arrangement == ObjectArrangement::DistributeHorizontal
+        || arrangement == ObjectArrangement::DistributeVertical;
+    return unitCount >= (distribution ? 3 : 2);
+}
+
+bool EBBoardScene::arrangeSelectedObjects(ObjectArrangement arrangement)
+{
+    QVector<QVector<QGraphicsItem *>> units = selectedObjectUnits();
+    if (!canArrangeSelectedObjects(arrangement))
+        return false;
+
+    QVector<QRectF> bounds;
+    QRectF selectionBounds;
+    for (const QVector<QGraphicsItem *> &unit : units) {
+        QRectF unitBounds = unit.first()->sceneBoundingRect();
+        for (int index = 1; index < unit.size(); ++index)
+            unitBounds = unitBounds.united(unit.at(index)->sceneBoundingRect());
+        bounds.append(unitBounds);
+        selectionBounds = bounds.size() == 1
+            ? unitBounds : selectionBounds.united(unitBounds);
+    }
+
+    QVector<QPointF> offsets(units.size());
+    if (arrangement == ObjectArrangement::AlignLeft
+        || arrangement == ObjectArrangement::AlignHorizontalCenter
+        || arrangement == ObjectArrangement::AlignRight) {
+        for (int index = 0; index < units.size(); ++index) {
+            qreal x = selectionBounds.left() - bounds.at(index).left();
+            if (arrangement == ObjectArrangement::AlignHorizontalCenter)
+                x = selectionBounds.center().x() - bounds.at(index).center().x();
+            else if (arrangement == ObjectArrangement::AlignRight)
+                x = selectionBounds.right() - bounds.at(index).right();
+            offsets[index].setX(x);
+        }
+    } else if (arrangement == ObjectArrangement::AlignTop
+               || arrangement == ObjectArrangement::AlignVerticalCenter
+               || arrangement == ObjectArrangement::AlignBottom) {
+        for (int index = 0; index < units.size(); ++index) {
+            qreal y = selectionBounds.top() - bounds.at(index).top();
+            if (arrangement == ObjectArrangement::AlignVerticalCenter)
+                y = selectionBounds.center().y() - bounds.at(index).center().y();
+            else if (arrangement == ObjectArrangement::AlignBottom)
+                y = selectionBounds.bottom() - bounds.at(index).bottom();
+            offsets[index].setY(y);
+        }
+    } else {
+        QVector<int> order;
+        order.reserve(units.size());
+        for (int index = 0; index < units.size(); ++index)
+            order.append(index);
+        const bool horizontal = arrangement
+            == ObjectArrangement::DistributeHorizontal;
+        std::sort(order.begin(), order.end(), [&bounds, horizontal](int left,
+                                                                    int right) {
+            return horizontal
+                ? bounds.at(left).center().x() < bounds.at(right).center().x()
+                : bounds.at(left).center().y() < bounds.at(right).center().y();
+        });
+        qreal totalSize = 0.0;
+        for (int index : order)
+            totalSize += horizontal ? bounds.at(index).width()
+                                    : bounds.at(index).height();
+        const qreal span = horizontal ? selectionBounds.width()
+                                      : selectionBounds.height();
+        const qreal gap = (span - totalSize) / (units.size() - 1);
+        qreal cursor = horizontal ? selectionBounds.left()
+                                  : selectionBounds.top();
+        for (int index : order) {
+            if (horizontal) {
+                offsets[index].setX(cursor - bounds.at(index).left());
+                cursor += bounds.at(index).width() + gap;
+            } else {
+                offsets[index].setY(cursor - bounds.at(index).top());
+                cursor += bounds.at(index).height() + gap;
+            }
+        }
+    }
+
+    bool changed = false;
+    for (int index = 0; index < units.size(); ++index) {
+        const QPointF offset = offsets.at(index);
+        if (qFuzzyIsNull(offset.x()) && qFuzzyIsNull(offset.y()))
+            continue;
+        changed = true;
+        for (QGraphicsItem *object : units.at(index))
+            object->moveBy(offset.x(), offset.y());
+    }
+    return changed;
+}
+
+qreal EBBoardScene::nextObjectZValue() const
+{
+    qreal value = kFirstObjectZValue;
+    for (QGraphicsItem *item : objectItems())
+        value = qMax(value, item->zValue() + 1.0);
+    return value;
+}
+
+bool EBBoardScene::canMoveSelectedObjectBackward() const
+{
+    const QVector<QGraphicsItem *> objects = objectItems();
+    const QVector<QGraphicsItem *> selected = selectedObjects();
+    if (selected.isEmpty())
+        return false;
+    for (QGraphicsItem *item : objects) {
+        if (!item->isSelected())
+            return true;
+        if (selected.contains(item))
+            break;
+    }
+    return false;
+}
+
+bool EBBoardScene::canMoveSelectedObjectForward() const
+{
+    const QVector<QGraphicsItem *> objects = objectItems();
+    const QVector<QGraphicsItem *> selected = selectedObjects();
+    if (selected.isEmpty())
+        return false;
+    for (int index = objects.size() - 1; index >= 0; --index) {
+        if (!objects.at(index)->isSelected())
+            return true;
+        if (selected.contains(objects.at(index)))
+            break;
+    }
+    return false;
+}
+
+bool EBBoardScene::moveSelectedObject(LayerMove move)
+{
+    QVector<QGraphicsItem *> objects = objectItems();
+    const QVector<QGraphicsItem *> selected = selectedObjects();
+    if (selected.isEmpty())
+        return false;
+    const QVector<QGraphicsItem *> before = objects;
+    if (move == LayerMove::ToBack || move == LayerMove::ToFront) {
+        QVector<QGraphicsItem *> unselected;
+        for (QGraphicsItem *item : objects) {
+            if (!item->isSelected())
+                unselected.append(item);
+        }
+        objects = move == LayerMove::ToBack
+            ? selected + unselected : unselected + selected;
+    } else if (move == LayerMove::Backward) {
+        for (int index = 1; index < objects.size(); ++index) {
+            if (objects.at(index)->isSelected()
+                && !objects.at(index - 1)->isSelected())
+                objects.swapItemsAt(index, index - 1);
+        }
+    } else {
+        for (int index = objects.size() - 2; index >= 0; --index) {
+            if (objects.at(index)->isSelected()
+                && !objects.at(index + 1)->isSelected())
+                objects.swapItemsAt(index, index + 1);
+        }
+    }
+    bool changed = objects.size() != before.size();
+    for (int index = 0; !changed && index < objects.size(); ++index)
+        changed = objects.at(index) != before.at(index);
+    if (!changed)
+        return false;
+    // 使用连续且唯一的层级值，避免旧对象相同 z 值导致恢复后次序含糊。
+    for (int index = 0; index < objects.size(); ++index)
+        objects.at(index)->setZValue(kFirstObjectZValue + index);
+    return true;
 }
 
 void EBBoardScene::setObjectInteractionEnabled(bool enabled)
@@ -343,6 +619,61 @@ void EBBoardScene::setObjectInteractionEnabled(bool enabled)
 bool EBBoardScene::objectInteractionEnabled() const
 {
     return _objectInteractionEnabled;
+}
+
+QVector<QGraphicsItem *> EBBoardScene::objectItems() const
+{
+    QVector<QGraphicsItem *> objects;
+    for (QGraphicsItem *item : items(Qt::AscendingOrder)) {
+        if (dynamic_cast<EBStrokeItem *>(item)
+            || dynamic_cast<EBTextItem *>(item)
+            || dynamic_cast<EBImageItem *>(item))
+            objects.append(item);
+    }
+    return objects;
+}
+
+QString EBBoardScene::objectGroupId(QGraphicsItem *object) const
+{
+    if (auto *stroke = dynamic_cast<EBStrokeItem *>(object))
+        return stroke->groupId();
+    if (auto *text = dynamic_cast<EBTextItem *>(object))
+        return text->groupId();
+    if (auto *image = dynamic_cast<EBImageItem *>(object))
+        return image->groupId();
+    return QString();
+}
+
+void EBBoardScene::setObjectGroupId(QGraphicsItem *object,
+                                    const QString &groupId)
+{
+    if (auto *stroke = dynamic_cast<EBStrokeItem *>(object))
+        stroke->setGroupId(groupId);
+    else if (auto *text = dynamic_cast<EBTextItem *>(object))
+        text->setGroupId(groupId);
+    else if (auto *image = dynamic_cast<EBImageItem *>(object))
+        image->setGroupId(groupId);
+}
+
+QVector<QVector<QGraphicsItem *>> EBBoardScene::selectedObjectUnits() const
+{
+    QVector<QVector<QGraphicsItem *>> units;
+    QHash<QString, int> groupedIndexes;
+    for (QGraphicsItem *object : selectedObjects()) {
+        const QString groupId = objectGroupId(object);
+        if (groupId.isEmpty()) {
+            units.append({object});
+            continue;
+        }
+        auto found = groupedIndexes.constFind(groupId);
+        if (found == groupedIndexes.constEnd()) {
+            groupedIndexes.insert(groupId, units.size());
+            units.append({object});
+        } else {
+            units[found.value()].append(object);
+        }
+    }
+    return units;
 }
 
 void EBBoardScene::refreshPageGeometry()

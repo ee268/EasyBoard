@@ -28,6 +28,7 @@ public:
         QPointF transformOrigin;
         qreal scale = 1.0;
         qreal rotation = 0.0;
+        QString groupId;
     };
 
     explicit EBImageItem(const State &state);
@@ -40,6 +41,8 @@ public:
     bool isValid() const;
     State state() const;
     void applyState(const State &state);
+    QString groupId() const;
+    void setGroupId(const QString &groupId);
 
     static bool naturalSize(Format format, const QByteArray &data,
                             QSizeF *size = nullptr);
@@ -53,6 +56,7 @@ private:
     QImage _image;
     std::unique_ptr<QSvgRenderer> _svgRenderer;
     bool _valid;
+    QString _groupId;
 };
 
 #endif

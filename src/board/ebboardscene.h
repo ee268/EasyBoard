@@ -13,6 +13,22 @@ class QGraphicsRectItem;
 class EBBoardScene : public QGraphicsScene
 {
 public:
+    enum class LayerMove {
+        ToBack,
+        Backward,
+        Forward,
+        ToFront
+    };
+    enum class ObjectArrangement {
+        AlignLeft,
+        AlignHorizontalCenter,
+        AlignRight,
+        AlignTop,
+        AlignVerticalCenter,
+        AlignBottom,
+        DistributeHorizontal,
+        DistributeVertical
+    };
     using PageColor = EBPage::Color;
     using PagePattern = EBPage::Pattern;
     using PageSize = EBPage::Size;
@@ -55,6 +71,21 @@ public:
                             qreal tolerance = 6.0) const;
     EBStrokeItem *selectedStroke() const;
     QGraphicsItem *selectedObject() const;
+    QVector<QGraphicsItem *> selectedObjects() const;
+    QVector<QGraphicsItem *> objectsInRect(const QRectF &sceneRect) const;
+    bool hasObjects() const;
+    void selectAllObjects();
+    void setObjectSelected(QGraphicsItem *object, bool selected);
+    bool canGroupSelectedObjects() const;
+    bool canUngroupSelectedObjects() const;
+    bool groupSelectedObjects(const QString &groupId);
+    bool ungroupSelectedObjects();
+    bool canArrangeSelectedObjects(ObjectArrangement arrangement) const;
+    bool arrangeSelectedObjects(ObjectArrangement arrangement);
+    qreal nextObjectZValue() const;
+    bool canMoveSelectedObjectBackward() const;
+    bool canMoveSelectedObjectForward() const;
+    bool moveSelectedObject(LayerMove move);
     void setObjectInteractionEnabled(bool enabled);
     bool objectInteractionEnabled() const;
     void showPointerAt(const QPointF &pagePosition);
@@ -62,6 +93,10 @@ public:
     bool pointerVisible() const;
 
 private:
+    QVector<QGraphicsItem *> objectItems() const;
+    QString objectGroupId(QGraphicsItem *object) const;
+    void setObjectGroupId(QGraphicsItem *object, const QString &groupId);
+    QVector<QVector<QGraphicsItem *>> selectedObjectUnits() const;
     void refreshPageGeometry();
     void refreshPageBackground();
     void refreshPageImage();

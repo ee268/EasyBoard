@@ -53,7 +53,7 @@ bool EBImageItem::isValid() const
 EBImageItem::State EBImageItem::state() const
 {
     return {_format, _data, _size, pos(), zValue(), transformOriginPoint(),
-            scale(), rotation()};
+            scale(), rotation(), _groupId};
 }
 
 void EBImageItem::applyState(const State &state)
@@ -67,6 +67,17 @@ void EBImageItem::applyState(const State &state)
     setTransformOriginPoint(state.transformOrigin);
     setScale(state.scale);
     setRotation(state.rotation);
+    _groupId = state.groupId;
+}
+
+QString EBImageItem::groupId() const
+{
+    return _groupId;
+}
+
+void EBImageItem::setGroupId(const QString &groupId)
+{
+    _groupId = groupId;
 }
 
 bool EBImageItem::naturalSize(Format format, const QByteArray &data,

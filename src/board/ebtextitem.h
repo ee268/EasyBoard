@@ -19,6 +19,7 @@ public:
         qreal scale = 1.0;
         qreal rotation = 0.0;
         qreal textWidth = 360.0;
+        QString groupId;
     };
 
     EBTextItem(const QString &text, const QFont &font, const QColor &color);
@@ -26,6 +27,11 @@ public:
     State state() const;
     void applyState(const State &state);
     void refreshTransformOrigin();
+    QString groupId() const;
+    void setGroupId(const QString &groupId);
+
+private:
+    QString _groupId;
 };
 
 #endif

@@ -7,6 +7,7 @@
 
 class QUndoStack;
 class QKeyEvent;
+class QRubberBand;
 class EBDocument;
 
 // 视图只负责视口坐标、鼠标操作会话和撤销入口；页面内容交给场景。
@@ -28,6 +29,7 @@ public:
     using PageColor = EBBoardScene::PageColor;
     using PagePattern = EBBoardScene::PagePattern;
     using PageSize = EBBoardScene::PageSize;
+    using ObjectArrangement = EBBoardScene::ObjectArrangement;
 
     explicit EBBoardView(EBDocument *document, QWidget *parent = nullptr);
 
@@ -38,6 +40,8 @@ public:
     void undo();
     void redo();
     bool hasSelectedObject() const;
+    bool canSelectAllObjects() const;
+    void selectAllObjects();
     void scaleSelectedObject(qreal factor);
     void rotateSelectedObject(qreal degrees);
     void deleteSelectedObject();
@@ -46,6 +50,18 @@ public:
     void pasteObject();
     bool canPasteObject() const;
     bool isTextEditing() const;
+    bool canMoveSelectedObjectBackward() const;
+    bool canMoveSelectedObjectForward() const;
+    bool canGroupSelectedObjects() const;
+    bool canUngroupSelectedObjects() const;
+    void groupSelectedObjects();
+    void ungroupSelectedObjects();
+    bool canArrangeSelectedObjects(ObjectArrangement arrangement) const;
+    void arrangeSelectedObjects(ObjectArrangement arrangement);
+    void sendSelectedObjectToBack();
+    void moveSelectedObjectBackward();
+    void moveSelectedObjectForward();
+    void bringSelectedObjectToFront();
     bool insertImageObject(const EBImageItem::State &state);
     int addPage();
     int duplicateCurrentPage();
@@ -102,10 +118,17 @@ private:
     void eraseAlong(const QPointF &from, const QPointF &to);
     void updateObjectMove(const QPointF &scenePosition);
     void finishObjectMove();
+    void startAreaSelection(const QPoint &viewportPosition,
+                            Qt::KeyboardModifiers modifiers);
+    void updateAreaSelection(const QPoint &viewportPosition);
+    void finishAreaSelection();
     void startTextEditing(EBTextItem *text, bool newlyCreated);
     void finishTextEditing();
     void keepObjectInsidePage(QGraphicsItem *item);
+    void keepObjectsInsidePage(const QVector<QGraphicsItem *> &items);
     void commitObjectEdit(const Snapshot &before, const QString &description);
+    void moveSelectedObjectLayer(EBBoardScene::LayerMove move,
+                                 const QString &description);
     void restoreSnapshot(const Snapshot &snapshot);
     void beginEdit();
     void finishEdit();
@@ -116,7 +139,12 @@ private:
     EBDocument *_document;
     EBBoardScene *_scene;
     EBStrokeItem *_activeStroke;
-    QGraphicsItem *_movingObject;
+    QVector<QGraphicsItem *> _movingObjects;
+    QRubberBand *_selectionBand;
+    QPoint _selectionOrigin;
+    QVector<QGraphicsItem *> _selectionBaseline;
+    Qt::KeyboardModifiers _selectionModifiers;
+    bool _selectingArea;
     EBTextItem *_editingText;
     QString _textBeforeEdit;
     bool _editingTextWasNew;
@@ -124,7 +152,7 @@ private:
     DrawingTool _activeTool;
     QPointF _strokeStart;
     QPointF _moveStartScene;
-    QPointF _moveStartPosition;
+    QVector<QPointF> _moveStartPositions;
     bool _erasing;
     QPointF _lastEraserPosition;
     bool _pointing;

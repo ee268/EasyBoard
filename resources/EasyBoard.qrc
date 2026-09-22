@@ -11,15 +11,31 @@
         <file>icons/toolbar/undo.svg</file>
         <file>icons/toolbar/redo.svg</file>
         <file>icons/toolbar/select.svg</file>
+        <file>icons/toolbar/select_all.svg</file>
         <file>icons/toolbar/text.svg</file>
         <file>icons/toolbar/cut.svg</file>
         <file>icons/toolbar/copy.svg</file>
         <file>icons/toolbar/paste.svg</file>
+        <file>icons/toolbar/object_to_back.svg</file>
+        <file>icons/toolbar/object_backward.svg</file>
+        <file>icons/toolbar/object_forward.svg</file>
+        <file>icons/toolbar/object_to_front.svg</file>
         <file>icons/toolbar/object_scale_up.svg</file>
         <file>icons/toolbar/object_scale_down.svg</file>
         <file>icons/toolbar/object_rotate_left.svg</file>
         <file>icons/toolbar/object_rotate_right.svg</file>
         <file>icons/toolbar/object_delete.svg</file>
+        <file>icons/toolbar/object_group.svg</file>
+        <file>icons/toolbar/object_ungroup.svg</file>
+        <file>icons/toolbar/object_arrange.svg</file>
+        <file>icons/toolbar/object_align_left.svg</file>
+        <file>icons/toolbar/object_align_hcenter.svg</file>
+        <file>icons/toolbar/object_align_right.svg</file>
+        <file>icons/toolbar/object_align_top.svg</file>
+        <file>icons/toolbar/object_align_vcenter.svg</file>
+        <file>icons/toolbar/object_align_bottom.svg</file>
+        <file>icons/toolbar/object_distribute_horizontal.svg</file>
+        <file>icons/toolbar/object_distribute_vertical.svg</file>
         <file>icons/toolbar/pen.svg</file>
         <file>icons/toolbar/marker.svg</file>
         <file>icons/toolbar/line.svg</file>

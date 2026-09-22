@@ -45,6 +45,7 @@ EBMainWindowActions::EBMainWindowActions(QMainWindow *window, EBBoardView *board
         _patternActions[pattern]->setChecked(true);
         const int size = _boardView->pageSize() == EBBoardView::PageSize::Standard ? 0 : 1;
         _sizeActions[size]->setChecked(true);
+        updateSelectAllAction();
     });
     // 拖动中禁用历史动作；完成编辑后按实际栈状态重新启用。
     connect(_boardView, &EBBoardView::historyAvailabilityChanged,
@@ -52,11 +53,19 @@ EBMainWindowActions::EBMainWindowActions(QMainWindow *window, EBBoardView *board
         const bool onBoard = _modeActions[0] && _modeActions[0]->isChecked();
         _undoAction->setEnabled(onBoard && canUndo);
         _redoAction->setEnabled(onBoard && canRedo);
+        updateLayerActions();
+        updateGroupActions();
+        updateArrangeActions();
+        updateSelectAllAction();
     });
     connect(_boardView, &EBBoardView::selectionAvailabilityChanged,
             this, [this](bool) {
         updateObjectActions();
         updateClipboardActions();
+        updateLayerActions();
+        updateGroupActions();
+        updateArrangeActions();
+        updateSelectAllAction();
     });
     connect(_boardView, &EBBoardView::drawingToolChanged, this,
             [this](EBBoardView::DrawingTool tool) {
@@ -167,6 +176,88 @@ void EBMainWindowActions::createEditMenu()
             _boardView, &EBBoardView::copySelectedObject);
     connect(_pasteAction, &QAction::triggered,
             _boardView, &EBBoardView::pasteObject);
+    _selectAllAction = editMenu->addAction(toolbarIcon("select_all"),
+                                            tr("全选"));
+    _selectAllAction->setObjectName(QStringLiteral("selectAllObjectsAction"));
+    _selectAllAction->setShortcut(QKeySequence::SelectAll);
+    _selectAllAction->setEnabled(false);
+    connect(_selectAllAction, &QAction::triggered,
+            _boardView, &EBBoardView::selectAllObjects);
+
+    editMenu->addSeparator();
+    _groupAction = editMenu->addAction(tr("组合"));
+    _groupAction->setObjectName(QStringLiteral("groupObjectsAction"));
+    _groupAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
+    _groupAction->setEnabled(false);
+    _ungroupAction = editMenu->addAction(tr("取消组合"));
+    _ungroupAction->setObjectName(QStringLiteral("ungroupObjectsAction"));
+    _ungroupAction->setShortcut(
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G));
+    _ungroupAction->setEnabled(false);
+    connect(_groupAction, &QAction::triggered,
+            _boardView, &EBBoardView::groupSelectedObjects);
+    connect(_ungroupAction, &QAction::triggered,
+            _boardView, &EBBoardView::ungroupSelectedObjects);
+
+    QMenu *arrangeMenu = editMenu->addMenu(toolbarIcon("object_arrange"),
+                                            tr("对齐与分布"));
+    const QString arrangeLabels[] = {
+        tr("左对齐"), tr("水平居中"), tr("右对齐"),
+        tr("顶部对齐"), tr("垂直居中"), tr("底部对齐"),
+        tr("水平等距分布"), tr("垂直等距分布")
+    };
+    const char *arrangeNames[] = {
+        "alignObjectsLeftAction", "alignObjectsHorizontalCenterAction",
+        "alignObjectsRightAction", "alignObjectsTopAction",
+        "alignObjectsVerticalCenterAction", "alignObjectsBottomAction",
+        "distributeObjectsHorizontalAction", "distributeObjectsVerticalAction"
+    };
+    const char *arrangeIcons[] = {
+        "object_align_left", "object_align_hcenter", "object_align_right",
+        "object_align_top", "object_align_vcenter", "object_align_bottom",
+        "object_distribute_horizontal", "object_distribute_vertical"
+    };
+    for (int index = 0; index < 8; ++index) {
+        if (index == 3 || index == 6)
+            arrangeMenu->addSeparator();
+        QAction *action = arrangeMenu->addAction(
+            toolbarIcon(arrangeIcons[index]), arrangeLabels[index]);
+        action->setObjectName(QString::fromLatin1(arrangeNames[index]));
+        action->setEnabled(false);
+        _arrangeActions[index] = action;
+        connect(action, &QAction::triggered, _boardView,
+                [this, index]() {
+            _boardView->arrangeSelectedObjects(
+                static_cast<EBBoardView::ObjectArrangement>(index));
+        });
+    }
+
+    editMenu->addSeparator();
+    const QString labels[] = {tr("置于底层"), tr("下移一层"),
+                              tr("上移一层"), tr("置于顶层")};
+    const char *names[] = {"sendObjectToBackAction", "moveObjectBackwardAction",
+                           "moveObjectForwardAction", "bringObjectToFrontAction"};
+    for (int index = 0; index < 4; ++index) {
+        _layerActions[index] = editMenu->addAction(labels[index]);
+        _layerActions[index]->setObjectName(QString::fromLatin1(names[index]));
+        _layerActions[index]->setEnabled(false);
+    }
+    _layerActions[0]->setShortcut(
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketLeft));
+    _layerActions[1]->setShortcut(
+        QKeySequence(Qt::CTRL | Qt::Key_BracketLeft));
+    _layerActions[2]->setShortcut(
+        QKeySequence(Qt::CTRL | Qt::Key_BracketRight));
+    _layerActions[3]->setShortcut(
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketRight));
+    connect(_layerActions[0], &QAction::triggered,
+            _boardView, &EBBoardView::sendSelectedObjectToBack);
+    connect(_layerActions[1], &QAction::triggered,
+            _boardView, &EBBoardView::moveSelectedObjectBackward);
+    connect(_layerActions[2], &QAction::triggered,
+            _boardView, &EBBoardView::moveSelectedObjectForward);
+    connect(_layerActions[3], &QAction::triggered,
+            _boardView, &EBBoardView::bringSelectedObjectToFront);
 }
 
 void EBMainWindowActions::createToolBar()
@@ -221,6 +312,34 @@ void EBMainWindowActions::createToolBar()
     toolBar->addAction(_cutAction);
     toolBar->addAction(_copyAction);
     toolBar->addAction(_pasteAction);
+    _groupAction->setIcon(toolbarIcon("object_group"));
+    _ungroupAction->setIcon(toolbarIcon("object_ungroup"));
+    _groupAction->setToolTip(tr("组合（Ctrl+G）"));
+    _ungroupAction->setToolTip(tr("取消组合（Ctrl+Shift+G）"));
+    toolBar->addAction(_groupAction);
+    toolBar->addAction(_ungroupAction);
+    _arrangeButton = new QToolButton(toolBar);
+    _arrangeButton->setObjectName(QStringLiteral("arrangeObjectsButton"));
+    _arrangeButton->setIcon(toolbarIcon("object_arrange"));
+    _arrangeButton->setToolTip(tr("对齐与分布"));
+    _arrangeButton->setPopupMode(QToolButton::InstantPopup);
+    _arrangeButton->setEnabled(false);
+    QMenu *arrangeMenu = new QMenu(_arrangeButton);
+    for (int index = 0; index < 8; ++index) {
+        if (index == 3 || index == 6)
+            arrangeMenu->addSeparator();
+        arrangeMenu->addAction(_arrangeActions[index]);
+    }
+    _arrangeButton->setMenu(arrangeMenu);
+    toolBar->addWidget(_arrangeButton);
+    toolBar->addSeparator();
+    const char *layerIcons[] = {"object_to_back", "object_backward",
+                                "object_forward", "object_to_front"};
+    for (int index = 0; index < 4; ++index) {
+        _layerActions[index]->setIcon(toolbarIcon(layerIcons[index]));
+        _layerActions[index]->setToolTip(_layerActions[index]->text());
+        toolBar->addAction(_layerActions[index]);
+    }
     toolBar->addSeparator();
     createObjectActions(toolBar);
     toolBar->addSeparator();
@@ -431,6 +550,10 @@ void EBMainWindowActions::setMode(EBApplicationController::MainMode mode)
     _redoAction->setEnabled(onBoard && _boardView->canRedo());
     updateObjectActions();
     updateClipboardActions();
+    updateLayerActions();
+    updateGroupActions();
+    updateArrangeActions();
+    updateSelectAllAction();
 }
 
 void EBMainWindowActions::updateObjectActions()
@@ -453,6 +576,57 @@ void EBMainWindowActions::updateClipboardActions()
         _pasteAction->setEnabled(_boardModeActive
                                  && !_boardView->isTextEditing()
                                  && _boardView->canPasteObject());
+    }
+}
+
+void EBMainWindowActions::updateLayerActions()
+{
+    const bool canMoveBackward = _boardModeActive
+        && _boardView->canMoveSelectedObjectBackward();
+    const bool canMoveForward = _boardModeActive
+        && _boardView->canMoveSelectedObjectForward();
+    if (_layerActions[0])
+        _layerActions[0]->setEnabled(canMoveBackward);
+    if (_layerActions[1])
+        _layerActions[1]->setEnabled(canMoveBackward);
+    if (_layerActions[2])
+        _layerActions[2]->setEnabled(canMoveForward);
+    if (_layerActions[3])
+        _layerActions[3]->setEnabled(canMoveForward);
+}
+
+void EBMainWindowActions::updateGroupActions()
+{
+    if (_groupAction) {
+        _groupAction->setEnabled(_boardModeActive
+                                 && _boardView->canGroupSelectedObjects());
+    }
+    if (_ungroupAction) {
+        _ungroupAction->setEnabled(_boardModeActive
+                                   && _boardView->canUngroupSelectedObjects());
+    }
+}
+
+void EBMainWindowActions::updateArrangeActions()
+{
+    bool available = false;
+    for (int index = 0; index < 8; ++index) {
+        const bool enabled = _boardModeActive
+            && _boardView->canArrangeSelectedObjects(
+                static_cast<EBBoardView::ObjectArrangement>(index));
+        if (_arrangeActions[index])
+            _arrangeActions[index]->setEnabled(enabled);
+        available |= enabled;
+    }
+    if (_arrangeButton)
+        _arrangeButton->setEnabled(available);
+}
+
+void EBMainWindowActions::updateSelectAllAction()
+{
+    if (_selectAllAction) {
+        _selectAllAction->setEnabled(_boardModeActive
+                                     && _boardView->canSelectAllObjects());
     }
 }
 

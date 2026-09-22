@@ -17,6 +17,7 @@ public:
         QPointF transformOrigin;
         qreal scale = 1.0;
         qreal rotation = 0.0;
+        QString groupId;
     };
 
     EBStrokeItem(const QPainterPath &path, const QPen &pen);
@@ -24,10 +25,15 @@ public:
     // 保存笔迹可恢复的状态，供撤销命令构造快照。
     State state() const;
     void applyState(const State &state);
+    QString groupId() const;
+    void setGroupId(const QString &groupId);
 
     // 用圆形橡皮裁切本笔迹；返回 false 表示没有擦到实际路径。
     bool splitAt(const QPointF &center, qreal radius,
                  QVector<QPainterPath> &remaining) const;
+
+private:
+    QString _groupId;
 };
 
 #endif

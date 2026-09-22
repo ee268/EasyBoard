@@ -43,10 +43,15 @@ private:
     void createModeActions(QToolBar *toolBar);
     void updateObjectActions();
     void updateClipboardActions();
+    void updateLayerActions();
+    void updateGroupActions();
+    void updateArrangeActions();
+    void updateSelectAllAction();
 
     QMainWindow *_window;
     EBBoardView *_boardView;
     QToolButton *_backgroundButton = nullptr;
+    QToolButton *_arrangeButton = nullptr;
     QAction *_undoAction = nullptr;
     QAction *_redoAction = nullptr;
     QAction *_zoomInAction = nullptr;
@@ -56,11 +61,16 @@ private:
     QAction *_cutAction = nullptr;
     QAction *_copyAction = nullptr;
     QAction *_pasteAction = nullptr;
+    QAction *_selectAllAction = nullptr;
+    QAction *_groupAction = nullptr;
+    QAction *_ungroupAction = nullptr;
     QAction *_colorActions[2] = {};
     QAction *_patternActions[3] = {};
     QAction *_sizeActions[2] = {};
     QAction *_toolActions[8] = {};
     QAction *_objectActions[5] = {};
+    QAction *_layerActions[4] = {};
+    QAction *_arrangeActions[8] = {};
     QAction *_modeActions[4] = {};
     bool _boardModeActive = false;
 };

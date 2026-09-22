@@ -4,6 +4,7 @@
 #include "ebimageitem.h"
 #include "ebstrokeitem.h"
 #include "ebtextitem.h"
+#include <QVector>
 
 class QGraphicsItem;
 class QMimeData;
@@ -25,11 +26,13 @@ public:
         EBTextItem::State text;
         EBImageItem::State image;
     };
+    using Objects = QVector<Object>;
 
     static QString mimeType();
-    static QMimeData *createMimeData(QGraphicsItem *item);
-    static bool decode(const QMimeData *mimeData, Object *object);
+    static QMimeData *createMimeData(const QVector<QGraphicsItem *> &items);
+    static bool decode(const QMimeData *mimeData, Objects *objects);
     static bool canDecode(const QMimeData *mimeData);
+    static void remapGroupIds(Objects *objects);
 };
 
 #endif

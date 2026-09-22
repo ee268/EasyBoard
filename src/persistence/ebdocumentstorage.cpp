@@ -72,7 +72,7 @@ QJsonObject penObject(const QPen &pen)
 
 QJsonObject strokeObject(const EBStrokeItem::State &stroke)
 {
-    return QJsonObject{
+    QJsonObject object{
         {QStringLiteral("path"), pathObject(stroke.path)},
         {QStringLiteral("pen"), penObject(stroke.pen)},
         {QStringLiteral("position"), QJsonObject{
@@ -85,6 +85,9 @@ QJsonObject strokeObject(const EBStrokeItem::State &stroke)
         {QStringLiteral("scale"), stroke.scale},
         {QStringLiteral("rotation"), stroke.rotation}
     };
+    if (!stroke.groupId.isEmpty())
+        object.insert(QStringLiteral("groupId"), stroke.groupId);
+    return object;
 }
 
 QJsonObject fontObject(const QFont &font)
@@ -100,7 +103,7 @@ QJsonObject fontObject(const QFont &font)
 
 QJsonObject textObject(const EBTextItem::State &text)
 {
-    return QJsonObject{
+    QJsonObject object{
         {QStringLiteral("text"), text.text},
         {QStringLiteral("font"), fontObject(text.font)},
         {QStringLiteral("color"), text.color.name(QColor::HexArgb)},
@@ -115,11 +118,14 @@ QJsonObject textObject(const EBTextItem::State &text)
         {QStringLiteral("rotation"), text.rotation},
         {QStringLiteral("textWidth"), text.textWidth}
     };
+    if (!text.groupId.isEmpty())
+        object.insert(QStringLiteral("groupId"), text.groupId);
+    return object;
 }
 
 QJsonObject imageObject(const EBImageItem::State &image)
 {
-    return QJsonObject{
+    QJsonObject object{
         {QStringLiteral("format"), image.format == EBImageItem::Format::Svg
              ? QStringLiteral("svg") : QStringLiteral("png")},
         {QStringLiteral("data"), QString::fromLatin1(image.data.toBase64())},
@@ -136,6 +142,9 @@ QJsonObject imageObject(const EBImageItem::State &image)
         {QStringLiteral("scale"), image.scale},
         {QStringLiteral("rotation"), image.rotation}
     };
+    if (!image.groupId.isEmpty())
+        object.insert(QStringLiteral("groupId"), image.groupId);
+    return object;
 }
 
 QJsonObject pageObject(const EBPage &page, int index)
@@ -280,6 +289,22 @@ bool readPen(const QJsonObject &object, QPen *pen)
     return true;
 }
 
+bool readGroupId(const QJsonObject &object, QString *groupId)
+{
+    const QJsonValue value = object.value(QStringLiteral("groupId"));
+    if (value.isUndefined()) {
+        groupId->clear();
+        return true;
+    }
+    if (!value.isString())
+        return false;
+    const QString id = value.toString();
+    if (id.isEmpty() || QUuid(id).isNull())
+        return false;
+    *groupId = QUuid(id).toString(QUuid::WithoutBraces);
+    return true;
+}
+
 bool readStroke(const QJsonObject &object, EBStrokeItem::State *stroke)
 {
     QPainterPath path;
@@ -303,15 +328,17 @@ bool readStroke(const QJsonObject &object, EBStrokeItem::State *stroke)
     }
     const qreal scale = object.value(QStringLiteral("scale")).toDouble(1.0);
     const qreal rotation = object.value(QStringLiteral("rotation")).toDouble(0.0);
+    QString groupId;
     if (!qIsFinite(scale) || scale <= 0.0 || scale > 20.0
         || !qIsFinite(rotation)
-        || !qIsFinite(transformOrigin.x()) || !qIsFinite(transformOrigin.y()))
+        || !qIsFinite(transformOrigin.x()) || !qIsFinite(transformOrigin.y())
+        || !readGroupId(object, &groupId))
         return false;
     *stroke = {path, pen,
                QPointF(position.value(QStringLiteral("x")).toDouble(),
                        position.value(QStringLiteral("y")).toDouble()),
                object.value(QStringLiteral("z")).toDouble(),
-               transformOrigin, scale, rotation};
+               transformOrigin, scale, rotation, groupId};
     return true;
 }
 
@@ -333,6 +360,7 @@ bool readText(const QJsonObject &object, EBTextItem::State *text)
     const qreal scale = object.value(QStringLiteral("scale")).toDouble(-1.0);
     const qreal rotation = object.value(QStringLiteral("rotation")).toDouble();
     const qreal textWidth = object.value(QStringLiteral("textWidth")).toDouble(-1.0);
+    QString groupId;
     if (content.isEmpty() || content.size() > kMaxTextLength
         || family.isEmpty() || family.size() > 256
         || pointSize < 6.0 || pointSize > 200.0
@@ -345,7 +373,8 @@ bool readText(const QJsonObject &object, EBTextItem::State *text)
         || !qIsFinite(originX) || !qIsFinite(originY)
         || !qIsFinite(scale) || scale <= 0.0 || scale > 20.0
         || !qIsFinite(rotation)
-        || !qIsFinite(textWidth) || textWidth < 40.0 || textWidth > 2000.0)
+        || !qIsFinite(textWidth) || textWidth < 40.0 || textWidth > 2000.0
+        || !readGroupId(object, &groupId))
         return false;
     QFont font(family);
     font.setPointSizeF(pointSize);
@@ -353,7 +382,7 @@ bool readText(const QJsonObject &object, EBTextItem::State *text)
     font.setItalic(fontJson.value(QStringLiteral("italic")).toBool(false));
     font.setUnderline(fontJson.value(QStringLiteral("underline")).toBool(false));
     *text = {content, font, color, QPointF(x, y), z,
-             QPointF(originX, originY), scale, rotation, textWidth};
+             QPointF(originX, originY), scale, rotation, textWidth, groupId};
     return true;
 }
 
@@ -394,15 +423,16 @@ bool readImage(const QJsonObject &object, EBImageItem::State *image)
     const qreal z = object.value(QStringLiteral("z")).toDouble();
     const qreal scale = object.value(QStringLiteral("scale")).toDouble(-1.0);
     const qreal rotation = object.value(QStringLiteral("rotation")).toDouble();
+    QString groupId;
     if (!qIsFinite(width) || !qIsFinite(height)
         || width <= 0.0 || height <= 0.0 || width > 10000.0 || height > 10000.0
         || !qIsFinite(x) || !qIsFinite(y) || !qIsFinite(z)
         || !qIsFinite(originX) || !qIsFinite(originY)
         || !qIsFinite(scale) || scale <= 0.0 || scale > 20.0
-        || !qIsFinite(rotation))
+        || !qIsFinite(rotation) || !readGroupId(object, &groupId))
         return false;
     *image = {format, data, QSizeF(width, height), QPointF(x, y), z,
-              QPointF(originX, originY), scale, rotation};
+              QPointF(originX, originY), scale, rotation, groupId};
     return true;
 }
 
