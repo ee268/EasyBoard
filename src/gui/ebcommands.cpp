@@ -40,6 +40,8 @@ EBCommands::EBCommands(QMainWindow *window, EBBoardView *boardView)
             this, &EBCommands::modeRequested);
     connect(_topBar, &EBTopBar::pagePanelVisibilityRequested,
             this, &EBCommands::pagePanelVisibilityRequested);
+    connect(_topBar, &EBTopBar::displayViewRequested,
+            this, &EBCommands::displayViewRequested);
     connect(_boardView, &EBBoardView::currentPageChanged,
             this, &EBCommands::refreshActions);
     connect(_boardView, &EBBoardView::historyAvailabilityChanged,
@@ -67,6 +69,11 @@ void EBCommands::setMode(EBApplicationController::MainMode mode)
 QString EBCommands::modeLabel(EBApplicationController::MainMode mode) const
 {
     return _topBar->modeLabel(mode);
+}
+
+void EBCommands::setDisplayVisible(bool visible)
+{
+    _topBar->setDisplayVisible(visible);
 }
 
 void EBCommands::refreshActions()

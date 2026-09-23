@@ -21,6 +21,7 @@ public:
 
     void setMode(EBApplicationController::MainMode mode);
     QString modeLabel(EBApplicationController::MainMode mode) const;
+    void setDisplayVisible(bool visible);
 
 signals:
     void newDocumentRequested();
@@ -33,6 +34,7 @@ signals:
     void quitRequested();
     void modeRequested(EBApplicationController::MainMode mode);
     void pagePanelVisibilityRequested(bool visible);
+    void displayViewRequested(bool visible);
 
 private:
     void createFileMenu();

@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include "ebteachingstorage.h"
 #include <QSaveFile>
 #include <QUuid>
 #include <QtMath>
@@ -178,7 +179,9 @@ QJsonObject pageObject(const EBPage &page, int index)
         {QStringLiteral("size"), sizeName(page.size())},
         {QStringLiteral("strokes"), strokes},
         {QStringLiteral("texts"), texts},
-        {QStringLiteral("images"), images}
+        {QStringLiteral("images"), images},
+        {QStringLiteral("teachingTools"),
+         EBTeachingStorage::toJson(page.teachingTools())}
     };
     if (!horizontalGuides.isEmpty() || !verticalGuides.isEmpty()) {
         result.insert(QStringLiteral("guides"), QJsonObject{
@@ -544,6 +547,12 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page)
         images.append(image);
     }
     page->setImages(images);
+    EBPage::TeachingTools teachingTools;
+    if (!EBTeachingStorage::fromJson(
+            object.value(QStringLiteral("teachingTools")), &teachingTools,
+            QSizeF(EBPage::widthForSize(page->size()), EBPage::Height)))
+        return false;
+    page->setTeachingTools(teachingTools);
     const QJsonValue guidesValue = object.value(QStringLiteral("guides"));
     if (!guidesValue.isUndefined()) {
         if (!guidesValue.isObject())

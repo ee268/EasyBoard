@@ -20,10 +20,12 @@ public:
 
     void setMode(EBApplicationController::MainMode mode);
     QString modeLabel(EBApplicationController::MainMode mode) const;
+    void setDisplayVisible(bool visible);
 
 signals:
     void modeRequested(EBApplicationController::MainMode mode);
     void pagePanelVisibilityRequested(bool visible);
+    void displayViewRequested(bool visible);
 
 private:
     void createModeActions();
@@ -34,6 +36,7 @@ private:
     EBBoardView *_boardView;
     QAction *_insertImageAction;
     QAction *_pagePanelAction = nullptr;
+    QAction *_displayAction = nullptr;
     QAction *_undoAction = nullptr;
     QAction *_redoAction = nullptr;
     QAction *_zoomInAction = nullptr;

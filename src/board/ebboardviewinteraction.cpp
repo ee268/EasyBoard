@@ -70,6 +70,7 @@ void EBBoardView::mousePressEvent(QMouseEvent *event)
     finishKeyboardMove();
     if (event->button() == Qt::LeftButton
         && _teachingTools.press(mapToScene(event->pos()), pageRect())) {
+        emit teachingToolChanged(_teachingTools.kind());
         viewport()->update();
         event->accept();
         return;
@@ -300,6 +301,8 @@ void EBBoardView::mouseReleaseEvent(QMouseEvent *event)
             mapToScene(event->pos()), pageRect());
         if (!path.isEmpty())
             addTeachingStroke(path, tr("教学工具描线"));
+        syncTeachingTools();
+        emit teachingToolChanged(_teachingTools.kind());
         viewport()->update();
         event->accept();
         return;
@@ -363,6 +366,10 @@ void EBBoardView::leaveEvent(QEvent *event)
 
 void EBBoardView::hideEvent(QHideEvent *event)
 {
+    if (_teachingTools.isInteracting()) {
+        _teachingTools.cancel();
+        syncTeachingTools();
+    }
     _viewCenter = mapToScene(viewport()->rect().center());
     // 模式切换可能发生在鼠标释放前，结束本次编辑以免保留失效图元指针。
     finishTextEditing();
@@ -377,7 +384,7 @@ void EBBoardView::hideEvent(QHideEvent *event)
     _scene->hidePointer();
     finishEdit();
     if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
-        _teachingTools.setKind(EBTeachingTools::Kind::None, pageRect());
+        _teachingTools.deactivate();
         emit teachingToolChanged(EBTeachingTools::Kind::None);
     }
     QGraphicsView::hideEvent(event);

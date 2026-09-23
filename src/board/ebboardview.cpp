@@ -57,6 +57,7 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
 {
     Q_ASSERT(_document);
     _scene->showPage(*_document->currentPage());
+    _teachingTools.restore(_document->currentPage()->teachingTools(), pageRect());
     setObjectName(QStringLiteral("boardView"));
     _undoStack->setObjectName(QStringLiteral("boardUndoStack"));
     _undoStack->setUndoLimit(kMaxHistoryEntries);
@@ -101,10 +102,19 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
     fitPage();
 }
 
+EBBoardView::~EBBoardView()
+{
+    _scene->clearSelection();
+}
+
 void EBBoardView::setDrawingTool(DrawingTool tool)
 {
+    if (_teachingTools.isInteracting()) {
+        _teachingTools.cancel();
+        syncTeachingTools();
+    }
     if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
-        _teachingTools.setKind(EBTeachingTools::Kind::None, pageRect());
+        _teachingTools.deactivate();
         emit teachingToolChanged(EBTeachingTools::Kind::None);
         viewport()->update();
     }
@@ -259,6 +269,7 @@ void EBBoardView::commitCurrentPage()
 {
     // 保存前结束尚未释放鼠标的操作，确保模型包含场景中的最新笔迹。
     finishPageInteraction();
+    syncTeachingTools();
 }
 
 void EBBoardView::reloadDocument()
@@ -334,11 +345,12 @@ void EBBoardView::setPageSize(PageSize size)
         return;
     finishPageInteraction();
     if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
-        _teachingTools.setKind(EBTeachingTools::Kind::None, pageRect());
+        _teachingTools.deactivate();
         emit teachingToolChanged(EBTeachingTools::Kind::None);
     }
     _document->currentPage()->setSize(size);
     _scene->setPageSize(size);
+    _teachingTools.restore(_document->currentPage()->teachingTools(), pageRect());
     _scene->setGuides(_document->currentPage()->horizontalGuides(),
                       _document->currentPage()->verticalGuides());
     refreshManualGuides();

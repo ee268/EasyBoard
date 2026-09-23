@@ -152,7 +152,7 @@ void EBBoardView::removeGuide(GuideAxis axis, int index)
 void EBBoardView::drawForeground(QPainter *painter, const QRectF &rect)
 {
     QGraphicsView::drawForeground(painter, rect);
-    _teachingTools.paint(painter, _scene, pageRect());
+    paintTeachingTools(painter);
     painter->save();
     painter->resetTransform();
     const int width = viewport()->width();

@@ -9,10 +9,10 @@
 #include "ebdocumentlibrary.h"
 #include "ebcommands.h"
 #include "ebpagepanel.h"
+#include "ebdisplayview.h"
 
 #include <QDebug>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -27,7 +27,8 @@ bool documentHasContent(const EBDocument &document)
     for (int index = 0; index < document.pageCount(); ++index) {
         const EBPage *page = document.pageAt(index);
         if (!page->strokes().isEmpty() || !page->texts().isEmpty()
-            || !page->images().isEmpty() || page->hasBackgroundImage()
+            || !page->images().isEmpty() || !page->teachingTools().isEmpty()
+            || page->hasBackgroundImage()
             || !page->horizontalGuides().isEmpty()
             || !page->verticalGuides().isEmpty()
             || page->color() != EBPage::Color::White
@@ -116,13 +117,9 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     connect(_documentLibrary, &EBDocumentLibrary::deleteRequested,
             this, &EBMainWindow::deleteDocument);
 
-    for (const QString &name : {tr("网页"), tr("桌面")}) {
-        QLabel *placeholder = new QLabel(
-            tr("%1工作区\n\n阶段 7：仅演示模式切换，实际功能尚未接入").arg(name),
-            _modeStack);
-        placeholder->setAlignment(Qt::AlignCenter);
-        _modeStack->addWidget(placeholder);
-    }
+    _webPlaceholder = new QWidget(_modeStack);
+    _modeStack->addWidget(_webPlaceholder);
+    _modeStack->addWidget(new QWidget(_modeStack));
     _modeStack->setObjectName(QStringLiteral("modeStack"));
     setCentralWidget(_modeStack);
 
@@ -148,6 +145,8 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     connect(_commands,
             &EBCommands::pagePanelVisibilityRequested,
             _pagePanel, &EBPagePanel::setVisible);
+    connect(_commands, &EBCommands::displayViewRequested,
+            this, &EBMainWindow::setDisplayVisible);
     restoreLastDocument();
 }
 
@@ -492,17 +491,4 @@ void EBMainWindow::resetCurrentDocument()
     EBSettings *settings = EBSettings::settings();
     settings->setLastDocumentPath(QString());
     settings->save();
-}
-
-void EBMainWindow::showMode(EBApplicationController::MainMode mode)
-{
-    const int index = static_cast<int>(mode);
-    if (index < 0 || index >= _modeStack->count())
-        return;
-
-    if (mode == EBApplicationController::MainMode::Document)
-        refreshDocumentLibrary();
-    // 工作区顺序与模式枚举一致；动作对象同步勾选和可用状态。
-    _modeStack->setCurrentIndex(index);
-    _commands->setMode(mode);
 }

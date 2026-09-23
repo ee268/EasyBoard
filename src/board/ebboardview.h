@@ -6,7 +6,7 @@
 
 #include "ebboardscene.h"
 #include "ebobjectclipboard.h"
-#include "ebteachingtools.h"
+#include "ebteachinglayer.h"
 
 class QUndoStack;
 class QKeyEvent;
@@ -40,12 +40,19 @@ public:
     using ObjectArrangement = EBBoardScene::ObjectArrangement;
 
     explicit EBBoardView(EBDocument *document, QWidget *parent = nullptr);
+    ~EBBoardView() override;
 
     void setDrawingTool(DrawingTool tool);
     DrawingTool drawingTool() const;
     void setTeachingTool(EBTeachingTools::Kind kind);
     EBTeachingTools::Kind teachingTool() const;
+    int teachingToolCount() const;
     void drawCompassCircle();
+    void flipTeachingTool(bool horizontal);
+    void resetTeachingTool();
+    void zoomTeachingMagnifier(qreal delta);
+    void toggleTeachingMagnifierShape();
+    void paintTeachingTools(QPainter *painter) const;
     void setSnapEnabled(bool enabled);
     bool snapEnabled() const;
     void setGridSnapEnabled(bool enabled);
@@ -203,10 +210,11 @@ private:
     void syncCurrentPageStrokes();
     void addTeachingStroke(const QPainterPath &scenePath,
                            const QString &description);
+    void syncTeachingTools();
 
     EBDocument *_document;
     EBBoardScene *_scene;
-    EBTeachingTools _teachingTools;
+    EBTeachingLayer _teachingTools;
     EBStrokeItem *_activeStroke;
     QVector<QGraphicsItem *> _movingObjects;
     QRubberBand *_selectionBand;

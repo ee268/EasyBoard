@@ -11,12 +11,17 @@ class EBBoardView;
 class EBCommands;
 class EBDocumentLibrary;
 class EBPagePanel;
+class EBDisplayView;
+class EBWebWorkspace;
+class EBDesktopOverlay;
+class QImage;
 
 class EBMainWindow : public QMainWindow
 {
     Q_OBJECT
 public:
     explicit EBMainWindow(QWidget *parent = nullptr);
+    ~EBMainWindow() override;
 
     void showMode(EBApplicationController::MainMode mode);
     bool openDocument(const QString &path);
@@ -43,6 +48,10 @@ private:
     void restoreDocument(const QString &path);
     void deleteDocument(const QString &path);
     void resetCurrentDocument();
+    void setDisplayVisible(bool visible);
+    void ensureWebWorkspace();
+    void ensureDesktopOverlay();
+    void insertCapturedWebImage(const QImage &image);
 
     EBDocument _document;
     QStackedWidget *_modeStack;
@@ -51,6 +60,10 @@ private:
     EBPagePanel *_pagePanel;
     EBDocumentLibrary *_documentLibrary;
     EBCommands *_commands;
+    EBDisplayView *_displayView = nullptr;
+    QWidget *_webPlaceholder = nullptr;
+    EBWebWorkspace *_webWorkspace = nullptr;
+    EBDesktopOverlay *_desktopOverlay = nullptr;
 
 signals:
     void fileImportRequested(const QString &path);

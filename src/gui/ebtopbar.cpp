@@ -5,6 +5,7 @@
 #include <QMainWindow>
 #include <QMenu>
 #include <QSizePolicy>
+#include <QSignalBlocker>
 #include <QToolButton>
 
 #include "../board/ebboardview.h"
@@ -30,6 +31,12 @@ EBTopBar::EBTopBar(QMainWindow *window, EBBoardView *boardView,
     _pagePanelAction->setChecked(true);
     connect(_pagePanelAction, &QAction::toggled,
             this, &EBTopBar::pagePanelVisibilityRequested);
+    _displayAction = addAction(ebToolbarIcon("display_view"), tr("展示视图"));
+    _displayAction->setObjectName(QStringLiteral("displayViewAction"));
+    _displayAction->setToolTip(tr("打开或关闭独立展示视图"));
+    _displayAction->setCheckable(true);
+    connect(_displayAction, &QAction::toggled,
+            this, &EBTopBar::displayViewRequested);
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     addWidget(spacer);
@@ -68,6 +75,7 @@ void EBTopBar::setMode(EBApplicationController::MainMode mode)
     _modeActions[index]->setChecked(true);
     _boardModeActive = mode == EBApplicationController::MainMode::Board;
     _pagePanelAction->setEnabled(_boardModeActive);
+    _displayAction->setEnabled(_boardModeActive);
     _backgroundButton->setEnabled(_boardModeActive);
     _insertImageAction->setEnabled(_boardModeActive);
     _zoomInAction->setEnabled(_boardModeActive);
@@ -81,6 +89,12 @@ QString EBTopBar::modeLabel(EBApplicationController::MainMode mode) const
 {
     const int index = static_cast<int>(mode);
     return index >= 0 && index < 4 ? _modeActions[index]->text() : QString();
+}
+
+void EBTopBar::setDisplayVisible(bool visible)
+{
+    const QSignalBlocker blocker(_displayAction);
+    _displayAction->setChecked(visible);
 }
 
 void EBTopBar::syncPage()

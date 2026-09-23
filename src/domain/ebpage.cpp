@@ -68,6 +68,16 @@ void EBPage::setImages(const Images &images)
     _images = images;
 }
 
+const EBPage::TeachingTools &EBPage::teachingTools() const
+{
+    return _teachingTools;
+}
+
+void EBPage::setTeachingTools(const TeachingTools &tools)
+{
+    _teachingTools = tools;
+}
+
 const QVector<qreal> &EBPage::horizontalGuides() const
 {
     return _horizontalGuides;

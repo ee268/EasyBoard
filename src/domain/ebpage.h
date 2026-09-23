@@ -7,6 +7,7 @@
 #include "../board/ebstrokeitem.h"
 #include "../board/ebtextitem.h"
 #include "../board/ebimageitem.h"
+#include "../board/ebteachingstate.h"
 
 // 页面只保存可恢复的内容状态，图元的显示和编辑仍由画板场景负责。
 class EBPage
@@ -30,6 +31,7 @@ public:
     using Strokes = QVector<EBStrokeItem::State>;
     using Texts = QVector<EBTextItem::State>;
     using Images = QVector<EBImageItem::State>;
+    using TeachingTools = QVector<EBTeachingState>;
 
     Color color() const;
     void setColor(Color color);
@@ -46,6 +48,8 @@ public:
     void setTexts(const Texts &texts);
     const Images &images() const;
     void setImages(const Images &images);
+    const TeachingTools &teachingTools() const;
+    void setTeachingTools(const TeachingTools &tools);
     const QVector<qreal> &horizontalGuides() const;
     void setHorizontalGuides(const QVector<qreal> &guides);
     const QVector<qreal> &verticalGuides() const;
@@ -63,6 +67,7 @@ private:
     Strokes _strokes;
     Texts _texts;
     Images _images;
+    TeachingTools _teachingTools;
     QVector<qreal> _horizontalGuides;
     QVector<qreal> _verticalGuides;
     QImage _backgroundImage;

@@ -133,6 +133,10 @@ void EBBoardView::finishEdit()
 
 void EBBoardView::finishPageInteraction()
 {
+    if (_teachingTools.isInteracting()) {
+        _teachingTools.cancel();
+        syncTeachingTools();
+    }
     finishGuideDrag(false);
     finishObjectTransform();
     finishTextEditing();
@@ -148,10 +152,9 @@ void EBBoardView::finishPageInteraction()
 
 void EBBoardView::showCurrentPage()
 {
-    if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
-        _teachingTools.setKind(EBTeachingTools::Kind::None, pageRect());
-        emit teachingToolChanged(EBTeachingTools::Kind::None);
-    }
+    _teachingTools.cancel();
+    _teachingTools.clear();
+    emit teachingToolChanged(EBTeachingTools::Kind::None);
     finishAreaSelection();
     finishKeyboardMove();
     _movingObjects.clear();
@@ -161,6 +164,7 @@ void EBBoardView::showCurrentPage()
     _editingText = nullptr;
     _undoStack->clear();
     _scene->showPage(*_document->currentPage());
+    _teachingTools.restore(_document->currentPage()->teachingTools(), pageRect());
     refreshManualGuides();
     fitPage();
     emit historyAvailabilityChanged(false, false);
@@ -173,6 +177,7 @@ void EBBoardView::syncCurrentPageStrokes()
     _document->currentPage()->setStrokes(_scene->captureStrokes());
     _document->currentPage()->setTexts(_scene->captureTexts());
     _document->currentPage()->setImages(_scene->captureImages());
+    syncTeachingTools();
     _document->currentPage()->setHorizontalGuides(_scene->horizontalGuides());
     _document->currentPage()->setVerticalGuides(_scene->verticalGuides());
     emit pageContentChanged(_document->currentPageIndex());
