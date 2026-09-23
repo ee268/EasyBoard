@@ -103,6 +103,10 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     _modeStack->addWidget(_documentLibrary);
     connect(_documentLibrary, &EBDocumentLibrary::openRequested,
             this, [this](const QString &path) { loadDocument(path, true); });
+    connect(_documentLibrary, &EBDocumentLibrary::newRequested,
+            this, &EBMainWindow::newDocument);
+    connect(_documentLibrary, &EBDocumentLibrary::duplicateRequested,
+            this, &EBMainWindow::duplicateDocument);
     connect(_documentLibrary, &EBDocumentLibrary::renameRequested,
             this, &EBMainWindow::renameDocument);
     connect(_documentLibrary, &EBDocumentLibrary::moveToTrashRequested,
@@ -123,6 +127,8 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     setCentralWidget(_modeStack);
 
     _commandController = new EBCommandController(this, _boardView);
+    connect(_commandController, &EBCommandController::newDocumentRequested,
+            this, &EBMainWindow::newDocument);
     connect(_commandController, &EBCommandController::fileImportRequested,
             this, &EBMainWindow::fileImportRequested);
     connect(_commandController, &EBCommandController::imageObjectInsertRequested,
@@ -145,6 +151,40 @@ EBMainWindow::EBMainWindow(QWidget *parent)
 void EBMainWindow::saveDocument()
 {
     saveCurrentDocument(true);
+}
+
+void EBMainWindow::newDocument()
+{
+    if (!prepareForImportedDocument()) {
+        statusBar()->showMessage(tr("当前文档保存失败，未新建文档"), 5000);
+        return;
+    }
+    EBDocument document;
+    QString path;
+    QString error;
+    if (!activateImportedDocument(document, &path, &error)) {
+        statusBar()->showMessage(tr("新建文档失败：%1").arg(error), 5000);
+        return;
+    }
+    statusBar()->showMessage(tr("已新建文档"), 5000);
+}
+
+void EBMainWindow::duplicateDocument(const QString &path)
+{
+    if (QFileInfo(path).completeBaseName().compare(
+            _document.id(), Qt::CaseInsensitive) == 0
+        && !saveCurrentDocument(false)) {
+        statusBar()->showMessage(tr("当前文档保存失败，未复制文档"), 5000);
+        return;
+    }
+    QString newPath;
+    QString error;
+    if (!EBDocumentStorage::duplicateDocument(path, &newPath, &error)) {
+        statusBar()->showMessage(tr("复制文档失败：%1").arg(error), 5000);
+        return;
+    }
+    refreshDocumentLibrary();
+    statusBar()->showMessage(tr("文档副本已创建"), 5000);
 }
 
 void EBMainWindow::exportCurrentPageImage()

@@ -187,5 +187,6 @@ void EBBoardView::drawForeground(QPainter *painter, const QRectF &rect)
             painter->drawText(QRect(1, y + 2, 21, 13),
                               Qt::AlignCenter, QString::number(value));
     }
+    drawSelectionHandles(painter);
     painter->restore();
 }

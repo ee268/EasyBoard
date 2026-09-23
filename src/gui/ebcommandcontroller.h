@@ -24,6 +24,7 @@ public:
     QString modeLabel(EBApplicationController::MainMode mode) const;
 
 signals:
+    void newDocumentRequested();
     void fileImportRequested(const QString &filePath);
     void imageObjectInsertRequested(const QString &filePath);
     void saveDocumentRequested();
@@ -41,6 +42,8 @@ private:
     void createBackgroundMenu(QToolBar *toolBar);
     void createZoomActions(QToolBar *toolBar);
     void createDrawingActions(QToolBar *toolBar);
+    void createBrushMenu(QToolBar *toolBar);
+    void createTextFormatMenu(QToolBar *toolBar);
     void createObjectActions(QToolBar *toolBar);
     void createModeActions(QToolBar *toolBar);
     void updateObjectActions();
@@ -50,11 +53,15 @@ private:
     void updateLockActions();
     void updateArrangeActions();
     void updateSelectAllAction();
+    void updateTextFormatAction();
 
     QMainWindow *_window;
     EBBoardView *_boardView;
     QToolButton *_backgroundButton = nullptr;
     QToolButton *_arrangeButton = nullptr;
+    QToolButton *_brushButton = nullptr;
+    QToolButton *_textFormatButton = nullptr;
+    QToolButton *_shapeButton = nullptr;
     QAction *_undoAction = nullptr;
     QAction *_redoAction = nullptr;
     QAction *_zoomInAction = nullptr;
@@ -75,7 +82,7 @@ private:
     QAction *_colorActions[2] = {};
     QAction *_patternActions[3] = {};
     QAction *_sizeActions[2] = {};
-    QAction *_toolActions[8] = {};
+    QAction *_toolActions[11] = {};
     QAction *_objectActions[5] = {};
     QAction *_layerActions[4] = {};
     QAction *_arrangeActions[8] = {};

@@ -2,6 +2,7 @@
 #define EBBOARDVIEW_H
 
 #include <QGraphicsView>
+#include <QFont>
 
 #include "ebboardscene.h"
 #include "ebobjectclipboard.h"
@@ -27,7 +28,10 @@ public:
         Line,
         Eraser,
         Pointer,
-        Pan
+        Pan,
+        Rectangle,
+        Ellipse,
+        Arrow
     };
     using PageColor = EBBoardScene::PageColor;
     using PagePattern = EBBoardScene::PagePattern;
@@ -42,6 +46,19 @@ public:
     bool snapEnabled() const;
     void setGridSnapEnabled(bool enabled);
     bool gridSnapEnabled() const;
+    QColor penColor() const;
+    void setPenColor(const QColor &color);
+    QColor markerColor() const;
+    void setMarkerColor(const QColor &color);
+    qreal penWidth() const;
+    void setPenWidth(qreal width);
+    qreal markerWidth() const;
+    void setMarkerWidth(qreal width);
+    bool canFormatSelectedText() const;
+    QFont selectedTextFont() const;
+    QColor selectedTextColor() const;
+    void setSelectedTextFont(const QFont &font);
+    void setSelectedTextColor(const QColor &color);
     bool canUndo() const;
     bool canRedo() const;
     void undo();
@@ -126,6 +143,14 @@ private:
     using Snapshot = EBBoardScene::Snapshot;
     class PageEditCommand;
     enum class GuideAxis { None, Horizontal, Vertical };
+    enum class TransformHandle { None, Scale, Rotate };
+    struct TransformState {
+        QGraphicsItem *item;
+        QPointF position;
+        QPointF center;
+        qreal scale;
+        qreal rotation;
+    };
 
     void applyViewState();
     void zoomBy(qreal factor);
@@ -142,6 +167,13 @@ private:
     void updateGuideDrag(const QPointF &scenePosition);
     void finishGuideDrag(bool commit);
     void removeGuide(GuideAxis axis, int index);
+    QRectF selectedObjectBounds() const;
+    TransformHandle transformHandleAt(const QPoint &viewportPosition) const;
+    void drawSelectionHandles(QPainter *painter);
+    void startObjectTransform(TransformHandle handle,
+                              const QPointF &scenePosition);
+    void updateObjectTransform(const QPointF &scenePosition);
+    void finishObjectTransform();
     void startAreaSelection(const QPoint &viewportPosition,
                             Qt::KeyboardModifiers modifiers);
     void updateAreaSelection(const QPoint &viewportPosition);
@@ -190,9 +222,17 @@ private:
     GuideAxis _guideAxis;
     int _guideIndex;
     qreal _guideValue;
+    TransformHandle _transformHandle;
+    QVector<TransformState> _transformStates;
+    QRectF _transformBounds;
+    QPointF _transformStartScene;
     QString _editDescription;
     bool _snapEnabled;
     bool _gridSnapEnabled;
+    QColor _penColor;
+    QColor _markerColor;
+    qreal _penWidth;
+    qreal _markerWidth;
     bool _erasing;
     QPointF _lastEraserPosition;
     bool _pointing;

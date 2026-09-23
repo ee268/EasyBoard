@@ -2,7 +2,10 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QColorDialog>
 #include <QIcon>
+#include <QInputDialog>
+#include <QFontDialog>
 #include <QMainWindow>
 #include <QMenu>
 #include <QSizePolicy>
@@ -53,6 +56,8 @@ void EBCommandController::createToolBar()
     toolBar->addSeparator();
 
     createDrawingActions(toolBar);
+    createBrushMenu(toolBar);
+    createTextFormatMenu(toolBar);
     toolBar->addSeparator();
     _cutAction->setIcon(toolbarIcon("cut"));
     _copyAction->setIcon(toolbarIcon("copy"));
@@ -205,34 +210,145 @@ void EBCommandController::createDrawingActions(QToolBar *toolBar)
 {
     QActionGroup *group = new QActionGroup(this);
     group->setExclusive(true);
+    _shapeButton = new QToolButton(toolBar);
+    _shapeButton->setObjectName(QStringLiteral("shapeToolButton"));
+    _shapeButton->setIcon(toolbarIcon("rectangle"));
+    _shapeButton->setToolTip(tr("形状工具"));
+    _shapeButton->setAccessibleName(tr("形状工具"));
+    _shapeButton->setPopupMode(QToolButton::InstantPopup);
+    QMenu *shapeMenu = new QMenu(_shapeButton);
     const QString labels[] = {tr("选择"), tr("文本"), tr("画笔"), tr("荧光笔"),
-                              tr("直线"), tr("橡皮"), tr("指示"), tr("平移")};
+                              tr("直线"), tr("橡皮"), tr("指示"), tr("平移"),
+                              tr("矩形"), tr("椭圆"), tr("箭头")};
     const char *names[] = {"selectToolAction", "textToolAction", "penToolAction",
                            "markerToolAction", "lineToolAction", "eraserToolAction",
-                           "pointerToolAction", "panToolAction"};
+                           "pointerToolAction", "panToolAction",
+                           "rectangleToolAction", "ellipseToolAction",
+                           "arrowToolAction"};
     const char *icons[] = {"select", "text", "pen", "marker", "line", "eraser",
-                           "pointer", "pan"};
+                           "pointer", "pan", "rectangle", "ellipse", "arrow"};
     const EBBoardView::DrawingTool tools[] = {
         EBBoardView::DrawingTool::Select, EBBoardView::DrawingTool::Text,
         EBBoardView::DrawingTool::Pen,
         EBBoardView::DrawingTool::Marker,
         EBBoardView::DrawingTool::Line, EBBoardView::DrawingTool::Eraser,
-        EBBoardView::DrawingTool::Pointer, EBBoardView::DrawingTool::Pan
+        EBBoardView::DrawingTool::Pointer, EBBoardView::DrawingTool::Pan,
+        EBBoardView::DrawingTool::Rectangle, EBBoardView::DrawingTool::Ellipse,
+        EBBoardView::DrawingTool::Arrow
     };
-    for (int index = 0; index < 8; ++index) {
+    for (int index = 0; index < 11; ++index) {
         QAction *action = new QAction(toolbarIcon(icons[index]), labels[index], this);
         action->setObjectName(QString::fromLatin1(names[index]));
         action->setToolTip(labels[index]);
         action->setCheckable(true);
         group->addAction(action);
-        toolBar->addAction(action);
+        if (index < 8)
+            toolBar->addAction(action);
+        else
+            shapeMenu->addAction(action);
         _toolActions[index] = action;
         connect(action, &QAction::triggered, _boardView, [this, tool = tools[index]]() {
             _boardView->setDrawingTool(tool);
         });
+        if (index >= 8) {
+            connect(action, &QAction::triggered, this,
+                    [this, icon = icons[index], label = labels[index]]() {
+                _shapeButton->setIcon(toolbarIcon(icon));
+                _shapeButton->setToolTip(label);
+            });
+        }
     }
     _toolActions[1]->setToolTip(tr("文本（Ctrl+Enter 完成编辑）"));
     _toolActions[2]->setChecked(true);
+    _shapeButton->setMenu(shapeMenu);
+    toolBar->addWidget(_shapeButton);
+}
+
+void EBCommandController::createBrushMenu(QToolBar *toolBar)
+{
+    _brushButton = new QToolButton(toolBar);
+    _brushButton->setObjectName(QStringLiteral("brushSettingsButton"));
+    _brushButton->setIcon(toolbarIcon("brush_settings"));
+    _brushButton->setToolTip(tr("画笔设置"));
+    _brushButton->setAccessibleName(tr("画笔设置"));
+    _brushButton->setPopupMode(QToolButton::InstantPopup);
+    QMenu *menu = new QMenu(_brushButton);
+    QAction *penColor = menu->addAction(tr("画笔颜色..."));
+    penColor->setObjectName(QStringLiteral("penColorAction"));
+    QAction *penWidth = menu->addAction(tr("画笔粗细..."));
+    penWidth->setObjectName(QStringLiteral("penWidthAction"));
+    menu->addSeparator();
+    QAction *markerColor = menu->addAction(tr("荧光笔颜色..."));
+    markerColor->setObjectName(QStringLiteral("markerColorAction"));
+    QAction *markerWidth = menu->addAction(tr("荧光笔粗细..."));
+    markerWidth->setObjectName(QStringLiteral("markerWidthAction"));
+    connect(penColor, &QAction::triggered, this, [this]() {
+        const QColor color = QColorDialog::getColor(
+            _boardView->penColor(), _window, tr("画笔颜色"));
+        if (color.isValid())
+            _boardView->setPenColor(color);
+    });
+    connect(markerColor, &QAction::triggered, this, [this]() {
+        const QColor color = QColorDialog::getColor(
+            _boardView->markerColor(), _window, tr("荧光笔颜色"),
+            QColorDialog::ShowAlphaChannel);
+        if (color.isValid())
+            _boardView->setMarkerColor(color);
+    });
+    connect(penWidth, &QAction::triggered, this, [this]() {
+        bool accepted = false;
+        const qreal width = QInputDialog::getDouble(
+            _window, tr("画笔粗细"), tr("像素"), _boardView->penWidth(),
+            1.0, 24.0, 1, &accepted);
+        if (accepted)
+            _boardView->setPenWidth(width);
+    });
+    connect(markerWidth, &QAction::triggered, this, [this]() {
+        bool accepted = false;
+        const qreal width = QInputDialog::getDouble(
+            _window, tr("荧光笔粗细"), tr("像素"), _boardView->markerWidth(),
+            4.0, 48.0, 1, &accepted);
+        if (accepted)
+            _boardView->setMarkerWidth(width);
+    });
+    _brushButton->setMenu(menu);
+    toolBar->addWidget(_brushButton);
+}
+
+void EBCommandController::createTextFormatMenu(QToolBar *toolBar)
+{
+    _textFormatButton = new QToolButton(toolBar);
+    _textFormatButton->setObjectName(QStringLiteral("textFormatButton"));
+    _textFormatButton->setIcon(toolbarIcon("text_format"));
+    _textFormatButton->setToolTip(tr("文字格式"));
+    _textFormatButton->setAccessibleName(tr("文字格式"));
+    _textFormatButton->setPopupMode(QToolButton::InstantPopup);
+    _textFormatButton->setEnabled(false);
+    QMenu *menu = new QMenu(_textFormatButton);
+    QAction *fontAction = menu->addAction(tr("字体和字号..."));
+    fontAction->setObjectName(QStringLiteral("textFontAction"));
+    QAction *colorAction = menu->addAction(tr("文字颜色..."));
+    colorAction->setObjectName(QStringLiteral("textColorAction"));
+    connect(fontAction, &QAction::triggered, this, [this]() {
+        if (!_boardView->canFormatSelectedText())
+            return;
+        bool accepted = false;
+        const QFont font = QFontDialog::getFont(
+            &accepted, _boardView->selectedTextFont(), _window,
+            tr("文字字体"));
+        if (accepted)
+            _boardView->setSelectedTextFont(font);
+    });
+    connect(colorAction, &QAction::triggered, this, [this]() {
+        if (!_boardView->canFormatSelectedText())
+            return;
+        const QColor color = QColorDialog::getColor(
+            _boardView->selectedTextColor(), _window, tr("文字颜色"));
+        if (color.isValid())
+            _boardView->setSelectedTextColor(color);
+    });
+    _textFormatButton->setMenu(menu);
+    toolBar->addWidget(_textFormatButton);
 }
 
 void EBCommandController::createObjectActions(QToolBar *toolBar)

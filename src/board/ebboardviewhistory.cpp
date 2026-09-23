@@ -134,6 +134,7 @@ void EBBoardView::finishEdit()
 void EBBoardView::finishPageInteraction()
 {
     finishGuideDrag(false);
+    finishObjectTransform();
     finishTextEditing();
     finishObjectMove();
     finishAreaSelection();

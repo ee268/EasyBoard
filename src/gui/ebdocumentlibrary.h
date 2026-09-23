@@ -5,6 +5,7 @@
 
 class QListWidget;
 class QPushButton;
+class QLineEdit;
 class QTabWidget;
 
 // 文档工作区只展示存储条目并转发操作意图，文件状态由存储层维护。
@@ -18,6 +19,8 @@ public:
     void refresh(const QString &currentDocumentId = QString());
 
 signals:
+    void newRequested();
+    void duplicateRequested(const QString &path);
     void openRequested(const QString &path);
     void renameRequested(const QString &path, const QString &title);
     void moveToTrashRequested(const QString &path);
@@ -27,10 +30,14 @@ signals:
 private:
     QString selectedPath(QListWidget *list) const;
     void updateButtons();
+    void applySearch();
 
     QTabWidget *_tabs;
     QListWidget *_documents;
     QListWidget *_trash;
+    QLineEdit *_search;
+    QPushButton *_newButton;
+    QPushButton *_duplicateButton;
     QPushButton *_openButton;
     QPushButton *_renameButton;
     QPushButton *_trashButton;

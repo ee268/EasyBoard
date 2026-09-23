@@ -13,6 +13,7 @@
         <file>icons/toolbar/select.svg</file>
         <file>icons/toolbar/select_all.svg</file>
         <file>icons/toolbar/text.svg</file>
+        <file>icons/toolbar/text_format.svg</file>
         <file>icons/toolbar/cut.svg</file>
         <file>icons/toolbar/copy.svg</file>
         <file>icons/toolbar/paste.svg</file>
@@ -40,8 +41,12 @@
         <file>icons/toolbar/object_distribute_horizontal.svg</file>
         <file>icons/toolbar/object_distribute_vertical.svg</file>
         <file>icons/toolbar/pen.svg</file>
+        <file>icons/toolbar/brush_settings.svg</file>
         <file>icons/toolbar/marker.svg</file>
         <file>icons/toolbar/line.svg</file>
+        <file>icons/toolbar/rectangle.svg</file>
+        <file>icons/toolbar/ellipse.svg</file>
+        <file>icons/toolbar/arrow.svg</file>
         <file>icons/toolbar/eraser.svg</file>
         <file>icons/toolbar/pointer.svg</file>
         <file>icons/toolbar/pan.svg</file>

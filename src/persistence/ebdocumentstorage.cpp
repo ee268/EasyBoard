@@ -841,6 +841,29 @@ bool EBDocumentStorage::renameDocument(const QString &path, const QString &title
     return save(document, nullptr, error);
 }
 
+bool EBDocumentStorage::duplicateDocument(const QString &path,
+                                           QString *newPath, QString *error)
+{
+    if (!fileInDirectory(path, documentsDirectory())) {
+        if (error)
+            *error = QStringLiteral("只能复制文档列表中的文件");
+        return false;
+    }
+    EBDocument document;
+    if (!load(path, &document, error))
+        return false;
+    if (!samePath(path, documentFilePath(document))) {
+        if (error)
+            *error = QStringLiteral("文档标识与文件名不一致");
+        return false;
+    }
+    document._id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    document._createdAt = QDateTime::currentDateTimeUtc();
+    const QString suffix = QStringLiteral(" - 副本");
+    document.setTitle(document.title().left(120 - suffix.size()) + suffix);
+    return save(document, newPath, error);
+}
+
 bool EBDocumentStorage::moveToTrash(const QString &path, QString *trashPath,
                                     QString *error)
 {

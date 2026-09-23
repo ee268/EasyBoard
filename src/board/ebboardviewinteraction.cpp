@@ -12,8 +12,6 @@
 #include "../global/ebtheme.h"
 
 namespace {
-constexpr qreal kPenWidth = 3.0;
-constexpr qreal kMarkerWidth = 18.0;
 constexpr qreal kEraserRadius = 12.0;
 }
 
@@ -101,6 +99,15 @@ void EBBoardView::mousePressEvent(QMouseEvent *event)
                     : _scene->verticalGuides().at(index);
                 startGuideDrag(axis, index, value);
             }
+            event->accept();
+            return;
+        }
+    }
+    if (_drawingTool == DrawingTool::Select
+        && event->button() == Qt::LeftButton) {
+        const TransformHandle handle = transformHandleAt(event->pos());
+        if (handle != TransformHandle::None) {
+            startObjectTransform(handle, mapToScene(event->pos()));
             event->accept();
             return;
         }
@@ -210,9 +217,8 @@ void EBBoardView::mousePressEvent(QMouseEvent *event)
     // 极短首段使单次点击也形成可见圆头笔点。
     path.lineTo(pagePosition + QPointF(0.01, 0.0));
     const bool marker = _activeTool == DrawingTool::Marker;
-    const QPen pen(marker ? ebThemeColor(EBThemeColor::BoardMarker)
-                          : ebThemeColor(EBThemeColor::BoardPen),
-                   marker ? kMarkerWidth : kPenWidth, Qt::SolidLine,
+    const QPen pen(marker ? _markerColor : _penColor,
+                   marker ? _markerWidth : _penWidth, Qt::SolidLine,
                    Qt::RoundCap, Qt::RoundJoin);
     _activeStroke = _scene->addStroke(path, pen);
     _editChanged = true;
@@ -228,6 +234,12 @@ void EBBoardView::mouseMoveEvent(QMouseEvent *event)
     if (_guideAxis != GuideAxis::None
         && (event->buttons() & Qt::LeftButton)) {
         updateGuideDrag(scenePosition);
+        event->accept();
+        return;
+    }
+    if (_transformHandle != TransformHandle::None
+        && (event->buttons() & Qt::LeftButton)) {
+        updateObjectTransform(scenePosition);
         event->accept();
         return;
     }
@@ -269,6 +281,13 @@ void EBBoardView::mouseMoveEvent(QMouseEvent *event)
 
 void EBBoardView::mouseReleaseEvent(QMouseEvent *event)
 {
+    if (event->button() == Qt::LeftButton
+        && _transformHandle != TransformHandle::None) {
+        updateObjectTransform(mapToScene(event->pos()));
+        finishObjectTransform();
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton
         && _guideAxis != GuideAxis::None) {
         const QPointF position = mapToScene(event->pos());
@@ -327,6 +346,7 @@ void EBBoardView::hideEvent(QHideEvent *event)
     finishAreaSelection();
     finishKeyboardMove();
     finishGuideDrag(false);
+    finishObjectTransform();
     finishObjectMove();
     _activeStroke = nullptr;
     _erasing = false;
@@ -338,11 +358,35 @@ void EBBoardView::hideEvent(QHideEvent *event)
 
 void EBBoardView::updateActiveStroke(const QPointF &pagePosition)
 {
-    if (_activeTool == DrawingTool::Line) {
+    if (_activeTool == DrawingTool::Line
+        || _activeTool == DrawingTool::Rectangle
+        || _activeTool == DrawingTool::Ellipse
+        || _activeTool == DrawingTool::Arrow) {
         // 直线每次从固定起点重建路径，不保留中途拖动点。
-        QPainterPath line(_strokeStart);
-        line.lineTo(pagePosition);
-        _activeStroke->setPath(line);
+        QPainterPath shape;
+        const QPointF end = pagePosition == _strokeStart
+            ? pagePosition + QPointF(0.01, 0.01) : pagePosition;
+        if (_activeTool == DrawingTool::Rectangle)
+            shape.addRect(QRectF(_strokeStart, end).normalized());
+        else if (_activeTool == DrawingTool::Ellipse)
+            shape.addEllipse(QRectF(_strokeStart, end).normalized());
+        else {
+            shape.moveTo(_strokeStart);
+            shape.lineTo(end);
+            if (_activeTool == DrawingTool::Arrow) {
+                const QLineF shaft(_strokeStart, end);
+                const qreal wing = qMin(18.0, shaft.length() * 0.35);
+                const qreal angle = qAtan2(end.y() - _strokeStart.y(),
+                                           end.x() - _strokeStart.x());
+                shape.moveTo(end);
+                shape.lineTo(end - QPointF(wing * qCos(angle - 0.55),
+                                           wing * qSin(angle - 0.55)));
+                shape.moveTo(end);
+                shape.lineTo(end - QPointF(wing * qCos(angle + 0.55),
+                                           wing * qSin(angle + 0.55)));
+            }
+        }
+        _activeStroke->setPath(shape);
     } else {
         QPainterPath path = _activeStroke->path();
         path.lineTo(pagePosition);

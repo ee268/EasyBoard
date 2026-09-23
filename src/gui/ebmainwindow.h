@@ -25,6 +25,8 @@ public:
     bool importDocumentPackage(const QString &path);
 
 private:
+    void newDocument();
+    void duplicateDocument(const QString &path);
     void saveDocument();
     void exportCurrentPageImage();
     void exportDocumentPdf();

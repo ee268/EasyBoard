@@ -4,6 +4,7 @@
 #include <QString>
 #include <QObject>
 #include <QPointer>
+#include <QColor>
 
 class QSettings;
 
@@ -32,6 +33,14 @@ public:
     void setSnapEnabled(bool enabled);
     bool gridSnapEnabled() const;
     void setGridSnapEnabled(bool enabled);
+    QColor penColor() const;
+    void setPenColor(const QColor &color);
+    QColor markerColor() const;
+    void setMarkerColor(const QColor &color);
+    qreal penWidth() const;
+    void setPenWidth(qreal width);
+    qreal markerWidth() const;
+    void setMarkerWidth(qreal width);
 
     bool save();
 

@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QSettings>
+#include <QtMath>
 
 QPointer<EBSettings> EBSettings::_instance = nullptr;
 
@@ -81,6 +82,54 @@ bool EBSettings::gridSnapEnabled() const
 void EBSettings::setGridSnapEnabled(bool enabled)
 {
     _userSettings->setValue(QStringLiteral("Board/GridSnapEnabled"), enabled);
+}
+
+QColor EBSettings::penColor() const
+{
+    const QColor color = _userSettings->value(QStringLiteral("Brush/PenColor"),
+        QColor(0x22, 0x2E, 0x40)).value<QColor>();
+    return color.isValid() ? color : QColor(0x22, 0x2E, 0x40);
+}
+
+void EBSettings::setPenColor(const QColor &color)
+{
+    _userSettings->setValue(QStringLiteral("Brush/PenColor"), color);
+}
+
+QColor EBSettings::markerColor() const
+{
+    const QColor color = _userSettings->value(QStringLiteral("Brush/MarkerColor"),
+        QColor(0xFF, 0xB8, 0x33, 0x6E)).value<QColor>();
+    return color.isValid() ? color : QColor(0xFF, 0xB8, 0x33, 0x6E);
+}
+
+void EBSettings::setMarkerColor(const QColor &color)
+{
+    _userSettings->setValue(QStringLiteral("Brush/MarkerColor"), color);
+}
+
+qreal EBSettings::penWidth() const
+{
+    const qreal width = _userSettings->value(
+        QStringLiteral("Brush/PenWidth"), 3.0).toDouble();
+    return qIsFinite(width) ? qBound(1.0, width, 24.0) : 3.0;
+}
+
+void EBSettings::setPenWidth(qreal width)
+{
+    _userSettings->setValue(QStringLiteral("Brush/PenWidth"), width);
+}
+
+qreal EBSettings::markerWidth() const
+{
+    const qreal width = _userSettings->value(
+        QStringLiteral("Brush/MarkerWidth"), 18.0).toDouble();
+    return qIsFinite(width) ? qBound(4.0, width, 48.0) : 18.0;
+}
+
+void EBSettings::setMarkerWidth(qreal width)
+{
+    _userSettings->setValue(QStringLiteral("Brush/MarkerWidth"), width);
 }
 
 bool EBSettings::save()

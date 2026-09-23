@@ -55,6 +55,9 @@ EBDocumentLibrary::EBDocumentLibrary(QWidget *parent)
     , _tabs(new QTabWidget(this))
     , _documents(new QListWidget(this))
     , _trash(new QListWidget(this))
+    , _search(new QLineEdit(this))
+    , _newButton(new QPushButton(tr("新建"), this))
+    , _duplicateButton(new QPushButton(tr("复制"), this))
     , _openButton(new QPushButton(tr("打开"), this))
     , _renameButton(new QPushButton(tr("重命名"), this))
     , _trashButton(new QPushButton(tr("移入回收站"), this))
@@ -82,12 +85,19 @@ EBDocumentLibrary::EBDocumentLibrary(QWidget *parent)
     QVBoxLayout *documentsLayout = new QVBoxLayout(documentsPage);
     _documents->setObjectName(QStringLiteral("documentList"));
     _documents->setSelectionMode(QAbstractItemView::SingleSelection);
+    _search->setObjectName(QStringLiteral("documentSearchEdit"));
+    _search->setPlaceholderText(tr("搜索文档名称"));
+    documentsLayout->addWidget(_search);
     documentsLayout->addWidget(_documents, 1);
     QHBoxLayout *documentButtons = new QHBoxLayout;
     _openButton->setObjectName(QStringLiteral("openDocumentButton"));
+    _newButton->setObjectName(QStringLiteral("newDocumentButton"));
+    _duplicateButton->setObjectName(QStringLiteral("duplicateDocumentButton"));
     _renameButton->setObjectName(QStringLiteral("renameDocumentButton"));
     _trashButton->setObjectName(QStringLiteral("trashDocumentButton"));
+    documentButtons->addWidget(_newButton);
     documentButtons->addWidget(_openButton);
+    documentButtons->addWidget(_duplicateButton);
     documentButtons->addWidget(_renameButton);
     documentButtons->addStretch();
     documentButtons->addWidget(_trashButton);
@@ -114,6 +124,15 @@ EBDocumentLibrary::EBDocumentLibrary(QWidget *parent)
             this, [this]() { updateButtons(); });
     connect(_tabs, &QTabWidget::currentChanged,
             this, [this]() { updateButtons(); });
+    connect(_search, &QLineEdit::textChanged,
+            this, [this]() { applySearch(); });
+    connect(_newButton, &QPushButton::clicked,
+            this, &EBDocumentLibrary::newRequested);
+    connect(_duplicateButton, &QPushButton::clicked, this, [this]() {
+        const QString path = selectedPath(_documents);
+        if (!path.isEmpty())
+            emit duplicateRequested(path);
+    });
     connect(_documents, &QListWidget::itemDoubleClicked, this,
             [this](QListWidgetItem *) {
         const QString path = selectedPath(_documents);
@@ -162,20 +181,45 @@ void EBDocumentLibrary::refresh(const QString &currentDocumentId)
 {
     fillList(_documents, EBDocumentStorage::listDocuments(false), currentDocumentId);
     fillList(_trash, EBDocumentStorage::listDocuments(true), QString());
+    applySearch();
+    updateButtons();
+}
+
+void EBDocumentLibrary::applySearch()
+{
+    const QString query = _search->text().trimmed();
+    for (int index = 0; index < _documents->count(); ++index) {
+        QListWidgetItem *item = _documents->item(index);
+        item->setHidden(!item->data(kTitleRole).toString().contains(
+            query, Qt::CaseInsensitive));
+    }
+    if (!_documents->currentItem()
+        || _documents->currentItem()->isHidden()) {
+        _documents->clearSelection();
+        _documents->setCurrentRow(-1);
+        for (int index = 0; index < _documents->count(); ++index) {
+            if (!_documents->item(index)->isHidden()) {
+                _documents->setCurrentRow(index);
+                break;
+            }
+        }
+    }
     updateButtons();
 }
 
 QString EBDocumentLibrary::selectedPath(QListWidget *list) const
 {
-    return list->currentItem()
+    return list->currentItem() && !list->currentItem()->isHidden()
         ? list->currentItem()->data(kPathRole).toString() : QString();
 }
 
 void EBDocumentLibrary::updateButtons()
 {
-    const bool documentSelected = _documents->currentItem();
+    const bool documentSelected = _documents->currentItem()
+        && !_documents->currentItem()->isHidden();
     const bool trashSelected = _trash->currentItem();
     _openButton->setEnabled(documentSelected);
+    _duplicateButton->setEnabled(documentSelected);
     _renameButton->setEnabled(documentSelected);
     _trashButton->setEnabled(documentSelected);
     _restoreButton->setEnabled(trashSelected);

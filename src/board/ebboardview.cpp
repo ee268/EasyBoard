@@ -10,6 +10,7 @@
 #include <QtMath>
 
 #include "../domain/ebdocument.h"
+#include "../core/ebsettings.h"
 #include "../global/ebtheme.h"
 
 namespace {
@@ -38,8 +39,13 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
     , _guideAxis(GuideAxis::None)
     , _guideIndex(-1)
     , _guideValue(0.0)
+    , _transformHandle(TransformHandle::None)
     , _snapEnabled(true)
     , _gridSnapEnabled(false)
+    , _penColor(EBSettings::settings()->penColor())
+    , _markerColor(EBSettings::settings()->markerColor())
+    , _penWidth(EBSettings::settings()->penWidth())
+    , _markerWidth(EBSettings::settings()->markerWidth())
     , _erasing(false)
     , _pointing(false)
     , _undoStack(new QUndoStack(this))
@@ -82,6 +88,7 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
     viewport()->setMouseTracking(true);
     connect(_scene, &QGraphicsScene::selectionChanged, this, [this]() {
         emit selectionAvailabilityChanged(hasSelectedObject());
+        viewport()->update();
     });
     connect(_scene, &QGraphicsScene::focusItemChanged, this,
             [this](QGraphicsItem *newFocus, QGraphicsItem *oldFocus,
@@ -96,6 +103,7 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
 void EBBoardView::setDrawingTool(DrawingTool tool)
 {
     finishGuideDrag(false);
+    finishObjectTransform();
     finishKeyboardMove();
     finishAreaSelection();
     finishTextEditing();
@@ -136,6 +144,47 @@ void EBBoardView::setGridSnapEnabled(bool enabled)
 bool EBBoardView::gridSnapEnabled() const
 {
     return _gridSnapEnabled;
+}
+
+QColor EBBoardView::penColor() const { return _penColor; }
+QColor EBBoardView::markerColor() const { return _markerColor; }
+qreal EBBoardView::penWidth() const { return _penWidth; }
+qreal EBBoardView::markerWidth() const { return _markerWidth; }
+
+void EBBoardView::setPenColor(const QColor &color)
+{
+    if (!color.isValid())
+        return;
+    _penColor = color;
+    EBSettings::settings()->setPenColor(color);
+    EBSettings::settings()->save();
+}
+
+void EBBoardView::setMarkerColor(const QColor &color)
+{
+    if (!color.isValid())
+        return;
+    _markerColor = color;
+    EBSettings::settings()->setMarkerColor(color);
+    EBSettings::settings()->save();
+}
+
+void EBBoardView::setPenWidth(qreal width)
+{
+    if (!qIsFinite(width))
+        return;
+    _penWidth = qBound(1.0, width, 24.0);
+    EBSettings::settings()->setPenWidth(_penWidth);
+    EBSettings::settings()->save();
+}
+
+void EBBoardView::setMarkerWidth(qreal width)
+{
+    if (!qIsFinite(width))
+        return;
+    _markerWidth = qBound(4.0, width, 48.0);
+    EBSettings::settings()->setMarkerWidth(_markerWidth);
+    EBSettings::settings()->save();
 }
 
 int EBBoardView::addPage()
@@ -215,6 +264,8 @@ void EBBoardView::reloadDocument()
     _snapReferences.clear();
     hideSnapGuides();
     finishGuideDrag(false);
+    _transformHandle = TransformHandle::None;
+    _transformStates.clear();
     _editingText = nullptr;
     _editingTextWasNew = false;
     _erasing = false;

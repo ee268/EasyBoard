@@ -36,6 +36,9 @@ public:
                      QString *error = nullptr);
     static bool renameDocument(const QString &path, const QString &title,
                                QString *error = nullptr);
+    static bool duplicateDocument(const QString &path,
+                                  QString *newPath = nullptr,
+                                  QString *error = nullptr);
     static bool moveToTrash(const QString &path, QString *trashPath = nullptr,
                             QString *error = nullptr);
     static bool restoreFromTrash(const QString &path, QString *restoredPath = nullptr,

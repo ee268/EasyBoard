@@ -15,6 +15,12 @@
 void EBCommandController::createFileMenu()
 {
     QMenu *fileMenu = _window->menuBar()->addMenu(tr("文件(&F)"));
+    QAction *newAction = fileMenu->addAction(tr("新建文档"));
+    newAction->setObjectName(QStringLiteral("newDocumentAction"));
+    newAction->setShortcut(QKeySequence::New);
+    connect(newAction, &QAction::triggered,
+            this, &EBCommandController::newDocumentRequested);
+    fileMenu->addSeparator();
     QAction *openAction = fileMenu->addAction(tr("打开文档..."));
     openAction->setObjectName(QStringLiteral("openFileAction"));
     openAction->setShortcut(QKeySequence::Open);

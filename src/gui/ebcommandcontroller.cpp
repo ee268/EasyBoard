@@ -36,6 +36,7 @@ EBCommandController::EBCommandController(QMainWindow *window, EBBoardView *board
         const int size = _boardView->pageSize() == EBBoardView::PageSize::Standard ? 0 : 1;
         _sizeActions[size]->setChecked(true);
         updateSelectAllAction();
+        updateTextFormatAction();
     });
     // 拖动中禁用历史动作；完成编辑后按实际栈状态重新启用。
     connect(_boardView, &EBBoardView::historyAvailabilityChanged,
@@ -48,6 +49,7 @@ EBCommandController::EBCommandController(QMainWindow *window, EBBoardView *board
         updateLockActions();
         updateArrangeActions();
         updateSelectAllAction();
+        updateTextFormatAction();
     });
     connect(_boardView, &EBBoardView::selectionAvailabilityChanged,
             this, [this](bool) {
@@ -58,11 +60,12 @@ EBCommandController::EBCommandController(QMainWindow *window, EBBoardView *board
         updateLockActions();
         updateArrangeActions();
         updateSelectAllAction();
+        updateTextFormatAction();
     });
     connect(_boardView, &EBBoardView::drawingToolChanged, this,
             [this](EBBoardView::DrawingTool tool) {
         const int index = static_cast<int>(tool);
-        if (index >= 0 && index < 8 && _toolActions[index])
+        if (index >= 0 && index < 11 && _toolActions[index])
             _toolActions[index]->setChecked(true);
     });
     connect(QApplication::clipboard(), &QClipboard::dataChanged,
@@ -80,6 +83,8 @@ void EBCommandController::setMode(EBApplicationController::MainMode mode)
     for (QAction *tool : _toolActions)
         tool->setEnabled(onBoard);
     _backgroundButton->setEnabled(onBoard);
+    _brushButton->setEnabled(onBoard);
+    _shapeButton->setEnabled(onBoard);
     _zoomInAction->setEnabled(onBoard);
     _zoomOutAction->setEnabled(onBoard);
     _fitPageAction->setEnabled(onBoard);
@@ -95,6 +100,7 @@ void EBCommandController::setMode(EBApplicationController::MainMode mode)
     updateLockActions();
     updateArrangeActions();
     updateSelectAllAction();
+    updateTextFormatAction();
 }
 
 void EBCommandController::updateObjectActions()
@@ -186,6 +192,13 @@ void EBCommandController::updateSelectAllAction()
         _selectAllAction->setEnabled(_boardModeActive
                                      && _boardView->canSelectAllObjects());
     }
+}
+
+void EBCommandController::updateTextFormatAction()
+{
+    if (_textFormatButton)
+        _textFormatButton->setEnabled(_boardModeActive
+            && _boardView->canFormatSelectedText());
 }
 
 QString EBCommandController::modeLabel(EBApplicationController::MainMode mode) const
