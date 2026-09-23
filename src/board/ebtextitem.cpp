@@ -2,6 +2,8 @@
 
 #include <QTextDocument>
 #include <QTextOption>
+#include <QStyle>
+#include <QStyleOptionGraphicsItem>
 #include <QtMath>
 
 namespace {
@@ -19,6 +21,14 @@ EBTextItem::EBTextItem(const QString &text, const QFont &font,
     option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
     document()->setDefaultTextOption(option);
     refreshTransformOrigin();
+}
+
+void EBTextItem::paint(QPainter *painter,
+                       const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    QStyleOptionGraphicsItem itemOption(*option);
+    itemOption.state &= ~QStyle::State_Selected;
+    QGraphicsTextItem::paint(painter, &itemOption, widget);
 }
 
 EBTextItem::State EBTextItem::state() const

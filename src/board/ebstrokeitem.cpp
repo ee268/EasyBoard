@@ -1,6 +1,8 @@
 #include "ebstrokeitem.h"
 
 #include <QLineF>
+#include <QStyle>
+#include <QStyleOptionGraphicsItem>
 #include <QtMath>
 
 #include <algorithm>
@@ -10,6 +12,14 @@ EBStrokeItem::EBStrokeItem(const QPainterPath &path, const QPen &pen)
 {
     setPen(pen);
     setTransformOriginPoint(path.boundingRect().center());
+}
+
+void EBStrokeItem::paint(QPainter *painter,
+                         const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    QStyleOptionGraphicsItem itemOption(*option);
+    itemOption.state &= ~QStyle::State_Selected;
+    QGraphicsPathItem::paint(painter, &itemOption, widget);
 }
 
 EBStrokeItem::State EBStrokeItem::state() const

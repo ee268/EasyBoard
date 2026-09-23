@@ -3,8 +3,6 @@
 #include <QBuffer>
 #include <QImageReader>
 #include <QPainter>
-#include <QStyle>
-#include <QStyleOptionGraphicsItem>
 #include <QSvgRenderer>
 
 namespace {
@@ -27,7 +25,7 @@ QRectF EBImageItem::boundingRect() const
 }
 
 void EBImageItem::paint(QPainter *painter,
-                        const QStyleOptionGraphicsItem *option, QWidget *)
+                        const QStyleOptionGraphicsItem *, QWidget *)
 {
     if (!_valid)
         return;
@@ -36,13 +34,6 @@ void EBImageItem::paint(QPainter *painter,
         _svgRenderer->render(painter, boundingRect());
     else
         painter->drawImage(boundingRect(), _image);
-
-    if (option && (option->state & QStyle::State_Selected)) {
-        painter->setBrush(Qt::NoBrush);
-        painter->setPen(QPen(QColor(QStringLiteral("#36B9AC")), 1.5,
-                             Qt::DashLine));
-        painter->drawRect(boundingRect().adjusted(1.0, 1.0, -1.0, -1.0));
-    }
 }
 
 bool EBImageItem::isValid() const

@@ -24,6 +24,8 @@ public:
     };
 
     EBTextItem(const QString &text, const QFont &font, const QColor &color);
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+               QWidget *widget = nullptr) override;
 
     State state() const;
     void applyState(const State &state);

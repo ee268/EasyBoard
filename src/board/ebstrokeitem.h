@@ -22,6 +22,8 @@ public:
     };
 
     EBStrokeItem(const QPainterPath &path, const QPen &pen);
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+               QWidget *widget = nullptr) override;
 
     // 保存笔迹可恢复的状态，供撤销命令构造快照。
     State state() const;

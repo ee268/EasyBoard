@@ -61,6 +61,7 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
     _undoStack->setObjectName(QStringLiteral("boardUndoStack"));
     _undoStack->setUndoLimit(kMaxHistoryEntries);
     setScene(_scene);
+    setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
     QPen guidePen(ebThemeColor(EBThemeColor::BoardAlignmentGuide), 1.0,
                   Qt::DashLine);
     guidePen.setCosmetic(true);

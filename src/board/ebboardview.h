@@ -168,6 +168,7 @@ private:
     void finishGuideDrag(bool commit);
     void removeGuide(GuideAxis axis, int index);
     QRectF selectedObjectBounds() const;
+    QVector<QPoint> selectionFrame() const;
     TransformHandle transformHandleAt(const QPoint &viewportPosition) const;
     void drawSelectionHandles(QPainter *painter);
     void startObjectTransform(TransformHandle handle,

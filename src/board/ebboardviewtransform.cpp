@@ -10,9 +10,15 @@ namespace {
 constexpr qreal kMinObjectScale = 0.25;
 constexpr qreal kMaxObjectScale = 4.0;
 
-QPoint rotationHandle(const QRect &bounds)
+QPoint rotationHandle(const QVector<QPoint> &frame)
 {
-    return QPoint(bounds.center().x(), qMax(34, bounds.top() - 24));
+    const QPointF top = (QPointF(frame.at(0)) + frame.at(1)) / 2.0;
+    const QPointF center = (QPointF(frame.at(0)) + frame.at(2)) / 2.0;
+    const QPointF outward = top - center;
+    const qreal length = qSqrt(QPointF::dotProduct(outward, outward));
+    const QPointF handle = top + (length > 0.0
+        ? outward * (24.0 / length) : QPointF(0.0, -24.0));
+    return QPoint(qRound(handle.x()), qMax(34, qRound(handle.y())));
 }
 }
 
@@ -26,21 +32,37 @@ QRectF EBBoardView::selectedObjectBounds() const
     return bounds;
 }
 
+QVector<QPoint> EBBoardView::selectionFrame() const
+{
+    const QVector<QGraphicsItem *> objects = _scene->selectedObjects();
+    if (objects.size() == 1) {
+        QGraphicsItem *object = objects.first();
+        const QRectF bounds = object->boundingRect();
+        return {mapFromScene(object->mapToScene(bounds.topLeft())),
+                mapFromScene(object->mapToScene(bounds.topRight())),
+                mapFromScene(object->mapToScene(bounds.bottomRight())),
+                mapFromScene(object->mapToScene(bounds.bottomLeft()))};
+    }
+    const QRectF bounds = selectedObjectBounds();
+    if (bounds.isEmpty())
+        return {};
+    const QRect frame = mapFromScene(bounds).boundingRect();
+    return {frame.topLeft(), frame.topRight(), frame.bottomRight(),
+            frame.bottomLeft()};
+}
+
 EBBoardView::TransformHandle EBBoardView::transformHandleAt(
     const QPoint &viewportPosition) const
 {
     if (_drawingTool != DrawingTool::Select
         || !_scene->selectedObjectsEditable())
         return TransformHandle::None;
-    const QRectF bounds = selectedObjectBounds();
-    if (bounds.isEmpty())
+    const QVector<QPoint> frame = selectionFrame();
+    if (frame.isEmpty())
         return TransformHandle::None;
-    const QRect viewportBounds = mapFromScene(bounds).boundingRect();
-    if ((viewportPosition - rotationHandle(viewportBounds)).manhattanLength() <= 14)
+    if ((viewportPosition - rotationHandle(frame)).manhattanLength() <= 14)
         return TransformHandle::Rotate;
-    const QPoint corners[] = {viewportBounds.topLeft(), viewportBounds.topRight(),
-                              viewportBounds.bottomLeft(), viewportBounds.bottomRight()};
-    for (const QPoint &corner : corners) {
+    for (const QPoint &corner : frame) {
         if (qAbs(viewportPosition.x() - corner.x()) <= 8
             && qAbs(viewportPosition.y() - corner.y()) <= 8)
             return TransformHandle::Scale;
@@ -53,22 +75,20 @@ void EBBoardView::drawSelectionHandles(QPainter *painter)
     if (_drawingTool != DrawingTool::Select
         || !_scene->selectedObjectsEditable())
         return;
-    const QRectF bounds = selectedObjectBounds();
-    if (bounds.isEmpty())
+    const QVector<QPoint> frame = selectionFrame();
+    if (frame.isEmpty())
         return;
-    const QRect frame = mapFromScene(bounds).boundingRect();
     const QColor color = ebThemeColor(EBThemeColor::BoardManualGuide);
     painter->setPen(QPen(color, 1.0, Qt::DashLine));
     painter->setBrush(Qt::NoBrush);
-    painter->drawRect(frame);
+    for (int index = 0; index < frame.size(); ++index)
+        painter->drawLine(frame.at(index), frame.at((index + 1) % frame.size()));
     const QPoint rotation = rotationHandle(frame);
     painter->setPen(QPen(color, 1.0));
-    painter->drawLine(frame.center().x(), frame.top(), rotation.x(), rotation.y());
+    painter->drawLine((frame.at(0) + frame.at(1)) / 2, rotation);
     painter->setBrush(Qt::white);
     painter->drawEllipse(rotation, 5, 5);
-    const QPoint corners[] = {frame.topLeft(), frame.topRight(),
-                              frame.bottomLeft(), frame.bottomRight()};
-    for (const QPoint &corner : corners)
+    for (const QPoint &corner : frame)
         painter->drawRect(QRect(corner.x() - 4, corner.y() - 4, 8, 8));
 }
 
