@@ -103,6 +103,11 @@ EBBoardView::EBBoardView(EBDocument *document, QWidget *parent)
 
 void EBBoardView::setDrawingTool(DrawingTool tool)
 {
+    if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
+        _teachingTools.setKind(EBTeachingTools::Kind::None, pageRect());
+        emit teachingToolChanged(EBTeachingTools::Kind::None);
+        viewport()->update();
+    }
     finishGuideDrag(false);
     finishObjectTransform();
     finishKeyboardMove();
@@ -328,6 +333,10 @@ void EBBoardView::setPageSize(PageSize size)
     if (pageSize() == size)
         return;
     finishPageInteraction();
+    if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
+        _teachingTools.setKind(EBTeachingTools::Kind::None, pageRect());
+        emit teachingToolChanged(EBTeachingTools::Kind::None);
+    }
     _document->currentPage()->setSize(size);
     _scene->setPageSize(size);
     _scene->setGuides(_document->currentPage()->horizontalGuides(),

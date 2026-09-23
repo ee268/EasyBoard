@@ -8,9 +8,9 @@
 
 class QStackedWidget;
 class EBBoardView;
-class EBCommandController;
+class EBCommands;
 class EBDocumentLibrary;
-class EBPageNavigator;
+class EBPagePanel;
 
 class EBMainWindow : public QMainWindow
 {
@@ -48,9 +48,9 @@ private:
     QStackedWidget *_modeStack;
     QWidget *_boardWorkspace;
     EBBoardView *_boardView;
-    EBPageNavigator *_pageNavigator;
+    EBPagePanel *_pagePanel;
     EBDocumentLibrary *_documentLibrary;
-    EBCommandController *_commandController;
+    EBCommands *_commands;
 
 signals:
     void fileImportRequested(const QString &path);

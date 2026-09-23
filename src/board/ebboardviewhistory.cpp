@@ -148,6 +148,10 @@ void EBBoardView::finishPageInteraction()
 
 void EBBoardView::showCurrentPage()
 {
+    if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
+        _teachingTools.setKind(EBTeachingTools::Kind::None, pageRect());
+        emit teachingToolChanged(EBTeachingTools::Kind::None);
+    }
     finishAreaSelection();
     finishKeyboardMove();
     _movingObjects.clear();

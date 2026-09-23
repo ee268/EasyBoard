@@ -52,7 +52,40 @@
         <file>icons/toolbar/pan.svg</file>
         <file>icons/toolbar/board.svg</file>
         <file>icons/toolbar/document.svg</file>
+        <file>icons/toolbar/page_sidebar.svg</file>
         <file>icons/toolbar/web.svg</file>
         <file>icons/toolbar/desktop.svg</file>
+        <file>icons/toolbar/file_new.svg</file>
+        <file>icons/toolbar/file_open.svg</file>
+        <file>icons/toolbar/file_import_image.svg</file>
+        <file>icons/toolbar/file_package_import.svg</file>
+        <file>icons/toolbar/file_save.svg</file>
+        <file>icons/toolbar/file_export_image.svg</file>
+        <file>icons/toolbar/file_export_pdf.svg</file>
+        <file>icons/toolbar/file_package_export.svg</file>
+        <file>icons/toolbar/file_exit.svg</file>
+        <file>icons/toolbar/text_color.svg</file>
+        <file>icons/toolbar/page_color.svg</file>
+        <file>icons/toolbar/page_size.svg</file>
+        <file>icons/toolbar/page_white.svg</file>
+        <file>icons/toolbar/page_cream.svg</file>
+        <file>icons/toolbar/page_blank.svg</file>
+        <file>icons/toolbar/page_grid.svg</file>
+        <file>icons/toolbar/page_ruled.svg</file>
+        <file>icons/toolbar/page_standard.svg</file>
+        <file>icons/toolbar/page_wide.svg</file>
+        <file>icons/toolbar/pen_color.svg</file>
+        <file>icons/toolbar/pen_width.svg</file>
+        <file>icons/toolbar/marker_color.svg</file>
+        <file>icons/toolbar/marker_width.svg</file>
+        <file>icons/toolbar/teaching.svg</file>
+        <file>icons/toolbar/ruler.svg</file>
+        <file>icons/toolbar/triangle.svg</file>
+        <file>icons/toolbar/protractor.svg</file>
+        <file>icons/toolbar/compass.svg</file>
+        <file>icons/toolbar/circle.svg</file>
+        <file>icons/toolbar/curtain.svg</file>
+        <file>icons/toolbar/spotlight.svg</file>
+        <file>icons/toolbar/magnifier.svg</file>
     </qresource>
 </RCC>

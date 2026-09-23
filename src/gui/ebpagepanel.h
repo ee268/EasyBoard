@@ -1,5 +1,5 @@
-#ifndef EBPAGENAVIGATOR_H
-#define EBPAGENAVIGATOR_H
+#ifndef EBPAGEPANEL_H
+#define EBPAGEPANEL_H
 
 #include <QWidget>
 
@@ -9,12 +9,12 @@ class QPushButton;
 class QLabel;
 
 // 左侧缩略图列表展示文档页面，并转发翻页与页面管理意图。
-class EBPageNavigator : public QWidget
+class EBPagePanel : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit EBPageNavigator(EBDocument *document, QWidget *parent = nullptr);
+    explicit EBPagePanel(EBDocument *document, QWidget *parent = nullptr);
 
     void refreshPages();
     void refreshPage(int index);

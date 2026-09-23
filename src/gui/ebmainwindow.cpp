@@ -7,8 +7,8 @@
 #include "../persistence/ebdocumentpackage.h"
 #include "../persistence/ebdocumentstorage.h"
 #include "ebdocumentlibrary.h"
-#include "ebcommandcontroller.h"
-#include "ebpagenavigator.h"
+#include "ebcommands.h"
+#include "ebpagepanel.h"
 
 #include <QDebug>
 #include <QHBoxLayout>
@@ -55,9 +55,9 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     , _modeStack(new QStackedWidget(this))
     , _boardWorkspace(new QWidget(_modeStack))
     , _boardView(new EBBoardView(&_document, _boardWorkspace))
-    , _pageNavigator(new EBPageNavigator(&_document, _boardWorkspace))
+    , _pagePanel(new EBPagePanel(&_document, _boardWorkspace))
     , _documentLibrary(new EBDocumentLibrary(_modeStack))
-    , _commandController(nullptr)
+    , _commands(nullptr)
 {
     setWindowTitle(tr("EasyBoard"));
 
@@ -70,25 +70,25 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     QHBoxLayout *boardLayout = new QHBoxLayout(_boardWorkspace);
     boardLayout->setContentsMargins(0, 0, 0, 0);
     boardLayout->setSpacing(0);
-    boardLayout->addWidget(_pageNavigator);
+    boardLayout->addWidget(_pagePanel);
     boardLayout->addWidget(_boardView, 1);
     _modeStack->addWidget(_boardWorkspace);
-    connect(_pageNavigator, &EBPageNavigator::pageSelected,
+    connect(_pagePanel, &EBPagePanel::pageSelected,
             _boardView, &EBBoardView::setCurrentPageIndex);
-    connect(_pageNavigator, &EBPageNavigator::addPageRequested,
+    connect(_pagePanel, &EBPagePanel::addPageRequested,
             _boardView, &EBBoardView::addPage);
-    connect(_pageNavigator, &EBPageNavigator::duplicatePageRequested,
+    connect(_pagePanel, &EBPagePanel::duplicatePageRequested,
             _boardView, &EBBoardView::duplicateCurrentPage);
-    connect(_pageNavigator, &EBPageNavigator::removePageRequested,
+    connect(_pagePanel, &EBPagePanel::removePageRequested,
             _boardView, &EBBoardView::removeCurrentPage);
-    connect(_pageNavigator, &EBPageNavigator::movePageRequested,
+    connect(_pagePanel, &EBPagePanel::movePageRequested,
             _boardView, &EBBoardView::moveCurrentPage);
     connect(_boardView, &EBBoardView::pageListChanged,
-            _pageNavigator, &EBPageNavigator::refreshPages);
+            _pagePanel, &EBPagePanel::refreshPages);
     connect(_boardView, &EBBoardView::currentPageChanged,
-            _pageNavigator, &EBPageNavigator::setCurrentPageIndex);
+            _pagePanel, &EBPagePanel::setCurrentPageIndex);
     connect(_boardView, &EBBoardView::pageContentChanged,
-            _pageNavigator, &EBPageNavigator::refreshPage);
+            _pagePanel, &EBPagePanel::refreshPage);
     connect(_boardView, &EBBoardView::pagePositionChanged,
             this, [this](const QPointF &pagePosition, bool insidePage) {
         if (insidePage) {
@@ -126,25 +126,28 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     _modeStack->setObjectName(QStringLiteral("modeStack"));
     setCentralWidget(_modeStack);
 
-    _commandController = new EBCommandController(this, _boardView);
-    connect(_commandController, &EBCommandController::newDocumentRequested,
+    _commands = new EBCommands(this, _boardView);
+    connect(_commands, &EBCommands::newDocumentRequested,
             this, &EBMainWindow::newDocument);
-    connect(_commandController, &EBCommandController::fileImportRequested,
+    connect(_commands, &EBCommands::fileImportRequested,
             this, &EBMainWindow::fileImportRequested);
-    connect(_commandController, &EBCommandController::imageObjectInsertRequested,
+    connect(_commands, &EBCommands::imageObjectInsertRequested,
             this, &EBMainWindow::insertImageObject);
-    connect(_commandController, &EBCommandController::saveDocumentRequested,
+    connect(_commands, &EBCommands::saveDocumentRequested,
             this, &EBMainWindow::saveDocument);
-    connect(_commandController, &EBCommandController::exportPageImageRequested,
+    connect(_commands, &EBCommands::exportPageImageRequested,
             this, &EBMainWindow::exportCurrentPageImage);
-    connect(_commandController, &EBCommandController::exportDocumentPdfRequested,
+    connect(_commands, &EBCommands::exportDocumentPdfRequested,
             this, &EBMainWindow::exportDocumentPdf);
-    connect(_commandController, &EBCommandController::exportDocumentPackageRequested,
+    connect(_commands, &EBCommands::exportDocumentPackageRequested,
             this, &EBMainWindow::exportDocumentPackage);
-    connect(_commandController, &EBCommandController::quitRequested,
+    connect(_commands, &EBCommands::quitRequested,
             this, &EBMainWindow::quitRequested);
-    connect(_commandController, &EBCommandController::modeRequested,
+    connect(_commands, &EBCommands::modeRequested,
             this, &EBMainWindow::modeRequested);
+    connect(_commands,
+            &EBCommands::pagePanelVisibilityRequested,
+            _pagePanel, &EBPagePanel::setVisible);
     restoreLastDocument();
 }
 
@@ -501,5 +504,5 @@ void EBMainWindow::showMode(EBApplicationController::MainMode mode)
         refreshDocumentLibrary();
     // 工作区顺序与模式枚举一致；动作对象同步勾选和可用状态。
     _modeStack->setCurrentIndex(index);
-    _commandController->setMode(mode);
+    _commands->setMode(mode);
 }

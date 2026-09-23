@@ -1,4 +1,6 @@
-#include "ebcommandcontroller.h"
+#include "ebcommands.h"
+
+#include "ebicons.h"
 
 #include <QAction>
 #include <QFileDialog>
@@ -12,16 +14,18 @@
 #include "../import/ebimageimporter.h"
 #include "../persistence/ebdocumentpackage.h"
 
-void EBCommandController::createFileMenu()
+void EBCommands::createFileMenu()
 {
     QMenu *fileMenu = _window->menuBar()->addMenu(tr("文件(&F)"));
-    QAction *newAction = fileMenu->addAction(tr("新建文档"));
+    QAction *newAction = fileMenu->addAction(ebToolbarIcon("file_new"),
+                                              tr("新建文档"));
     newAction->setObjectName(QStringLiteral("newDocumentAction"));
     newAction->setShortcut(QKeySequence::New);
     connect(newAction, &QAction::triggered,
-            this, &EBCommandController::newDocumentRequested);
+            this, &EBCommands::newDocumentRequested);
     fileMenu->addSeparator();
-    QAction *openAction = fileMenu->addAction(tr("打开文档..."));
+    QAction *openAction = fileMenu->addAction(ebToolbarIcon("file_open"),
+                                               tr("打开文档..."));
     openAction->setObjectName(QStringLiteral("openFileAction"));
     openAction->setShortcut(QKeySequence::Open);
     connect(openAction, &QAction::triggered, this, [this]() {
@@ -32,7 +36,8 @@ void EBCommandController::createFileMenu()
             emit fileImportRequested(path);
     });
 
-    QAction *importAction = fileMenu->addAction(tr("导入图片为新文档..."));
+    QAction *importAction = fileMenu->addAction(
+        ebToolbarIcon("file_import_image"), tr("导入图片为新文档..."));
     importAction->setObjectName(QStringLiteral("importImageAction"));
     importAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_I));
     connect(importAction, &QAction::triggered, this, [this]() {
@@ -57,7 +62,8 @@ void EBCommandController::createFileMenu()
             emit imageObjectInsertRequested(path);
     });
 
-    QAction *importPackageAction = fileMenu->addAction(tr("导入课程文档包..."));
+    QAction *importPackageAction = fileMenu->addAction(
+        ebToolbarIcon("file_package_import"), tr("导入课程文档包..."));
     importPackageAction->setObjectName(
         QStringLiteral("importDocumentPackageAction"));
     connect(importPackageAction, &QAction::triggered, this, [this]() {
@@ -68,35 +74,40 @@ void EBCommandController::createFileMenu()
             emit fileImportRequested(path);
     });
 
-    QAction *saveAction = fileMenu->addAction(tr("保存"));
+    QAction *saveAction = fileMenu->addAction(ebToolbarIcon("file_save"),
+                                               tr("保存"));
     saveAction->setObjectName(QStringLiteral("saveDocumentAction"));
     saveAction->setShortcut(QKeySequence::Save);
     connect(saveAction, &QAction::triggered,
-            this, &EBCommandController::saveDocumentRequested);
+            this, &EBCommands::saveDocumentRequested);
 
     fileMenu->addSeparator();
-    QAction *exportPageAction = fileMenu->addAction(tr("导出当前页图片..."));
+    QAction *exportPageAction = fileMenu->addAction(
+        ebToolbarIcon("file_export_image"), tr("导出当前页图片..."));
     exportPageAction->setObjectName(QStringLiteral("exportPageImageAction"));
     connect(exportPageAction, &QAction::triggered,
-            this, &EBCommandController::exportPageImageRequested);
-    QAction *exportPdfAction = fileMenu->addAction(tr("导出整份文档 PDF..."));
+            this, &EBCommands::exportPageImageRequested);
+    QAction *exportPdfAction = fileMenu->addAction(
+        ebToolbarIcon("file_export_pdf"), tr("导出整份文档 PDF..."));
     exportPdfAction->setObjectName(QStringLiteral("exportDocumentPdfAction"));
     connect(exportPdfAction, &QAction::triggered,
-            this, &EBCommandController::exportDocumentPdfRequested);
-    QAction *exportPackageAction = fileMenu->addAction(tr("导出课程文档包..."));
+            this, &EBCommands::exportDocumentPdfRequested);
+    QAction *exportPackageAction = fileMenu->addAction(
+        ebToolbarIcon("file_package_export"), tr("导出课程文档包..."));
     exportPackageAction->setObjectName(
         QStringLiteral("exportDocumentPackageAction"));
     connect(exportPackageAction, &QAction::triggered,
-            this, &EBCommandController::exportDocumentPackageRequested);
+            this, &EBCommands::exportDocumentPackageRequested);
 
     fileMenu->addSeparator();
-    QAction *quitAction = fileMenu->addAction(tr("退出"));
+    QAction *quitAction = fileMenu->addAction(ebToolbarIcon("file_exit"),
+                                               tr("退出"));
     quitAction->setObjectName(QStringLiteral("quitAction"));
     quitAction->setShortcut(QKeySequence::Quit);
-    connect(quitAction, &QAction::triggered, this, &EBCommandController::quitRequested);
+    connect(quitAction, &QAction::triggered, this, &EBCommands::quitRequested);
 }
 
-void EBCommandController::createEditMenu()
+void EBCommands::createEditMenu()
 {
     QMenu *editMenu = _window->menuBar()->addMenu(tr("编辑(&E)"));
     _cutAction = editMenu->addAction(tr("剪切"));
@@ -117,14 +128,14 @@ void EBCommandController::createEditMenu()
             _boardView, &EBBoardView::copySelectedObject);
     connect(_pasteAction, &QAction::triggered,
             _boardView, &EBBoardView::pasteObject);
-    _duplicateAction = editMenu->addAction(toolbarIcon("duplicate"),
+    _duplicateAction = editMenu->addAction(ebToolbarIcon("duplicate"),
                                             tr("快速复制"));
     _duplicateAction->setObjectName(QStringLiteral("duplicateObjectsAction"));
     _duplicateAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
     _duplicateAction->setEnabled(false);
     connect(_duplicateAction, &QAction::triggered,
             _boardView, &EBBoardView::duplicateSelectedObjects);
-    _selectAllAction = editMenu->addAction(toolbarIcon("select_all"),
+    _selectAllAction = editMenu->addAction(ebToolbarIcon("select_all"),
                                             tr("全选"));
     _selectAllAction->setObjectName(QStringLiteral("selectAllObjectsAction"));
     _selectAllAction->setShortcut(QKeySequence::SelectAll);
@@ -147,12 +158,12 @@ void EBCommandController::createEditMenu()
     connect(_ungroupAction, &QAction::triggered,
             _boardView, &EBBoardView::ungroupSelectedObjects);
 
-    _lockAction = editMenu->addAction(toolbarIcon("object_lock"),
+    _lockAction = editMenu->addAction(ebToolbarIcon("object_lock"),
                                       tr("锁定对象"));
     _lockAction->setObjectName(QStringLiteral("lockObjectsAction"));
     _lockAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_L));
     _lockAction->setEnabled(false);
-    _unlockAction = editMenu->addAction(toolbarIcon("object_unlock"),
+    _unlockAction = editMenu->addAction(ebToolbarIcon("object_unlock"),
                                         tr("解锁对象"));
     _unlockAction->setObjectName(QStringLiteral("unlockObjectsAction"));
     _unlockAction->setShortcut(
@@ -163,7 +174,7 @@ void EBCommandController::createEditMenu()
     connect(_unlockAction, &QAction::triggered,
             _boardView, &EBBoardView::unlockSelectedObjects);
 
-    QMenu *arrangeMenu = editMenu->addMenu(toolbarIcon("object_arrange"),
+    QMenu *arrangeMenu = editMenu->addMenu(ebToolbarIcon("object_arrange"),
                                             tr("对齐与分布"));
     const QString arrangeLabels[] = {
         tr("左对齐"), tr("水平居中"), tr("右对齐"),
@@ -185,7 +196,7 @@ void EBCommandController::createEditMenu()
         if (index == 3 || index == 6)
             arrangeMenu->addSeparator();
         QAction *action = arrangeMenu->addAction(
-            toolbarIcon(arrangeIcons[index]), arrangeLabels[index]);
+            ebToolbarIcon(arrangeIcons[index]), arrangeLabels[index]);
         action->setObjectName(QString::fromLatin1(arrangeNames[index]));
         action->setEnabled(false);
         _arrangeActions[index] = action;

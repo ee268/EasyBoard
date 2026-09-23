@@ -1,24 +1,23 @@
-#ifndef EBCOMMANDCONTROLLER_H
-#define EBCOMMANDCONTROLLER_H
+#ifndef EBCOMMANDS_H
+#define EBCOMMANDS_H
 
 #include <QObject>
 
 #include "../core/ebapplicationcontroller.h"
 
 class QAction;
-class QIcon;
 class QMainWindow;
-class QToolBar;
-class QToolButton;
 class EBBoardView;
+class EBTopBar;
+class EBDrawBar;
+class EBObjectBar;
 
-// 协调主窗口命令、菜单与工具栏状态，窗口自身只维护页面布局。
-class EBCommandController : public QObject
+// 文件和编辑菜单复用同一组动作，并协调各功能区的模式状态。
+class EBCommands : public QObject
 {
     Q_OBJECT
-
 public:
-    EBCommandController(QMainWindow *window, EBBoardView *boardView);
+    EBCommands(QMainWindow *window, EBBoardView *boardView);
 
     void setMode(EBApplicationController::MainMode mode);
     QString modeLabel(EBApplicationController::MainMode mode) const;
@@ -33,40 +32,24 @@ signals:
     void exportDocumentPackageRequested();
     void quitRequested();
     void modeRequested(EBApplicationController::MainMode mode);
+    void pagePanelVisibilityRequested(bool visible);
 
 private:
-    static QIcon toolbarIcon(const char *name);
     void createFileMenu();
     void createEditMenu();
-    void createToolBar();
-    void createBackgroundMenu(QToolBar *toolBar);
-    void createZoomActions(QToolBar *toolBar);
-    void createDrawingActions(QToolBar *toolBar);
-    void createBrushMenu(QToolBar *toolBar);
-    void createTextFormatMenu(QToolBar *toolBar);
-    void createObjectActions(QToolBar *toolBar);
-    void createModeActions(QToolBar *toolBar);
-    void updateObjectActions();
+    void refreshActions();
     void updateClipboardActions();
     void updateLayerActions();
     void updateGroupActions();
     void updateLockActions();
     void updateArrangeActions();
     void updateSelectAllAction();
-    void updateTextFormatAction();
 
     QMainWindow *_window;
     EBBoardView *_boardView;
-    QToolButton *_backgroundButton = nullptr;
-    QToolButton *_arrangeButton = nullptr;
-    QToolButton *_brushButton = nullptr;
-    QToolButton *_textFormatButton = nullptr;
-    QToolButton *_shapeButton = nullptr;
-    QAction *_undoAction = nullptr;
-    QAction *_redoAction = nullptr;
-    QAction *_zoomInAction = nullptr;
-    QAction *_zoomOutAction = nullptr;
-    QAction *_fitPageAction = nullptr;
+    EBTopBar *_topBar;
+    EBDrawBar *_drawBar;
+    EBObjectBar *_objectBar;
     QAction *_insertImageObjectAction = nullptr;
     QAction *_cutAction = nullptr;
     QAction *_copyAction = nullptr;
@@ -79,14 +62,8 @@ private:
     QAction *_unlockAction = nullptr;
     QAction *_snapAction = nullptr;
     QAction *_gridSnapAction = nullptr;
-    QAction *_colorActions[2] = {};
-    QAction *_patternActions[3] = {};
-    QAction *_sizeActions[2] = {};
-    QAction *_toolActions[11] = {};
-    QAction *_objectActions[5] = {};
     QAction *_layerActions[4] = {};
     QAction *_arrangeActions[8] = {};
-    QAction *_modeActions[4] = {};
     bool _boardModeActive = false;
 };
 

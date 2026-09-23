@@ -69,6 +69,12 @@ void EBBoardView::mousePressEvent(QMouseEvent *event)
 {
     finishKeyboardMove();
     if (event->button() == Qt::LeftButton
+        && _teachingTools.press(mapToScene(event->pos()), pageRect())) {
+        viewport()->update();
+        event->accept();
+        return;
+    }
+    if (event->button() == Qt::LeftButton
         && (event->pos().x() < 24 || event->pos().y() < 24)) {
         if (event->pos().x() < 24 && event->pos().y() < 24) {
             event->accept();
@@ -231,6 +237,14 @@ void EBBoardView::mouseMoveEvent(QMouseEvent *event)
     emit pagePositionChanged(scenePosition - pageRect().topLeft(),
                              pageRect().contains(scenePosition));
 
+    if (_teachingTools.isInteracting()
+        && (event->buttons() & Qt::LeftButton)) {
+        _teachingTools.move(scenePosition, pageRect());
+        viewport()->update();
+        event->accept();
+        return;
+    }
+
     if (_guideAxis != GuideAxis::None
         && (event->buttons() & Qt::LeftButton)) {
         updateGuideDrag(scenePosition);
@@ -281,6 +295,15 @@ void EBBoardView::mouseMoveEvent(QMouseEvent *event)
 
 void EBBoardView::mouseReleaseEvent(QMouseEvent *event)
 {
+    if (event->button() == Qt::LeftButton && _teachingTools.isInteracting()) {
+        const QPainterPath path = _teachingTools.release(
+            mapToScene(event->pos()), pageRect());
+        if (!path.isEmpty())
+            addTeachingStroke(path, tr("教学工具描线"));
+        viewport()->update();
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton
         && _transformHandle != TransformHandle::None) {
         updateObjectTransform(mapToScene(event->pos()));
@@ -353,6 +376,10 @@ void EBBoardView::hideEvent(QHideEvent *event)
     _pointing = false;
     _scene->hidePointer();
     finishEdit();
+    if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
+        _teachingTools.setKind(EBTeachingTools::Kind::None, pageRect());
+        emit teachingToolChanged(EBTeachingTools::Kind::None);
+    }
     QGraphicsView::hideEvent(event);
 }
 

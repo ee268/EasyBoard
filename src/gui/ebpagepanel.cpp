@@ -1,4 +1,4 @@
-#include "ebpagenavigator.h"
+#include "ebpagepanel.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
@@ -33,7 +33,7 @@ QIcon pageIcon(const EBPage &page)
 }
 }
 
-EBPageNavigator::EBPageNavigator(EBDocument *document, QWidget *parent)
+EBPagePanel::EBPagePanel(EBDocument *document, QWidget *parent)
     : QWidget(parent)
     , _document(document)
     , _pageList(new QListWidget(this))
@@ -47,7 +47,7 @@ EBPageNavigator::EBPageNavigator(EBDocument *document, QWidget *parent)
     setObjectName(QStringLiteral("pageNavigator"));
     setFixedWidth(210);
     setStyleSheet(QStringLiteral(
-        "EBPageNavigator { background: #F8FAFB; border-right: 1px solid #DCE6EA; }"
+        "EBPagePanel { background: #F8FAFB; border-right: 1px solid #DCE6EA; }"
         "QListWidget { background: transparent; border: none; outline: none; }"
         "QListWidget::item { border: 1px solid transparent; border-radius: 8px; margin: 3px; padding: 4px; }"
         "QListWidget::item:selected { background: #DDF3EF; border-color: #A5DDD4; color: #193A3A; }"));
@@ -101,11 +101,11 @@ EBPageNavigator::EBPageNavigator(EBDocument *document, QWidget *parent)
     footer->addWidget(_nextButton);
     layout->addLayout(footer);
 
-    connect(addButton, &QPushButton::clicked, this, &EBPageNavigator::addPageRequested);
+    connect(addButton, &QPushButton::clicked, this, &EBPagePanel::addPageRequested);
     connect(duplicateButton, &QPushButton::clicked,
-            this, &EBPageNavigator::duplicatePageRequested);
+            this, &EBPagePanel::duplicatePageRequested);
     connect(_removeButton, &QPushButton::clicked,
-            this, &EBPageNavigator::removePageRequested);
+            this, &EBPagePanel::removePageRequested);
     connect(_moveUpButton, &QPushButton::clicked, this, [this]() {
         emit movePageRequested(-1);
     });
@@ -125,7 +125,7 @@ EBPageNavigator::EBPageNavigator(EBDocument *document, QWidget *parent)
     refreshPages();
 }
 
-void EBPageNavigator::refreshPages()
+void EBPagePanel::refreshPages()
 {
     QSignalBlocker blocker(_pageList);
     _pageList->clear();
@@ -138,21 +138,21 @@ void EBPageNavigator::refreshPages()
     updateControls();
 }
 
-void EBPageNavigator::refreshPage(int index)
+void EBPagePanel::refreshPage(int index)
 {
     const EBPage *page = _document->pageAt(index);
     if (page && index < _pageList->count())
         _pageList->item(index)->setIcon(pageIcon(*page));
 }
 
-void EBPageNavigator::setCurrentPageIndex(int index)
+void EBPagePanel::setCurrentPageIndex(int index)
 {
     QSignalBlocker blocker(_pageList);
     _pageList->setCurrentRow(index);
     updateControls();
 }
 
-void EBPageNavigator::updateControls()
+void EBPagePanel::updateControls()
 {
     const int index = _document->currentPageIndex();
     _pageNumber->setText(tr("%1 / %2").arg(index + 1).arg(_document->pageCount()));
