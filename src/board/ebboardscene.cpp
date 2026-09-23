@@ -17,18 +17,15 @@
 namespace {
 // 页面尺寸和边距属于场景；视图只负责把视口坐标换算为页面坐标。
 constexpr qreal kPageMargin = 80.0;
-constexpr qreal kStandardPageWidth = 1200.0;
-constexpr qreal kWidescreenPageWidth = 1600.0;
-constexpr qreal kPageHeight = 900.0;
 constexpr qreal kPointerRadius = 7.0;
-constexpr int kPatternSpacing = 40;
 constexpr qreal kFirstObjectZValue = 1.0;
 constexpr qreal kPointerZValue = 1000000.0;
 }
 
 EBBoardScene::EBBoardScene(QObject *parent)
     : QGraphicsScene(parent)
-    , _pageRect(kPageMargin, kPageMargin, kStandardPageWidth, kPageHeight)
+    , _pageRect(kPageMargin, kPageMargin,
+                EBPage::widthForSize(PageSize::Standard), EBPage::Height)
     , _pageItem(nullptr)
     , _pageImageItem(nullptr)
     , _pointerItem(nullptr)
@@ -37,8 +34,9 @@ EBBoardScene::EBBoardScene(QObject *parent)
     , _pageSize(PageSize::Standard)
     , _objectInteractionEnabled(false)
 {
-    setSceneRect(0.0, 0.0, kStandardPageWidth + 2.0 * kPageMargin,
-                 kPageHeight + 2.0 * kPageMargin);
+    setSceneRect(0.0, 0.0,
+                 EBPage::widthForSize(PageSize::Standard) + 2.0 * kPageMargin,
+                 EBPage::Height + 2.0 * kPageMargin);
     _pageItem = addRect(_pageRect, QPen(ebThemeColor(EBThemeColor::BoardBorder)),
                          QBrush(ebThemeColor(EBThemeColor::BoardWhite)));
     refreshPageBackground();
@@ -70,7 +68,8 @@ void EBBoardScene::showPage(const EBPage &page)
     setPagePattern(page.pattern());
     _pageBackgroundImage = page.backgroundImage();
     refreshPageImage();
-    restoreSnapshot({page.strokes(), page.texts(), page.images()});
+    restoreSnapshot({page.strokes(), page.texts(), page.images(),
+                     page.horizontalGuides(), page.verticalGuides()});
 }
 
 void EBBoardScene::setPageColor(PageColor color)
@@ -110,6 +109,23 @@ void EBBoardScene::setPageSize(PageSize size)
 EBBoardScene::PageSize EBBoardScene::pageSize() const
 {
     return _pageSize;
+}
+
+const QVector<qreal> &EBBoardScene::horizontalGuides() const
+{
+    return _horizontalGuides;
+}
+
+const QVector<qreal> &EBBoardScene::verticalGuides() const
+{
+    return _verticalGuides;
+}
+
+void EBBoardScene::setGuides(const QVector<qreal> &horizontal,
+                             const QVector<qreal> &vertical)
+{
+    _horizontalGuides = horizontal;
+    _verticalGuides = vertical;
 }
 
 EBStrokeItem *EBBoardScene::addStroke(const QPainterPath &path, const QPen &pen)
@@ -247,7 +263,8 @@ void EBBoardScene::restoreImages(const EBPage::Images &images)
 
 EBBoardScene::Snapshot EBBoardScene::captureSnapshot() const
 {
-    return {captureStrokes(), captureTexts(), captureImages()};
+    return {captureStrokes(), captureTexts(), captureImages(),
+            _horizontalGuides, _verticalGuides};
 }
 
 void EBBoardScene::restoreSnapshot(const Snapshot &snapshot)
@@ -255,6 +272,7 @@ void EBBoardScene::restoreSnapshot(const Snapshot &snapshot)
     restoreStrokes(snapshot.strokes);
     restoreTexts(snapshot.texts);
     restoreImages(snapshot.images);
+    setGuides(snapshot.horizontalGuides, snapshot.verticalGuides);
 }
 
 void EBBoardScene::showPointerAt(const QPointF &pagePosition)
@@ -365,6 +383,30 @@ QVector<QGraphicsItem *> EBBoardScene::objectsInRect(
 bool EBBoardScene::hasObjects() const
 {
     return !objectItems().isEmpty();
+}
+
+QVector<QRectF> EBBoardScene::objectReferenceBounds() const
+{
+    QVector<QRectF> bounds;
+    QHash<QString, int> groupedIndexes;
+    for (QGraphicsItem *object : objectItems()) {
+        if (object->isSelected())
+            continue;
+        const QString groupId = objectGroupId(object);
+        const QRectF itemBounds = object->sceneBoundingRect();
+        if (groupId.isEmpty()) {
+            bounds.append(itemBounds);
+            continue;
+        }
+        const auto found = groupedIndexes.constFind(groupId);
+        if (found == groupedIndexes.constEnd()) {
+            groupedIndexes.insert(groupId, bounds.size());
+            bounds.append(itemBounds);
+        } else {
+            bounds[found.value()] = bounds.at(found.value()).united(itemBounds);
+        }
+    }
+    return bounds;
 }
 
 void EBBoardScene::selectAllObjects()
@@ -750,12 +792,11 @@ QVector<QVector<QGraphicsItem *>> EBBoardScene::selectedObjectUnits() const
 
 void EBBoardScene::refreshPageGeometry()
 {
-    const qreal width = _pageSize == PageSize::Standard
-        ? kStandardPageWidth : kWidescreenPageWidth;
-    _pageRect = QRectF(kPageMargin, kPageMargin, width, kPageHeight);
+    const qreal width = EBPage::widthForSize(_pageSize);
+    _pageRect = QRectF(kPageMargin, kPageMargin, width, EBPage::Height);
     _pageItem->setRect(_pageRect);
     setSceneRect(0.0, 0.0, width + 2.0 * kPageMargin,
-                 kPageHeight + 2.0 * kPageMargin);
+                 EBPage::Height + 2.0 * kPageMargin);
     refreshPageImage();
 }
 
@@ -771,7 +812,7 @@ void EBBoardScene::refreshPageBackground()
     }
 
     // 底纹由代码绘制，保持现有 EasyBoard 页面效果。
-    QImage tile(kPatternSpacing, kPatternSpacing, QImage::Format_ARGB32_Premultiplied);
+    QImage tile(PatternSpacing, PatternSpacing, QImage::Format_ARGB32_Premultiplied);
     tile.fill(base);
     QPainter painter(&tile);
     const QColor patternColor = _pageColor == PageColor::White
@@ -779,11 +820,11 @@ void EBBoardScene::refreshPageBackground()
         : ebThemeColor(EBThemeColor::BoardCreamPattern);
     painter.setPen(QPen(patternColor, 1.0));
     if (_pagePattern == PagePattern::Grid) {
-        painter.drawLine(0, 0, kPatternSpacing - 1, 0);
-        painter.drawLine(0, 0, 0, kPatternSpacing - 1);
+        painter.drawLine(0, 0, PatternSpacing - 1, 0);
+        painter.drawLine(0, 0, 0, PatternSpacing - 1);
     } else {
-        painter.drawLine(0, kPatternSpacing - 1,
-                         kPatternSpacing - 1, kPatternSpacing - 1);
+        painter.drawLine(0, PatternSpacing - 1,
+                         PatternSpacing - 1, PatternSpacing - 1);
     }
     painter.end();
     _pageItem->setBrush(QBrush(QPixmap::fromImage(tile)));

@@ -28,6 +28,11 @@ public:
 
     void setLastDocumentPath(const QString &path);
 
+    bool snapEnabled() const;
+    void setSnapEnabled(bool enabled);
+    bool gridSnapEnabled() const;
+    void setGridSnapEnabled(bool enabled);
+
     bool save();
 
 private:

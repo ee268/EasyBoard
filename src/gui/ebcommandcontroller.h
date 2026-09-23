@@ -1,23 +1,24 @@
-#ifndef EBMAINWINDOWACTIONS_H
-#define EBMAINWINDOWACTIONS_H
+#ifndef EBCOMMANDCONTROLLER_H
+#define EBCOMMANDCONTROLLER_H
 
 #include <QObject>
 
 #include "../core/ebapplicationcontroller.h"
 
 class QAction;
+class QIcon;
 class QMainWindow;
 class QToolBar;
 class QToolButton;
 class EBBoardView;
 
-// 主窗口的菜单、工具栏和动作连接集中在此，窗口自身只维护页面布局。
-class EBMainWindowActions : public QObject
+// 协调主窗口命令、菜单与工具栏状态，窗口自身只维护页面布局。
+class EBCommandController : public QObject
 {
     Q_OBJECT
 
 public:
-    EBMainWindowActions(QMainWindow *window, EBBoardView *boardView);
+    EBCommandController(QMainWindow *window, EBBoardView *boardView);
 
     void setMode(EBApplicationController::MainMode mode);
     QString modeLabel(EBApplicationController::MainMode mode) const;
@@ -33,6 +34,7 @@ signals:
     void modeRequested(EBApplicationController::MainMode mode);
 
 private:
+    static QIcon toolbarIcon(const char *name);
     void createFileMenu();
     void createEditMenu();
     void createToolBar();
@@ -68,6 +70,8 @@ private:
     QAction *_ungroupAction = nullptr;
     QAction *_lockAction = nullptr;
     QAction *_unlockAction = nullptr;
+    QAction *_snapAction = nullptr;
+    QAction *_gridSnapAction = nullptr;
     QAction *_colorActions[2] = {};
     QAction *_patternActions[3] = {};
     QAction *_sizeActions[2] = {};

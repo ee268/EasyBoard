@@ -25,6 +25,8 @@ public:
         Standard,
         Widescreen
     };
+    static constexpr qreal Height = 900.0;
+    static qreal widthForSize(Size size);
     using Strokes = QVector<EBStrokeItem::State>;
     using Texts = QVector<EBTextItem::State>;
     using Images = QVector<EBImageItem::State>;
@@ -44,6 +46,10 @@ public:
     void setTexts(const Texts &texts);
     const Images &images() const;
     void setImages(const Images &images);
+    const QVector<qreal> &horizontalGuides() const;
+    void setHorizontalGuides(const QVector<qreal> &guides);
+    const QVector<qreal> &verticalGuides() const;
+    void setVerticalGuides(const QVector<qreal> &guides);
 
     bool hasBackgroundImage() const;
     const QImage &backgroundImage() const;
@@ -57,6 +63,8 @@ private:
     Strokes _strokes;
     Texts _texts;
     Images _images;
+    QVector<qreal> _horizontalGuides;
+    QVector<qreal> _verticalGuides;
     QImage _backgroundImage;
 };
 

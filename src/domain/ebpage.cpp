@@ -1,5 +1,10 @@
 #include "ebpage.h"
 
+qreal EBPage::widthForSize(Size size)
+{
+    return size == Size::Standard ? 1200.0 : 1600.0;
+}
+
 EBPage::Color EBPage::color() const
 {
     return _color;
@@ -28,6 +33,9 @@ EBPage::Size EBPage::size() const
 void EBPage::setSize(Size size)
 {
     _size = size;
+    const qreal width = widthForSize(size);
+    for (qreal &guide : _verticalGuides)
+        guide = qMin(guide, width);
 }
 
 const EBPage::Strokes &EBPage::strokes() const
@@ -58,6 +66,26 @@ const EBPage::Images &EBPage::images() const
 void EBPage::setImages(const Images &images)
 {
     _images = images;
+}
+
+const QVector<qreal> &EBPage::horizontalGuides() const
+{
+    return _horizontalGuides;
+}
+
+void EBPage::setHorizontalGuides(const QVector<qreal> &guides)
+{
+    _horizontalGuides = guides;
+}
+
+const QVector<qreal> &EBPage::verticalGuides() const
+{
+    return _verticalGuides;
+}
+
+void EBPage::setVerticalGuides(const QVector<qreal> &guides)
+{
+    _verticalGuides = guides;
 }
 
 bool EBPage::hasBackgroundImage() const

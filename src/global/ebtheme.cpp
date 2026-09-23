@@ -58,6 +58,10 @@ void EBTheme::initLightColor()
     _lightColorList[BoardMarker] = QColor(0xFF, 0xB8, 0x33, 0x6E);
     _lightColorList[BoardPointerFill] = QColor(0xE1, 0x35, 0x44);
     _lightColorList[BoardPointerBorder] = Qt::white;
+    _lightColorList[BoardAlignmentGuide] = QColor(0x22, 0xA9, 0x9B);
+    _lightColorList[BoardManualGuide] = QColor(0x38, 0x8F, 0xD4);
+    _lightColorList[BoardRulerBackground] = QColor(0xF4, 0xF7, 0xF9);
+    _lightColorList[BoardRulerText] = QColor(0x52, 0x65, 0x73);
 }
 
 void EBTheme::initPageColors()
@@ -77,4 +81,8 @@ void EBTheme::initDarkColor()
     _darkColorList[BoardMarker] = QColor(0xFF, 0xB8, 0x33, 0x6E);
     _darkColorList[BoardPointerFill] = QColor(0xE1, 0x35, 0x44);
     _darkColorList[BoardPointerBorder] = Qt::white;
+    _darkColorList[BoardAlignmentGuide] = QColor(0x3D, 0xD1, 0xBD);
+    _darkColorList[BoardManualGuide] = QColor(0x65, 0xB5, 0xED);
+    _darkColorList[BoardRulerBackground] = QColor(0x2E, 0x36, 0x3D);
+    _darkColorList[BoardRulerText] = QColor(0xD0, 0xDA, 0xE1);
 }

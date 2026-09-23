@@ -63,6 +63,26 @@ void EBSettings::setLastDocumentPath(const QString &path)
     _userSettings->setValue(QStringLiteral("Document/LastPath"), path);
 }
 
+bool EBSettings::snapEnabled() const
+{
+    return _userSettings->value(QStringLiteral("Board/SnapEnabled"), true).toBool();
+}
+
+void EBSettings::setSnapEnabled(bool enabled)
+{
+    _userSettings->setValue(QStringLiteral("Board/SnapEnabled"), enabled);
+}
+
+bool EBSettings::gridSnapEnabled() const
+{
+    return _userSettings->value(QStringLiteral("Board/GridSnapEnabled"), false).toBool();
+}
+
+void EBSettings::setGridSnapEnabled(bool enabled)
+{
+    _userSettings->setValue(QStringLiteral("Board/GridSnapEnabled"), enabled);
+}
+
 bool EBSettings::save()
 {
     //同步保存到配置文件中

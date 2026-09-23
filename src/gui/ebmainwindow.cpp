@@ -7,7 +7,7 @@
 #include "../persistence/ebdocumentpackage.h"
 #include "../persistence/ebdocumentstorage.h"
 #include "ebdocumentlibrary.h"
-#include "ebmainwindowactions.h"
+#include "ebcommandcontroller.h"
 #include "ebpagenavigator.h"
 
 #include <QDebug>
@@ -28,6 +28,8 @@ bool documentHasContent(const EBDocument &document)
         const EBPage *page = document.pageAt(index);
         if (!page->strokes().isEmpty() || !page->texts().isEmpty()
             || !page->images().isEmpty() || page->hasBackgroundImage()
+            || !page->horizontalGuides().isEmpty()
+            || !page->verticalGuides().isEmpty()
             || page->color() != EBPage::Color::White
             || page->pattern() != EBPage::Pattern::Blank
             || page->size() != EBPage::Size::Standard)
@@ -55,7 +57,7 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     , _boardView(new EBBoardView(&_document, _boardWorkspace))
     , _pageNavigator(new EBPageNavigator(&_document, _boardWorkspace))
     , _documentLibrary(new EBDocumentLibrary(_modeStack))
-    , _actions(nullptr)
+    , _commandController(nullptr)
 {
     setWindowTitle(tr("EasyBoard"));
 
@@ -120,22 +122,22 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     _modeStack->setObjectName(QStringLiteral("modeStack"));
     setCentralWidget(_modeStack);
 
-    _actions = new EBMainWindowActions(this, _boardView);
-    connect(_actions, &EBMainWindowActions::fileImportRequested,
+    _commandController = new EBCommandController(this, _boardView);
+    connect(_commandController, &EBCommandController::fileImportRequested,
             this, &EBMainWindow::fileImportRequested);
-    connect(_actions, &EBMainWindowActions::imageObjectInsertRequested,
+    connect(_commandController, &EBCommandController::imageObjectInsertRequested,
             this, &EBMainWindow::insertImageObject);
-    connect(_actions, &EBMainWindowActions::saveDocumentRequested,
+    connect(_commandController, &EBCommandController::saveDocumentRequested,
             this, &EBMainWindow::saveDocument);
-    connect(_actions, &EBMainWindowActions::exportPageImageRequested,
+    connect(_commandController, &EBCommandController::exportPageImageRequested,
             this, &EBMainWindow::exportCurrentPageImage);
-    connect(_actions, &EBMainWindowActions::exportDocumentPdfRequested,
+    connect(_commandController, &EBCommandController::exportDocumentPdfRequested,
             this, &EBMainWindow::exportDocumentPdf);
-    connect(_actions, &EBMainWindowActions::exportDocumentPackageRequested,
+    connect(_commandController, &EBCommandController::exportDocumentPackageRequested,
             this, &EBMainWindow::exportDocumentPackage);
-    connect(_actions, &EBMainWindowActions::quitRequested,
+    connect(_commandController, &EBCommandController::quitRequested,
             this, &EBMainWindow::quitRequested);
-    connect(_actions, &EBMainWindowActions::modeRequested,
+    connect(_commandController, &EBCommandController::modeRequested,
             this, &EBMainWindow::modeRequested);
     restoreLastDocument();
 }
@@ -459,5 +461,5 @@ void EBMainWindow::showMode(EBApplicationController::MainMode mode)
         refreshDocumentLibrary();
     // 工作区顺序与模式枚举一致；动作对象同步勾选和可用状态。
     _modeStack->setCurrentIndex(index);
-    _actions->setMode(mode);
+    _commandController->setMode(mode);
 }

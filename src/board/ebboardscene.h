@@ -13,6 +13,7 @@ class QGraphicsRectItem;
 class EBBoardScene : public QGraphicsScene
 {
 public:
+    static constexpr int PatternSpacing = 40;
     enum class LayerMove {
         ToBack,
         Backward,
@@ -37,6 +38,8 @@ public:
         EBPage::Strokes strokes;
         EBPage::Texts texts;
         EBPage::Images images;
+        QVector<qreal> horizontalGuides;
+        QVector<qreal> verticalGuides;
     };
 
     explicit EBBoardScene(QObject *parent = nullptr);
@@ -49,6 +52,10 @@ public:
     PagePattern pagePattern() const;
     void setPageSize(PageSize size);
     PageSize pageSize() const;
+    const QVector<qreal> &horizontalGuides() const;
+    const QVector<qreal> &verticalGuides() const;
+    void setGuides(const QVector<qreal> &horizontal,
+                   const QVector<qreal> &vertical);
 
     // 视图只报告操作意图，图元的创建、裁切和恢复统一由场景管理。
     EBStrokeItem *addStroke(const QPainterPath &path, const QPen &pen);
@@ -74,6 +81,7 @@ public:
     QVector<QGraphicsItem *> selectedObjects() const;
     QVector<QGraphicsItem *> objectsInRect(const QRectF &sceneRect) const;
     bool hasObjects() const;
+    QVector<QRectF> objectReferenceBounds() const;
     void selectAllObjects();
     bool isObjectLocked(QGraphicsItem *object) const;
     bool selectedObjectsEditable() const;
@@ -115,6 +123,8 @@ private:
     PagePattern _pagePattern;
     PageSize _pageSize;
     QImage _pageBackgroundImage;
+    QVector<qreal> _horizontalGuides;
+    QVector<qreal> _verticalGuides;
     bool _objectInteractionEnabled;
 };
 

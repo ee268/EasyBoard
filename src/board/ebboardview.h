@@ -8,6 +8,8 @@
 
 class QUndoStack;
 class QKeyEvent;
+class QPainter;
+class QGraphicsLineItem;
 class QRubberBand;
 class EBDocument;
 
@@ -36,6 +38,10 @@ public:
 
     void setDrawingTool(DrawingTool tool);
     DrawingTool drawingTool() const;
+    void setSnapEnabled(bool enabled);
+    bool snapEnabled() const;
+    void setGridSnapEnabled(bool enabled);
+    bool gridSnapEnabled() const;
     bool canUndo() const;
     bool canRedo() const;
     void undo();
@@ -114,18 +120,28 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void hideEvent(QHideEvent *event) override;
+    void drawForeground(QPainter *painter, const QRectF &rect) override;
 
 private:
     using Snapshot = EBBoardScene::Snapshot;
     class PageEditCommand;
+    enum class GuideAxis { None, Horizontal, Vertical };
 
     void applyViewState();
     void zoomBy(qreal factor);
     QPointF boundedPagePosition(const QPointF &viewportPosition) const;
     void updateActiveStroke(const QPointF &pagePosition);
     void eraseAlong(const QPointF &from, const QPointF &to);
-    void updateObjectMove(const QPointF &scenePosition);
+    void updateObjectMove(const QPointF &scenePosition, bool snapEnabled);
     void finishObjectMove();
+    void hideSnapGuides();
+    void refreshManualGuides();
+    bool guideAt(const QPoint &viewportPosition, GuideAxis *axis,
+                 int *index) const;
+    void startGuideDrag(GuideAxis axis, int index, qreal value);
+    void updateGuideDrag(const QPointF &scenePosition);
+    void finishGuideDrag(bool commit);
+    void removeGuide(GuideAxis axis, int index);
     void startAreaSelection(const QPoint &viewportPosition,
                             Qt::KeyboardModifiers modifiers);
     void updateAreaSelection(const QPoint &viewportPosition);
@@ -166,6 +182,17 @@ private:
     QPointF _strokeStart;
     QPointF _moveStartScene;
     QVector<QPointF> _moveStartPositions;
+    QVector<QRectF> _snapReferences;
+    QGraphicsLineItem *_verticalGuide;
+    QGraphicsLineItem *_horizontalGuide;
+    QVector<QGraphicsLineItem *> _manualGuideItems;
+    QGraphicsLineItem *_guidePreview;
+    GuideAxis _guideAxis;
+    int _guideIndex;
+    qreal _guideValue;
+    QString _editDescription;
+    bool _snapEnabled;
+    bool _gridSnapEnabled;
     bool _erasing;
     QPointF _lastEraserPosition;
     bool _pointing;

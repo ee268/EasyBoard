@@ -21,6 +21,7 @@ constexpr qint64 kMaxBackgroundPixels = 40000000;
 constexpr int kMaxBackgroundDataBytes = 64 * 1024 * 1024;
 constexpr int kMaxTextLength = 10000;
 constexpr int kMaxObjectImageDataBytes = 64 * 1024 * 1024;
+constexpr int kMaxGuidesPerAxis = 100;
 
 QString colorName(EBPage::Color color)
 {
@@ -164,6 +165,12 @@ QJsonObject pageObject(const EBPage &page, int index)
     QJsonArray images;
     for (const EBImageItem::State &image : page.images())
         images.append(imageObject(image));
+    QJsonArray horizontalGuides;
+    for (qreal guide : page.horizontalGuides())
+        horizontalGuides.append(guide);
+    QJsonArray verticalGuides;
+    for (qreal guide : page.verticalGuides())
+        verticalGuides.append(guide);
     QJsonObject result{
         {QStringLiteral("index"), index},
         {QStringLiteral("color"), colorName(page.color())},
@@ -173,6 +180,12 @@ QJsonObject pageObject(const EBPage &page, int index)
         {QStringLiteral("texts"), texts},
         {QStringLiteral("images"), images}
     };
+    if (!horizontalGuides.isEmpty() || !verticalGuides.isEmpty()) {
+        result.insert(QStringLiteral("guides"), QJsonObject{
+            {QStringLiteral("horizontal"), horizontalGuides},
+            {QStringLiteral("vertical"), verticalGuides}
+        });
+    }
     if (page.hasBackgroundImage()) {
         QByteArray png;
         QBuffer buffer(&png);
@@ -531,6 +544,40 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page)
         images.append(image);
     }
     page->setImages(images);
+    const QJsonValue guidesValue = object.value(QStringLiteral("guides"));
+    if (!guidesValue.isUndefined()) {
+        if (!guidesValue.isObject())
+            return false;
+        const QJsonObject guides = guidesValue.toObject();
+        const QJsonValue horizontalValue = guides.value(QStringLiteral("horizontal"));
+        const QJsonValue verticalValue = guides.value(QStringLiteral("vertical"));
+        if (!horizontalValue.isArray() || !verticalValue.isArray())
+            return false;
+        const QJsonArray horizontal = horizontalValue.toArray();
+        const QJsonArray vertical = verticalValue.toArray();
+        if (horizontal.size() > kMaxGuidesPerAxis
+            || vertical.size() > kMaxGuidesPerAxis)
+            return false;
+        QVector<qreal> horizontalGuides;
+        QVector<qreal> verticalGuides;
+        for (const QJsonValue &value : horizontal) {
+            const qreal coordinate = value.toDouble(-1.0);
+            if (!value.isDouble() || !qIsFinite(coordinate)
+                || coordinate < 0.0 || coordinate > EBPage::Height)
+                return false;
+            horizontalGuides.append(coordinate);
+        }
+        const qreal width = EBPage::widthForSize(page->size());
+        for (const QJsonValue &value : vertical) {
+            const qreal coordinate = value.toDouble(-1.0);
+            if (!value.isDouble() || !qIsFinite(coordinate)
+                || coordinate < 0.0 || coordinate > width)
+                return false;
+            verticalGuides.append(coordinate);
+        }
+        page->setHorizontalGuides(horizontalGuides);
+        page->setVerticalGuides(verticalGuides);
+    }
     return true;
 }
 
