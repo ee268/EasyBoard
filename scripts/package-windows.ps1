@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory = $true)]
     [string]$BuildDir,
     [Parameter(Mandatory = $true)]
@@ -51,6 +51,27 @@ Copy-Item -LiteralPath $renderer -Destination $packageDir
 if ($LASTEXITCODE -ne 0) {
     throw "windeployqt 执行失败：$LASTEXITCODE"
 }
+
+$redistRoot = Join-Path $env:VCINSTALLDIR 'Redist\MSVC'
+if (-not (Test-Path -LiteralPath $redistRoot -PathType Container)) {
+    throw "找不到 MSVC 运行库目录：$redistRoot"
+}
+$crtDirectory = Get-ChildItem -LiteralPath $redistRoot -Directory |
+    Sort-Object Name -Descending |
+    ForEach-Object {
+        Get-ChildItem -LiteralPath (Join-Path $_.FullName 'x64') `
+            -Directory -Filter 'Microsoft.VC*.CRT' -ErrorAction SilentlyContinue
+    } | Select-Object -First 1
+if (-not $crtDirectory) {
+    throw '找不到 x64 MSVC 运行库'
+}
+Get-ChildItem -LiteralPath $crtDirectory.FullName -File -Filter '*.dll' |
+    ForEach-Object {
+        $destination = Join-Path $packageDir $_.Name
+        if (-not (Test-Path -LiteralPath $destination)) {
+            Copy-Item -LiteralPath $_.FullName -Destination $destination
+        }
+    }
 
 $webProcess = Get-ChildItem -LiteralPath $packageDir -Recurse -Filter 'QtWebEngineProcess.exe' -File
 $webResources = Get-ChildItem -LiteralPath $packageDir -Recurse -Filter 'qtwebengine_resources.pak' -File
