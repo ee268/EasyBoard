@@ -35,6 +35,8 @@ int render(const QString &path, const QString &directory)
             fputs("PDF page count is empty or exceeds 200\n", stderr);
             return 2;
         }
+        fprintf(stdout, "TOTAL %u\n", pdf.PageCount());
+        fflush(stdout);
         QJsonArray pages;
         for (uint32_t index = 0; index < pdf.PageCount(); ++index) {
             const PdfPage page = pdf.GetPage(index);
@@ -80,6 +82,8 @@ int render(const QString &path, const QString &directory)
             }
             pages.append(QJsonObject{{QStringLiteral("file"), name},
                                      {QStringLiteral("width"), pageWidth}});
+            fprintf(stdout, "PAGE %u\n", index + 1);
+            fflush(stdout);
         }
         QSaveFile manifest(QDir(directory).filePath(QStringLiteral("pages.json")));
         if (!manifest.open(QIODevice::WriteOnly)

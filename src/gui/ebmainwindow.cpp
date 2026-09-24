@@ -18,10 +18,13 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QEventLoop>
+#include <QMetaObject>
 #include <QProgressDialog>
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QThread>
+
+#include <atomic>
 
 namespace {
 bool documentHasContent(const EBDocument &document)
@@ -319,11 +322,28 @@ bool EBMainWindow::importPdf(const QString &path)
     EBDocument imported;
     QString error;
     QEventLoop loop;
-    QProgressDialog progress(tr("正在导入 PDF..."), QString(), 0, 0, this);
+    QProgressDialog progress(tr("正在读取 PDF..."), tr("取消"), 0, 0, this);
     progress.setWindowModality(Qt::WindowModal);
-    progress.setCancelButton(nullptr);
+    progress.setAutoClose(false);
+    progress.setAutoReset(false);
+    std::atomic_bool cancelled{false};
+    connect(&progress, &QProgressDialog::canceled, this,
+            [&cancelled]() { cancelled.store(true); });
+    bool succeeded = false;
     QThread *worker = QThread::create([&]() {
-        EBPDFImporter::importFile(path, &imported, &error);
+        succeeded = EBPDFImporter::importFile(path, &imported, &error,
+            [&progress, &cancelled](int current, int total) {
+                QMetaObject::invokeMethod(&progress,
+                    [&progress, &cancelled, current, total]() {
+                    if (cancelled.load())
+                        return;
+                    progress.setRange(0, total);
+                    progress.setValue(current);
+                    progress.setLabelText(
+                        QObject::tr("正在导入 PDF：%1 / %2 页")
+                            .arg(current).arg(total));
+                }, Qt::QueuedConnection);
+            }, &cancelled);
     });
     connect(worker, &QThread::finished, &loop, &QEventLoop::quit);
     worker->start();
@@ -332,8 +352,13 @@ bool EBMainWindow::importPdf(const QString &path)
         loop.exec();
     worker->wait();
     delete worker;
+    const bool wasCancelled = cancelled.load();
     progress.close();
-    if (!error.isEmpty()) {
+    if (wasCancelled) {
+        statusBar()->showMessage(tr("PDF 导入已取消"), 5000);
+        return false;
+    }
+    if (!succeeded) {
         statusBar()->showMessage(tr("导入 PDF 失败：%1").arg(error), 5000);
         return false;
     }

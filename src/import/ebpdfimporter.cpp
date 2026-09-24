@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
@@ -20,7 +21,9 @@ constexpr qint64 kMaxImagePixels = 40000000;
 }
 
 bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
-                               QString *error)
+                               QString *error,
+                               const std::function<void(int, int)> &progress,
+                               const std::atomic_bool *cancelled)
 {
     const QFileInfo file(path);
     if (!document || !file.isFile() || file.size() <= 0
@@ -44,13 +47,57 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     }
     QProcess process;
     process.start(renderer, {file.absoluteFilePath(), temporary.path()});
-    if (!process.waitForStarted(10000) || !process.waitForFinished(300000)
-        || process.exitStatus() != QProcess::NormalExit
-        || process.exitCode() != 0) {
-        if (process.state() != QProcess::NotRunning) {
+    if (!process.waitForStarted(10000)) {
+        if (error)
+            *error = QStringLiteral("无法启动 PDF 渲染组件");
+        return false;
+    }
+    QElapsedTimer elapsed;
+    elapsed.start();
+    QByteArray messages;
+    int total = 0;
+    const auto readProgress = [&]() {
+        messages += process.readAllStandardOutput();
+        int end = messages.indexOf('\n');
+        while (end >= 0) {
+            const QByteArray line = messages.left(end).trimmed();
+            messages.remove(0, end + 1);
+            if (line.startsWith("TOTAL ")) {
+                total = line.mid(6).toInt();
+                if (progress && total > 0)
+                    progress(0, total);
+            } else if (line.startsWith("PAGE ") && progress && total > 0) {
+                progress(line.mid(5).toInt(), total);
+            }
+            end = messages.indexOf('\n');
+        }
+    };
+    while (process.state() != QProcess::NotRunning) {
+        if (cancelled && cancelled->load()) {
             process.kill();
             process.waitForFinished(3000);
+            if (error)
+                *error = QStringLiteral("已取消 PDF 导入");
+            return false;
         }
+        if (elapsed.elapsed() > 300000) {
+            process.kill();
+            process.waitForFinished(3000);
+            if (error)
+                *error = QStringLiteral("PDF 导入超时");
+            return false;
+        }
+        process.waitForReadyRead(100);
+        readProgress();
+    }
+    readProgress();
+    if (cancelled && cancelled->load()) {
+        if (error)
+            *error = QStringLiteral("已取消 PDF 导入");
+        return false;
+    }
+    if (process.exitStatus() != QProcess::NormalExit
+        || process.exitCode() != 0) {
         if (error) {
             const QString detail = QString::fromUtf8(
                 process.readAllStandardError()).trimmed();
@@ -75,6 +122,11 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     EBDocument imported;
     imported.setTitle(file.completeBaseName());
     for (int pageIndex = 0; pageIndex < pages.size(); ++pageIndex) {
+        if (cancelled && cancelled->load()) {
+            if (error)
+                *error = QStringLiteral("已取消 PDF 导入");
+            return false;
+        }
         const QJsonObject pageInfo = pages.at(pageIndex).toObject();
         const QString name = pageInfo.value(QStringLiteral("file")).toString();
         const QJsonValue width = pageInfo.value(QStringLiteral("width"));
