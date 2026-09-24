@@ -5,7 +5,7 @@
 
 class EBDocument;
 
-// 课程文档包压缩完整 JSON，并在导入前校验格式、大小与内容摘要。
+// 课程文档包支持旧版完整 JSON 和新版独立背景图像资源。
 class EBDocumentPackage
 {
 public:

@@ -11,6 +11,7 @@
 
 #include "../domain/ebdocument.h"
 #include "ebdocumentstorage.h"
+#include "ebdocumentpackageassets.h"
 
 namespace {
 constexpr quint32 kPackageMagic = 0x4542504B; // EBPK
@@ -53,44 +54,8 @@ bool EBDocumentPackage::exportDocument(const EBDocument &document,
     const QString output = outputPath(path, error);
     if (output.isEmpty())
         return false;
-    const QByteArray json = EBDocumentStorage::toJson(document);
-    if (json.isEmpty() || quint32(json.size()) > kMaxDocumentBytes) {
-        if (error)
-            *error = QStringLiteral("文档内容为空或超过 256 MB");
-        return false;
-    }
-    const QByteArray compressed = qCompress(json, 9);
-    if (compressed.isEmpty()
-        || compressed.size() > kMaxPackageBytes - kHeaderBytes) {
-        if (error)
-            *error = QStringLiteral("压缩后的文档包超过 128 MB");
-        return false;
-    }
-    const QByteArray digest = QCryptographicHash::hash(
-        json, QCryptographicHash::Sha256);
-
-    QSaveFile file(output);
-    if (!file.open(QIODevice::WriteOnly)) {
-        if (error)
-            *error = file.errorString();
-        return false;
-    }
-    uchar header[4 + sizeof(quint16)];
-    qToBigEndian<quint32>(kPackageMagic, header);
-    qToBigEndian<quint16>(kPackageVersion, header + 4);
-    if (file.write(reinterpret_cast<const char *>(header), sizeof(header))
-            != sizeof(header)
-        || file.write(digest) != digest.size()
-        || file.write(compressed) != compressed.size()
-        || !file.commit()) {
-        if (error)
-            *error = file.errorString().isEmpty()
-                ? QStringLiteral("课程文档包写入失败") : file.errorString();
-        return false;
-    }
-    if (savedPath)
-        *savedPath = output;
-    return true;
+    return EBDocumentPackageAssets::exportDocument(document, output,
+                                                   savedPath, error);
 }
 
 bool EBDocumentPackage::importDocument(const QString &path,
@@ -114,6 +79,24 @@ bool EBDocumentPackage::importDocument(const QString &path,
         if (error)
             *error = file.errorString();
         return false;
+    }
+    const QByteArray signature = file.peek(6);
+    if (signature.size() == 6
+        && qFromBigEndian<quint32>(reinterpret_cast<const uchar *>(
+               signature.constData())) == kPackageMagic
+        && qFromBigEndian<quint16>(reinterpret_cast<const uchar *>(
+               signature.constData() + 4)) == 2) {
+        EBDocument imported;
+        if (!EBDocumentPackageAssets::importDocument(
+                info.absoluteFilePath(), &imported, error)) {
+            if (error && error->isEmpty())
+                *error = QStringLiteral("文档包格式无效或内容已损坏");
+            return false;
+        }
+        imported._id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        imported._createdAt = QDateTime::currentDateTimeUtc();
+        *document = imported;
+        return true;
     }
     const QByteArray package = file.readAll();
     if (package.size() <= kHeaderBytes
