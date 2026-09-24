@@ -27,9 +27,12 @@ public:
     static QString trashDirectory();
     static QString documentFilePath(const EBDocument &document);
     static QVector<EBDocumentSummary> listDocuments(bool inTrash = false);
-    static QByteArray toJson(const EBDocument &document);
+    static QByteArray toJson(const EBDocument &document,
+                             const QString &assetDirectory = QString(),
+                             QString *error = nullptr);
     static bool fromJson(const QByteArray &data, EBDocument *document,
-                         QString *error = nullptr);
+                         QString *error = nullptr,
+                         const QString &assetDirectory = QString());
     static bool save(const EBDocument &document, QString *savedPath = nullptr,
                      QString *error = nullptr);
     static bool load(const QString &path, EBDocument *document,

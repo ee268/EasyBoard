@@ -1,14 +1,17 @@
 #include "ebdocumentstorage.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
+#include <QHash>
 #include <QImageReader>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include "ebteachingstorage.h"
 #include <QSaveFile>
+#include <QRegularExpression>
 #include <QUuid>
 #include <QtMath>
 
@@ -23,6 +26,18 @@ constexpr int kMaxBackgroundDataBytes = 64 * 1024 * 1024;
 constexpr int kMaxTextLength = 10000;
 constexpr int kMaxObjectImageDataBytes = 64 * 1024 * 1024;
 constexpr int kMaxGuidesPerAxis = 100;
+QHash<qint64, QString> backgroundAssets;
+
+QString assetDirectoryFor(const QString &path)
+{
+    return path.left(path.size() - 5) + QStringLiteral(".assets");
+}
+
+bool validAssetName(const QString &name)
+{
+    static const QRegularExpression pattern(QStringLiteral("^[0-9a-f]{64}\\.png$"));
+    return pattern.match(name).hasMatch();
+}
 
 QString colorName(EBPage::Color color)
 {
@@ -157,7 +172,8 @@ QJsonObject imageObject(const EBImageItem::State &image)
     return object;
 }
 
-QJsonObject pageObject(const EBPage &page, int index)
+QJsonObject pageObject(const EBPage &page, int index,
+                       const QString &assetDirectory, QString *error)
 {
     QJsonArray strokes;
     for (const EBStrokeItem::State &stroke : page.strokes())
@@ -194,6 +210,45 @@ QJsonObject pageObject(const EBPage &page, int index)
         });
     }
     if (page.hasBackgroundImage()) {
+        if (!assetDirectory.isEmpty()) {
+            QString name = backgroundAssets.value(page.backgroundImage().cacheKey());
+            if (!validAssetName(name)
+                || !QFileInfo::exists(QDir(assetDirectory).filePath(name))) {
+                QByteArray png;
+                QBuffer buffer(&png);
+                buffer.open(QIODevice::WriteOnly);
+                if (!page.backgroundImage().save(&buffer, "PNG")
+                    || png.size() > kMaxBackgroundDataBytes) {
+                    if (error)
+                        *error = QStringLiteral("页面背景图像无法编码");
+                    return {};
+                }
+                name = QString::fromLatin1(QCryptographicHash::hash(
+                    png, QCryptographicHash::Sha256).toHex())
+                    + QStringLiteral(".png");
+                if (!QDir().mkpath(assetDirectory)) {
+                    if (error)
+                        *error = QStringLiteral("无法创建背景图像目录");
+                    return {};
+                }
+                const QString path = QDir(assetDirectory).filePath(name);
+                if (!QFileInfo::exists(path)) {
+                    QSaveFile file(path);
+                    if (!file.open(QIODevice::WriteOnly)
+                        || file.write(png) != png.size() || !file.commit()) {
+                        if (error)
+                            *error = QStringLiteral("无法保存页面背景图像");
+                        return {};
+                    }
+                }
+                backgroundAssets.insert(page.backgroundImage().cacheKey(), name);
+            }
+            result.insert(QStringLiteral("backgroundImage"), QJsonObject{
+                {QStringLiteral("format"), QStringLiteral("png")},
+                {QStringLiteral("file"), name}
+            });
+            return result;
+        }
         QByteArray png;
         QBuffer buffer(&png);
         buffer.open(QIODevice::WriteOnly);
@@ -206,7 +261,8 @@ QJsonObject pageObject(const EBPage &page, int index)
     return result;
 }
 
-bool readBackgroundImage(const QJsonObject &object, QImage *image)
+bool readBackgroundImage(const QJsonObject &object, QImage *image,
+                         const QString &assetDirectory)
 {
     if (!object.contains(QStringLiteral("backgroundImage"))) {
         *image = QImage();
@@ -215,6 +271,27 @@ bool readBackgroundImage(const QJsonObject &object, QImage *image)
 
     const QJsonObject stored = object.value(
         QStringLiteral("backgroundImage")).toObject();
+    const QJsonValue fileValue = stored.value(QStringLiteral("file"));
+    if (!fileValue.isUndefined()) {
+        const QString name = fileValue.toString();
+        if (assetDirectory.isEmpty() || !validAssetName(name)
+            || !stored.value(QStringLiteral("data")).isUndefined())
+            return false;
+        const QFileInfo file(QDir(assetDirectory).filePath(name));
+        if (!file.isFile() || file.isSymLink() || file.size() <= 0
+            || file.size() > kMaxBackgroundDataBytes)
+            return false;
+        QImageReader reader(file.absoluteFilePath(), "PNG");
+        const QSize size = reader.size();
+        if (!size.isValid() || qint64(size.width()) * size.height()
+            > kMaxBackgroundPixels)
+            return false;
+        *image = reader.read();
+        if (image->isNull())
+            return false;
+        backgroundAssets.insert(image->cacheKey(), name);
+        return true;
+    }
     const QString encoded = stored.value(QStringLiteral("data")).toString();
     if (stored.value(QStringLiteral("format")).toString()
             != QStringLiteral("png")
@@ -480,7 +557,8 @@ bool readImage(const QJsonObject &object, EBImageItem::State *image)
     return true;
 }
 
-bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page)
+bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page,
+              const QString &assetDirectory)
 {
     if (object.value(QStringLiteral("index")).toInt(-1) != expectedIndex)
         return false;
@@ -515,7 +593,7 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page)
         return false;
 
     QImage backgroundImage;
-    if (!readBackgroundImage(object, &backgroundImage))
+    if (!readBackgroundImage(object, &backgroundImage, assetDirectory))
         return false;
     page->setBackgroundImage(backgroundImage);
 
@@ -661,6 +739,25 @@ bool moveFile(const QString &source, const QString &destination, QString *error)
     }
     return true;
 }
+
+bool moveWithAssets(const QString &source, const QString &destination,
+                    QString *error)
+{
+    const QString sourceAssets = assetDirectoryFor(source);
+    const QString destinationAssets = assetDirectoryFor(destination);
+    const bool hasAssets = QDir(sourceAssets).exists();
+    if (hasAssets && (QDir(destinationAssets).exists()
+        || !QDir().rename(sourceAssets, destinationAssets))) {
+        if (error)
+            *error = QStringLiteral("无法移动文档背景图像");
+        return false;
+    }
+    if (moveFile(source, destination, error))
+        return true;
+    if (hasAssets)
+        QDir().rename(destinationAssets, sourceAssets);
+    return false;
+}
 }
 
 QString EBDocumentStorage::documentsDirectory()
@@ -725,9 +822,10 @@ bool EBDocumentStorage::save(const EBDocument &document, QString *savedPath,
             *error = file.errorString();
         return false;
     }
-    if (file.write(toJson(document)) < 0
+    const QByteArray data = toJson(document, assetDirectoryFor(path), error);
+    if (data.isEmpty() || file.write(data) != data.size()
         || !file.commit()) {
-        if (error)
+        if (error && !data.isEmpty())
             *error = file.errorString();
         return false;
     }
@@ -745,14 +843,22 @@ bool EBDocumentStorage::load(const QString &path, EBDocument *document,
             *error = file.errorString();
         return false;
     }
-    return fromJson(file.readAll(), document, error);
+    return fromJson(file.readAll(), document, error,
+                    assetDirectoryFor(path));
 }
 
-QByteArray EBDocumentStorage::toJson(const EBDocument &document)
+QByteArray EBDocumentStorage::toJson(const EBDocument &document,
+                                    const QString &assetDirectory,
+                                    QString *error)
 {
     QJsonArray pages;
-    for (int index = 0; index < document.pageCount(); ++index)
-        pages.append(pageObject(*document.pageAt(index), index));
+    for (int index = 0; index < document.pageCount(); ++index) {
+        const QJsonObject page = pageObject(*document.pageAt(index), index,
+                                            assetDirectory, error);
+        if (page.isEmpty())
+            return {};
+        pages.append(page);
+    }
     const QJsonObject metadata{
         {QStringLiteral("id"), document.id()},
         {QStringLiteral("title"), document.title()},
@@ -771,7 +877,7 @@ QByteArray EBDocumentStorage::toJson(const EBDocument &document)
 }
 
 bool EBDocumentStorage::fromJson(const QByteArray &data, EBDocument *document,
-                                 QString *error)
+                                 QString *error, const QString &assetDirectory)
 {
     if (!document) {
         if (error)
@@ -816,7 +922,8 @@ bool EBDocumentStorage::fromJson(const QByteArray &data, EBDocument *document,
     pages.reserve(pagesJson.size());
     for (int index = 0; index < pagesJson.size(); ++index) {
         EBPage page;
-        if (!readPage(pagesJson.at(index).toObject(), index, &page)) {
+        if (!readPage(pagesJson.at(index).toObject(), index, &page,
+                      assetDirectory)) {
             if (error)
                 *error = QStringLiteral("第 %1 页内容无效").arg(index + 1);
             return false;
@@ -896,7 +1003,7 @@ bool EBDocumentStorage::moveToTrash(const QString &path, QString *trashPath,
     }
     const QString destination = QDir(trashDirectory()).absoluteFilePath(
         QFileInfo(path).fileName());
-    if (!moveFile(path, destination, error))
+    if (!moveWithAssets(path, destination, error))
         return false;
     if (trashPath)
         *trashPath = destination;
@@ -918,7 +1025,7 @@ bool EBDocumentStorage::restoreFromTrash(const QString &path, QString *restoredP
     }
     const QString destination = QDir(documentsDirectory()).absoluteFilePath(
         QFileInfo(path).fileName());
-    if (!moveFile(path, destination, error))
+    if (!moveWithAssets(path, destination, error))
         return false;
     if (restoredPath)
         *restoredPath = destination;
@@ -938,5 +1045,6 @@ bool EBDocumentStorage::deleteFromTrash(const QString &path, QString *error)
             *error = file.errorString();
         return false;
     }
+    QDir(assetDirectoryFor(path)).removeRecursively();
     return true;
 }
