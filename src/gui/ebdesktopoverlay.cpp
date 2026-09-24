@@ -1,12 +1,15 @@
 #include "ebdesktopoverlay.h"
 
 #include <QGuiApplication>
+#include <QFileDialog>
+#include <QImageWriter>
 #include <QKeyEvent>
 #include <QLineF>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QResizeEvent>
 #include <QScreen>
+#include <QSaveFile>
 #include <QTimer>
 #include <QTransform>
 #include <QWindow>
@@ -36,6 +39,8 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
             this, &EBDesktopOverlay::clear);
     connect(_bar, &EBDesktopBar::captureRequested,
             this, &EBDesktopOverlay::captureToBoard);
+    connect(_bar, &EBDesktopBar::saveImageRequested,
+            this, &EBDesktopOverlay::saveSnapshot);
     connect(_bar, &EBDesktopBar::screenSelected,
             this, &EBDesktopOverlay::selectScreen);
     connect(_bar, &EBDesktopBar::penColorChanged,
@@ -159,6 +164,25 @@ void EBDesktopOverlay::captureToBoard()
 {
     if (_capturing)
         return;
+    _capturePath.clear();
+    startCapture();
+}
+
+void EBDesktopOverlay::saveSnapshot()
+{
+    if (_capturing)
+        return;
+    const QString path = QFileDialog::getSaveFileName(this,
+        tr("保存桌面批注图片"), QStringLiteral("desktop.png"),
+        tr("PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg)"));
+    if (path.isEmpty())
+        return;
+    _capturePath = path;
+    startCapture();
+}
+
+void EBDesktopOverlay::startCapture()
+{
     if (_drawing)
         finishStroke();
     _capturing = true;
@@ -186,7 +210,24 @@ void EBDesktopOverlay::finishCapture(const QRect &area, qreal ratio, int attempt
         emit statusMessage(tr("无法读取桌面画面，请确认屏幕捕获权限"));
         return;
     }
-    emit imageCaptured(compositeImage(image));
+    const QImage result = compositeImage(image);
+    if (_capturePath.isEmpty()) {
+        emit imageCaptured(result);
+        return;
+    }
+    const QString path = _capturePath;
+    _capturePath.clear();
+    const QByteArray format = path.endsWith(QStringLiteral(".png"),
+                                            Qt::CaseInsensitive) ? "PNG" : "JPEG";
+    QSaveFile file(path);
+    QImageWriter writer(&file, format);
+    if (format == "JPEG")
+        writer.setQuality(92);
+    const bool saved = file.open(QIODevice::WriteOnly)
+        && writer.write(result) && file.commit();
+    openOnDesktop();
+    emit statusMessage(saved ? tr("桌面批注已保存：%1").arg(path)
+                             : tr("无法保存桌面批注图片：%1").arg(path));
 }
 
 QImage EBDesktopOverlay::compositeImage(QImage background) const

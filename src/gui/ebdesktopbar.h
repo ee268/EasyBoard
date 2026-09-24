@@ -27,6 +27,7 @@ signals:
     void redoRequested();
     void clearRequested();
     void captureRequested();
+    void saveImageRequested();
     void screenSelected(QScreen *screen);
     void penColorChanged(const QColor &color);
     void markerColorChanged(const QColor &color);

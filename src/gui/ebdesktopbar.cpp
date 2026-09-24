@@ -113,6 +113,11 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     QAction *capture = addAction(ebToolbarIcon("image_object"), tr("插入白板"));
     capture->setObjectName(QStringLiteral("desktopCaptureAction"));
     connect(capture, &QAction::triggered, this, &EBDesktopBar::captureRequested);
+    QAction *saveImage = addAction(ebToolbarIcon("file_export_image"),
+                                   tr("保存图片"));
+    saveImage->setObjectName(QStringLiteral("desktopSaveImageAction"));
+    connect(saveImage, &QAction::triggered,
+            this, &EBDesktopBar::saveImageRequested);
     QToolButton *screenButton = new QToolButton(this);
     screenButton->setObjectName(QStringLiteral("desktopScreenButton"));
     screenButton->setIcon(ebToolbarIcon("desktop"));

@@ -33,6 +33,7 @@ public:
     void redo();
     void clear();
     void captureToBoard();
+    void saveSnapshot();
     QImage compositeImage(QImage background) const;
     void selectScreen(QScreen *screen);
 
@@ -72,6 +73,7 @@ private:
     void refreshHistory();
     void followScreen();
     void finishCapture(const QRect &area, qreal ratio, int attempt);
+    void startCapture();
 
     EBDesktopBar *_bar;
     QVector<Stroke> _strokes;
@@ -89,6 +91,7 @@ private:
     bool _drawing = false;
     bool _barPositioned = false;
     bool _capturing = false;
+    QString _capturePath;
     QPointer<QScreen> _targetScreen;
 };
 
