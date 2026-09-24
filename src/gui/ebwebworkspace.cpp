@@ -6,6 +6,7 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLineEdit>
+#include <QMenu>
 #include <QSizePolicy>
 #include <QStyle>
 #include <QTabWidget>
@@ -26,6 +27,8 @@
 #include "ebwebsession.h"
 #include "ebwebhistory.h"
 #include "ebwebhistorydialog.h"
+#include "ebwebbookmarks.h"
+#include "ebwebbookmarksdialog.h"
 
 namespace {
 const char *welcomeHtml =
@@ -42,6 +45,7 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     , _profile(new QWebEngineProfile(QStringLiteral("EasyBoard"), this))
     , _address(new QLineEdit(this))
     , _history(new EBWebHistory(this))
+    , _bookmarks(new EBWebBookmarks(this))
     , _backAction(nullptr)
     , _forwardAction(nullptr)
     , _reloadAction(nullptr)
@@ -117,6 +121,56 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     QAction *historyAction = bar->addAction(ebToolbarIcon("history"),
                                             tr("历史"));
     historyAction->setObjectName(QStringLiteral("webHistoryAction"));
+    QToolButton *bookmarksButton = new QToolButton(bar);
+    bookmarksButton->setObjectName(QStringLiteral("webBookmarksButton"));
+    bookmarksButton->setIcon(ebToolbarIcon("bookmark"));
+    bookmarksButton->setText(tr("书签"));
+    bookmarksButton->setToolButtonStyle(bar->toolButtonStyle());
+    bookmarksButton->setPopupMode(QToolButton::InstantPopup);
+    QMenu *bookmarksMenu = new QMenu(bookmarksButton);
+    bookmarksButton->setMenu(bookmarksMenu);
+    bar->addWidget(bookmarksButton);
+    connect(bookmarksMenu, &QMenu::aboutToShow, this, [this, bookmarksMenu]() {
+        bookmarksMenu->clear();
+        QWebEngineView *view = currentView();
+        const QUrl url = view ? view->url() : QUrl();
+        const bool allowed = url.scheme() == QStringLiteral("http")
+            || url.scheme() == QStringLiteral("https")
+            || url.scheme() == QStringLiteral("file");
+        QAction *add = bookmarksMenu->addAction(tr("收藏当前页"));
+        add->setEnabled(allowed);
+        connect(add, &QAction::triggered, this, [this, url]() {
+            QWebEngineView *current = currentView();
+            if (!current || current->url() != url
+                || !_bookmarks->add(url, current->title()))
+                emit statusMessage(tr("无法收藏当前网页"));
+            else
+                emit statusMessage(tr("已收藏当前网页"));
+        });
+        QAction *manage = bookmarksMenu->addAction(tr("管理书签"));
+        connect(manage, &QAction::triggered, this, [this]() {
+            EBWebBookmarksDialog *dialog = new EBWebBookmarksDialog(_bookmarks, this);
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            connect(dialog, &EBWebBookmarksDialog::openRequested,
+                    this, [this](const QUrl &url) { createTab(url); });
+            dialog->open();
+        });
+        if (_bookmarks->entries().isEmpty())
+            return;
+        bookmarksMenu->addSeparator();
+        int count = 0;
+        for (const EBWebBookmarks::Entry &entry : _bookmarks->entries()) {
+            if (++count > 20)
+                break;
+            const QString label = entry.folder.isEmpty()
+                ? entry.title : entry.folder + QStringLiteral(" / ") + entry.title;
+            QAction *quickOpen = bookmarksMenu->addAction(
+                label.isEmpty() ? entry.url.toString() : label);
+            quickOpen->setToolTip(entry.url.toString());
+            connect(quickOpen, &QAction::triggered, this,
+                    [this, entry]() { createTab(entry.url); });
+        }
+    });
     _captureAction = bar->addAction(ebToolbarIcon("image_object"),
                                     tr("截取网页区域到白板"));
     _captureAction->setObjectName(QStringLiteral("webCaptureAction"));
