@@ -7,6 +7,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrEmpty($env:VCINSTALLDIR)) {
+    throw '请在 MSVC x64 开发者命令行中运行，以便部署编译器运行库'
+}
 $projectDir = Split-Path -Parent $PSScriptRoot
 $versionText = Get-Content -LiteralPath (Join-Path $projectDir 'CMakeLists.txt') -Raw
 $versionMatch = [regex]::Match($versionText, 'project\(EasyBoard VERSION (\d+\.\d+\.\d+)')
@@ -56,6 +59,11 @@ if (-not $webProcess -or -not $webResources) {
 }
 if (-not (Test-Path -LiteralPath (Join-Path $packageDir 'Qt5Core.dll'))) {
     throw 'Qt 运行库未复制到发布包'
+}
+foreach ($runtime in @('vcruntime140.dll', 'msvcp140.dll')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $packageDir $runtime))) {
+        throw "MSVC 运行库未复制到发布包：$runtime"
+    }
 }
 
 $checksums = @('EasyBoard.exe', 'EasyBoardPdfRenderer.exe') | ForEach-Object {
