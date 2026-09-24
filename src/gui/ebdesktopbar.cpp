@@ -12,7 +12,7 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     , _redoAction(nullptr)
 {
     setObjectName(QStringLiteral("desktopAnnotationBar"));
-    ebStyleBar(this, QStringLiteral("border: 1px solid #DCE6EA; border-radius: 10px;"));
+    ebStyleBar(this, QStringLiteral("border: 1px solid #DCE6EA; border-radius: 10px;"), true);
     QActionGroup *tools = new QActionGroup(this);
     tools->setExclusive(true);
     const char *icons[] = {"pen", "marker", "eraser"};

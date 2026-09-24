@@ -7,6 +7,7 @@
 #include <QInputDialog>
 #include <QMainWindow>
 #include <QMenu>
+#include <QSizePolicy>
 #include <QToolButton>
 
 #include "../board/ebboardview.h"
@@ -20,13 +21,20 @@ EBDrawBar::EBDrawBar(QMainWindow *window, EBBoardView *boardView)
 {
     setObjectName(QStringLiteral("drawingToolBar"));
     window->addToolBar(Qt::BottomToolBarArea, this);
-    ebStyleBar(this, QStringLiteral("border-top: 1px solid #DCE6EA;"));
+    ebStyleBar(this, QStringLiteral("border-top: 1px solid #DCE6EA;"), true);
+    QWidget *leftSpacer = new QWidget(this);
+    leftSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    addWidget(leftSpacer);
     createDrawingActions();
     addSeparator();
     createBrushMenu();
     createTextFormatMenu();
     addSeparator();
     createTeachingMenu();
+    QWidget *rightSpacer = new QWidget(this);
+    rightSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    addWidget(rightSpacer);
+
     connect(_boardView, &EBBoardView::drawingToolChanged,
             this, [this](EBBoardView::DrawingTool tool) {
         const int index = static_cast<int>(tool);
@@ -71,6 +79,8 @@ void EBDrawBar::createDrawingActions()
     _shapeButton = new QToolButton(this);
     _shapeButton->setObjectName(QStringLiteral("shapeToolButton"));
     _shapeButton->setIcon(ebToolbarIcon("rectangle"));
+    _shapeButton->setText(tr("形状"));
+    _shapeButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     _shapeButton->setToolTip(tr("形状工具"));
     _shapeButton->setAccessibleName(tr("形状工具"));
     _shapeButton->setPopupMode(QToolButton::InstantPopup);
@@ -112,6 +122,7 @@ void EBDrawBar::createDrawingActions()
             connect(action, &QAction::triggered, this,
                     [this, icon = icons[index], label = labels[index]]() {
                 _shapeButton->setIcon(ebToolbarIcon(icon));
+                _shapeButton->setText(label);
                 _shapeButton->setToolTip(label);
             });
         }
@@ -127,6 +138,8 @@ void EBDrawBar::createBrushMenu()
     _brushButton = new QToolButton(this);
     _brushButton->setObjectName(QStringLiteral("brushSettingsButton"));
     _brushButton->setIcon(ebToolbarIcon("brush_settings"));
+    _brushButton->setText(tr("画笔设置"));
+    _brushButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     _brushButton->setToolTip(tr("画笔设置"));
     _brushButton->setAccessibleName(tr("画笔设置"));
     _brushButton->setPopupMode(QToolButton::InstantPopup);
@@ -182,6 +195,8 @@ void EBDrawBar::createTextFormatMenu()
     _textFormatButton = new QToolButton(this);
     _textFormatButton->setObjectName(QStringLiteral("textFormatButton"));
     _textFormatButton->setIcon(ebToolbarIcon("text_format"));
+    _textFormatButton->setText(tr("文字格式"));
+    _textFormatButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     _textFormatButton->setToolTip(tr("文字格式"));
     _textFormatButton->setAccessibleName(tr("文字格式"));
     _textFormatButton->setPopupMode(QToolButton::InstantPopup);

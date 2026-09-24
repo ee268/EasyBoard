@@ -17,14 +17,16 @@ EBObjectBar::EBObjectBar(QMainWindow *window, EBBoardView *boardView,
 {
     setObjectName(QStringLiteral("objectToolBar"));
     window->addToolBar(Qt::RightToolBarArea, this);
-    ebStyleBar(this, QStringLiteral("border-right: 1px solid #DCE6EA;"));
+    ebStyleBar(this, QStringLiteral("border-right: 1px solid #DCE6EA;"), true);
     const auto addMenuButton = [this](const char *icon, const QString &label,
-                                      const char *name) {
+                                      const QString &tip, const char *name) {
         QToolButton *button = new QToolButton(this);
         button->setObjectName(QString::fromLatin1(name));
         button->setIcon(ebToolbarIcon(icon));
-        button->setToolTip(label);
-        button->setAccessibleName(label);
+        button->setText(label);
+        button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+        button->setToolTip(tip);
+        button->setAccessibleName(tip);
         button->setPopupMode(QToolButton::InstantPopup);
         addWidget(button);
         return button;
@@ -39,7 +41,7 @@ EBObjectBar::EBObjectBar(QMainWindow *window, EBBoardView *boardView,
     setIcon(actions.paste, "paste", tr("粘贴"));
     setIcon(actions.duplicate, "duplicate", tr("快速复制（Ctrl+D）"));
     QToolButton *clipboardButton = addMenuButton(
-        "copy", tr("剪切、复制与粘贴"), "objectClipboardButton");
+        "copy", tr("剪贴板"), tr("剪切、复制与粘贴"), "objectClipboardButton");
     QMenu *clipboardMenu = new QMenu(clipboardButton);
     for (QAction *action : {actions.cut, actions.copy,
                             actions.paste, actions.duplicate})
@@ -51,7 +53,7 @@ EBObjectBar::EBObjectBar(QMainWindow *window, EBBoardView *boardView,
     actions.lock->setToolTip(tr("锁定对象（Ctrl+L）"));
     actions.unlock->setToolTip(tr("解锁对象（Ctrl+Shift+L）"));
     QToolButton *groupButton = addMenuButton(
-        "object_group", tr("组合与锁定"), "objectGroupButton");
+        "object_group", tr("组合锁定"), tr("组合与锁定"), "objectGroupButton");
     QMenu *groupMenu = new QMenu(groupButton);
     groupMenu->addAction(actions.group);
     groupMenu->addAction(actions.ungroup);
@@ -61,7 +63,7 @@ EBObjectBar::EBObjectBar(QMainWindow *window, EBBoardView *boardView,
     groupButton->setMenu(groupMenu);
 
     _arrangeButton = addMenuButton(
-        "object_arrange", tr("对齐与分布"), "arrangeObjectsButton");
+        "object_arrange", tr("对齐分布"), tr("对齐与分布"), "arrangeObjectsButton");
     _arrangeButton->setEnabled(false);
     QMenu *arrangeMenu = new QMenu(_arrangeButton);
     for (int index = 0; index < 8; ++index) {
@@ -74,7 +76,7 @@ EBObjectBar::EBObjectBar(QMainWindow *window, EBBoardView *boardView,
     const char *layerIcons[] = {"object_to_back", "object_backward",
                                 "object_forward", "object_to_front"};
     QToolButton *layerButton = addMenuButton(
-        "object_to_front", tr("对象层级"), "objectLayerButton");
+        "object_to_front", tr("对象层级"), tr("对象层级"), "objectLayerButton");
     QMenu *layerMenu = new QMenu(layerButton);
     for (int index = 0; index < 4; ++index) {
         setIcon(actions.layers[index], layerIcons[index],
@@ -84,7 +86,7 @@ EBObjectBar::EBObjectBar(QMainWindow *window, EBBoardView *boardView,
     layerButton->setMenu(layerMenu);
 
     QToolButton *transformButton = addMenuButton(
-        "object_scale_up", tr("对象变换与删除"), "objectTransformButton");
+        "object_scale_up", tr("变换删除"), tr("对象变换与删除"), "objectTransformButton");
     QMenu *transformMenu = new QMenu(transformButton);
     createObjectActions(transformMenu);
     transformButton->setMenu(transformMenu);

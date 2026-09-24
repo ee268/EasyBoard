@@ -20,7 +20,7 @@ EBTopBar::EBTopBar(QMainWindow *window, EBBoardView *boardView,
 {
     setObjectName(QStringLiteral("modeToolBar"));
     window->addToolBar(Qt::TopToolBarArea, this);
-    ebStyleBar(this, QStringLiteral("border-bottom: 1px solid #DCE6EA;"));
+    ebStyleBar(this, QStringLiteral("border-bottom: 1px solid #DCE6EA;"), true);
     createModeActions();
     addSeparator();
     _pagePanelAction = addAction(ebToolbarIcon("page_sidebar"),
@@ -140,7 +140,7 @@ void EBTopBar::createBackgroundMenu()
     _backgroundButton->setText(tr("背景"));
     _backgroundButton->setIcon(ebToolbarIcon("background"));
     _backgroundButton->setIconSize(QSize(24, 24));
-    _backgroundButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    _backgroundButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     _backgroundButton->setToolTip(tr("背景"));
     _backgroundButton->setAccessibleName(tr("背景"));
     _backgroundButton->setPopupMode(QToolButton::InstantPopup);

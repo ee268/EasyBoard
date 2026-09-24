@@ -3,11 +3,14 @@
 #include <QAction>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLineEdit>
+#include <QSizePolicy>
 #include <QStyle>
 #include <QTabWidget>
 #include <QToolBar>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QWebEngineHistory>
 #include <QWebEngineProfile>
@@ -50,7 +53,7 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     layout->setSpacing(0);
     QToolBar *bar = new QToolBar(tr("网页导航"), this);
     bar->setObjectName(QStringLiteral("webNavigationBar"));
-    ebStyleBar(bar, QStringLiteral("border-bottom: 1px solid #DCE6EA;"));
+    ebStyleBar(bar, QStringLiteral("border-bottom: 1px solid #DCE6EA;"), true);
     layout->addWidget(bar);
 
     _backAction = bar->addAction(style()->standardIcon(QStyle::SP_ArrowBack),
@@ -63,11 +66,39 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
         style()->standardIcon(QStyle::SP_BrowserReload), tr("刷新"));
     _reloadAction->setObjectName(QStringLiteral("webReloadAction"));
     _reloadAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
+    QFrame *addressBox = new QFrame(bar);
+    addressBox->setObjectName(QStringLiteral("webAddressBox"));
+    addressBox->setMinimumWidth(260);
+    addressBox->setFixedHeight(36);
+    addressBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    addressBox->setStyleSheet(QStringLiteral(
+        "QFrame#webAddressBox { background: white; border: 1px solid #C8D5DC; border-radius: 6px; }"
+        "QLineEdit#webAddressEdit { background: transparent; border: none; padding: 0 8px; font-size: 16px; }"
+        "QToolButton#webAddressClearButton { background: transparent; border: none; color: #425D6B; font-size: 22px; padding: 0; }"
+        "QToolButton#webAddressClearButton:hover { background: #EAF4F2; border-radius: 4px; }"));
+    QHBoxLayout *addressLayout = new QHBoxLayout(addressBox);
+    addressLayout->setContentsMargins(0, 0, 5, 0);
+    addressLayout->setSpacing(0);
     _address->setObjectName(QStringLiteral("webAddressEdit"));
     _address->setPlaceholderText(tr("输入网址"));
-    _address->setClearButtonEnabled(true);
-    _address->setMinimumWidth(220);
-    bar->addWidget(_address);
+    _address->setFrame(false);
+    _address->setMinimumHeight(30);
+    addressLayout->addWidget(_address, 1);
+    QToolButton *clearAddress = new QToolButton(addressBox);
+    clearAddress->setObjectName(QStringLiteral("webAddressClearButton"));
+    clearAddress->setText(QStringLiteral("×"));
+    clearAddress->setToolTip(tr("清除地址"));
+    clearAddress->setAccessibleName(tr("清除地址"));
+    clearAddress->setFixedSize(20, 20);
+    clearAddress->setCursor(Qt::PointingHandCursor);
+    addressLayout->addWidget(clearAddress, 0, Qt::AlignVCenter);
+    clearAddress->hide();
+    connect(_address, &QLineEdit::textChanged, clearAddress,
+            [clearAddress](const QString &text) {
+        clearAddress->setVisible(!text.isEmpty());
+    });
+    connect(clearAddress, &QToolButton::clicked, _address, &QLineEdit::clear);
+    bar->addWidget(addressBox);
     QAction *newTab = bar->addAction(
         style()->standardIcon(QStyle::SP_FileIcon), tr("新建标签页"));
     newTab->setObjectName(QStringLiteral("webNewTabAction"));
