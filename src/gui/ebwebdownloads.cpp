@@ -41,22 +41,30 @@ EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
         download->setDownloadFileName(file.fileName());
         const int index = _entries.size();
         Entry entry;
+        entry.id = _nextId++;
         entry.path = file.absoluteFilePath();
         entry.status = tr("正在下载");
         entry.running = true;
         entry.item = download;
         _entries.append(entry);
+        const quint64 id = entry.id;
         emit entryAdded(index);
         save();
         connect(download, &QWebEngineDownloadItem::downloadProgress,
-                this, [this, index](qint64 received, qint64 total) {
+                this, [this, id](qint64 received, qint64 total) {
+            const int index = indexFor(id);
+            if (index < 0)
+                return;
             Entry &entry = _entries[index];
             entry.received = received;
             entry.total = total;
             emit entryChanged(index);
         });
         connect(download, &QWebEngineDownloadItem::finished,
-                this, [this, download, index]() {
+                this, [this, download, id]() {
+            const int index = indexFor(id);
+            if (index < 0)
+                return;
             Entry &entry = _entries[index];
             entry.running = false;
             entry.completed = download->state()
@@ -76,7 +84,10 @@ EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
             emit entryChanged(index);
             save();
         });
-        connect(download, &QObject::destroyed, this, [this, index]() {
+        connect(download, &QObject::destroyed, this, [this, id]() {
+            const int index = indexFor(id);
+            if (index < 0)
+                return;
             Entry &entry = _entries[index];
             if (entry.running) {
                 entry.running = false;
@@ -109,6 +120,50 @@ void EBWebDownloads::cancel(int index)
         entry.item->cancel();
 }
 
+bool EBWebDownloads::removeRecord(int index)
+{
+    if (index < 0 || index >= _entries.size() || _entries.at(index).running)
+        return false;
+    _entries.remove(index);
+    save();
+    emit entriesReset();
+    return true;
+}
+
+void EBWebDownloads::clearFinished()
+{
+    QVector<Entry> active;
+    for (const Entry &entry : _entries) {
+        if (entry.running)
+            active.append(entry);
+    }
+    if (active.size() == _entries.size())
+        return;
+    _entries = active;
+    save();
+    emit entriesReset();
+}
+
+bool EBWebDownloads::relink(int index, const QString &path, QString *error)
+{
+    if (index < 0 || index >= _entries.size()
+        || !_entries.at(index).completed)
+        return false;
+    const QFileInfo file(path);
+    if (!file.isFile() || (_entries.at(index).received > 0
+        && file.size() != _entries.at(index).received)) {
+        if (error)
+            *error = tr("请选择原下载文件，文件大小必须一致");
+        return false;
+    }
+    Entry &entry = _entries[index];
+    entry.path = file.absoluteFilePath();
+    entry.status = tr("已完成");
+    save();
+    emit entryChanged(index);
+    return true;
+}
+
 void EBWebDownloads::showManager()
 {
     refreshFiles();
@@ -129,6 +184,7 @@ void EBWebDownloads::load()
     for (int index = 0; index < count; ++index) {
         settings.setArrayIndex(index);
         Entry entry;
+        entry.id = _nextId++;
         entry.path = settings.value(QStringLiteral("Path")).toString();
         if (!QFileInfo(entry.path).isAbsolute() || entry.path.size() > 4096)
             continue;
@@ -140,7 +196,7 @@ void EBWebDownloads::load()
         entry.status = settings.value(QStringLiteral("Running")).toBool()
             ? tr("已中断") : settings.value(QStringLiteral("Status")).toString();
         if (entry.completed)
-            entry.status = QFileInfo::exists(entry.path)
+            entry.status = QFileInfo(entry.path).isFile()
                 ? tr("已完成") : tr("文件已移动或删除");
         _entries.append(entry);
     }
@@ -176,11 +232,20 @@ void EBWebDownloads::refreshFiles()
         Entry &entry = _entries[index];
         if (!entry.completed)
             continue;
-        const QString status = QFileInfo::exists(entry.path)
+        const QString status = QFileInfo(entry.path).isFile()
             ? tr("已完成") : tr("文件已移动或删除");
         if (entry.status != status) {
             entry.status = status;
             emit entryChanged(index);
         }
     }
+}
+
+int EBWebDownloads::indexFor(quint64 id) const
+{
+    for (int index = 0; index < _entries.size(); ++index) {
+        if (_entries.at(index).id == id)
+            return index;
+    }
+    return -1;
 }

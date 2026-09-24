@@ -2,6 +2,7 @@
 
 #include <QDesktopServices>
 #include <QDir>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -21,6 +22,9 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
     , _cancel(new QPushButton(tr("取消下载"), this))
     , _open(new QPushButton(tr("打开文件"), this))
     , _folder(new QPushButton(tr("打开文件夹"), this))
+    , _relink(new QPushButton(tr("重新定位"), this))
+    , _remove(new QPushButton(tr("移除记录"), this))
+    , _clear(new QPushButton(tr("清空记录"), this))
 {
     setWindowTitle(tr("网页下载"));
     resize(760, 420);
@@ -41,6 +45,9 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
     actions->addWidget(_cancel);
     actions->addWidget(_open);
     actions->addWidget(_folder);
+    actions->addWidget(_relink);
+    actions->addWidget(_remove);
+    actions->addWidget(_clear);
     actions->addStretch();
     actions->addWidget(close);
     layout->addLayout(actions);
@@ -48,6 +55,8 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
             this, &EBWebDownloadsDialog::updateRow);
     connect(_downloads, &EBWebDownloads::entryChanged,
             this, &EBWebDownloadsDialog::updateRow);
+    connect(_downloads, &EBWebDownloads::entriesReset,
+            this, &EBWebDownloadsDialog::refreshRows);
     connect(_table, &QTableWidget::itemSelectionChanged,
             this, &EBWebDownloadsDialog::updateActions);
     connect(_table, &QTableWidget::cellDoubleClicked,
@@ -59,7 +68,20 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
             this, &EBWebDownloadsDialog::openFile);
     connect(_folder, &QPushButton::clicked,
             this, &EBWebDownloadsDialog::openFolder);
+    connect(_relink, &QPushButton::clicked,
+            this, &EBWebDownloadsDialog::relinkFile);
+    connect(_remove, &QPushButton::clicked, this, [this]() {
+        _downloads->removeRecord(_table->currentRow());
+    });
+    connect(_clear, &QPushButton::clicked,
+            _downloads, &EBWebDownloads::clearFinished);
     connect(close, &QPushButton::clicked, this, &QDialog::close);
+    refreshRows();
+}
+
+void EBWebDownloadsDialog::refreshRows()
+{
+    _table->setRowCount(0);
     for (int index = 0; index < _downloads->count(); ++index)
         updateRow(index);
     updateActions();
@@ -102,6 +124,31 @@ void EBWebDownloadsDialog::updateActions()
                       && QFileInfo::exists(_downloads->entryAt(row).path));
     _folder->setEnabled(selected && QFileInfo(
         _downloads->entryAt(row).path).dir().exists());
+    _relink->setEnabled(selected && _downloads->entryAt(row).completed
+                         && !QFileInfo(_downloads->entryAt(row).path).isFile());
+    _remove->setEnabled(selected && !_downloads->entryAt(row).running);
+    bool hasHistory = false;
+    for (int index = 0; index < _downloads->count(); ++index) {
+        if (!_downloads->entryAt(index).running) {
+            hasHistory = true;
+            break;
+        }
+    }
+    _clear->setEnabled(hasHistory);
+}
+
+void EBWebDownloadsDialog::relinkFile()
+{
+    const int row = _table->currentRow();
+    if (row < 0 || row >= _downloads->count())
+        return;
+    const QString path = QFileDialog::getOpenFileName(this,
+        tr("定位下载文件"), _downloads->entryAt(row).path);
+    if (path.isEmpty())
+        return;
+    QString error;
+    if (!_downloads->relink(row, path, &error))
+        QMessageBox::warning(this, tr("定位下载文件"), error);
 }
 
 void EBWebDownloadsDialog::openFile()

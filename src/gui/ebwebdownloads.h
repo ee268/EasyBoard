@@ -16,6 +16,7 @@ class EBWebDownloads : public QObject
     Q_OBJECT
 public:
     struct Entry {
+        quint64 id = 0;
         QString path;
         QString status;
         qint64 received = 0;
@@ -29,20 +30,26 @@ public:
     int count() const;
     const Entry &entryAt(int index) const;
     void cancel(int index);
+    bool removeRecord(int index);
+    void clearFinished();
+    bool relink(int index, const QString &path, QString *error = nullptr);
     void showManager();
 
 signals:
     void statusMessage(const QString &message);
     void entryAdded(int index);
     void entryChanged(int index);
+    void entriesReset();
 
 private:
     void load();
     void save() const;
     void refreshFiles();
+    int indexFor(quint64 id) const;
 
     QWidget *_window;
     QVector<Entry> _entries;
+    quint64 _nextId = 1;
     QPointer<EBWebDownloadsDialog> _dialog;
 };
 

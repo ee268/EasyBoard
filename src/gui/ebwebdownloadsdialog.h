@@ -16,15 +16,20 @@ public:
 
 private:
     void updateRow(int index);
+    void refreshRows();
     void updateActions();
     void openFile();
     void openFolder();
+    void relinkFile();
 
     EBWebDownloads *_downloads;
     QTableWidget *_table;
     QPushButton *_cancel;
     QPushButton *_open;
     QPushButton *_folder;
+    QPushButton *_relink;
+    QPushButton *_remove;
+    QPushButton *_clear;
 };
 
 #endif
