@@ -37,6 +37,10 @@ signals:
     void entryChanged(int index);
 
 private:
+    void load();
+    void save() const;
+    void refreshFiles();
+
     QWidget *_window;
     QVector<Entry> _entries;
     QPointer<EBWebDownloadsDialog> _dialog;

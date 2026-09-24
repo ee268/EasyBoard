@@ -2,16 +2,28 @@
 
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QDir>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QWebEngineDownloadItem>
 #include <QWebEngineProfile>
 
 #include "ebwebdownloadsdialog.h"
+#include "../core/ebsettings.h"
+
+namespace {
+QString downloadsPath()
+{
+    return QDir(EBSettings::userDataDir()).filePath(
+        QStringLiteral("web/downloads.ini"));
+}
+}
 
 EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
     : QObject(window)
     , _window(window)
 {
+    load();
     connect(profile, &QWebEngineProfile::downloadRequested,
             this, [this](QWebEngineDownloadItem *download) {
         const QString directory = QStandardPaths::writableLocation(
@@ -35,6 +47,7 @@ EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
         entry.item = download;
         _entries.append(entry);
         emit entryAdded(index);
+        save();
         connect(download, &QWebEngineDownloadItem::downloadProgress,
                 this, [this, index](qint64 received, qint64 total) {
             Entry &entry = _entries[index];
@@ -61,6 +74,7 @@ EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
                 emit statusMessage(tr("下载已取消"));
             }
             emit entryChanged(index);
+            save();
         });
         connect(download, &QObject::destroyed, this, [this, index]() {
             Entry &entry = _entries[index];
@@ -68,6 +82,7 @@ EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
                 entry.running = false;
                 entry.status = tr("已中断");
                 emit entryChanged(index);
+                save();
             }
         });
         download->accept();
@@ -96,6 +111,7 @@ void EBWebDownloads::cancel(int index)
 
 void EBWebDownloads::showManager()
 {
+    refreshFiles();
     if (!_dialog) {
         _dialog = new EBWebDownloadsDialog(this, _window);
         _dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -103,4 +119,68 @@ void EBWebDownloads::showManager()
     _dialog->show();
     _dialog->raise();
     _dialog->activateWindow();
+}
+
+void EBWebDownloads::load()
+{
+    QSettings settings(downloadsPath(), QSettings::IniFormat);
+    settings.setIniCodec("UTF-8");
+    const int count = qMin(settings.beginReadArray(QStringLiteral("Downloads")), 200);
+    for (int index = 0; index < count; ++index) {
+        settings.setArrayIndex(index);
+        Entry entry;
+        entry.path = settings.value(QStringLiteral("Path")).toString();
+        if (!QFileInfo(entry.path).isAbsolute() || entry.path.size() > 4096)
+            continue;
+        entry.received = qMax(qint64(0),
+            settings.value(QStringLiteral("Received")).toLongLong());
+        entry.total = qMax(qint64(0),
+            settings.value(QStringLiteral("Total")).toLongLong());
+        entry.completed = settings.value(QStringLiteral("Completed")).toBool();
+        entry.status = settings.value(QStringLiteral("Running")).toBool()
+            ? tr("已中断") : settings.value(QStringLiteral("Status")).toString();
+        if (entry.completed)
+            entry.status = QFileInfo::exists(entry.path)
+                ? tr("已完成") : tr("文件已移动或删除");
+        _entries.append(entry);
+    }
+    settings.endArray();
+}
+
+void EBWebDownloads::save() const
+{
+    QDir().mkpath(QDir(EBSettings::userDataDir()).filePath(
+        QStringLiteral("web")));
+    QSettings settings(downloadsPath(), QSettings::IniFormat);
+    settings.setIniCodec("UTF-8");
+    settings.remove(QStringLiteral("Downloads"));
+    const int first = qMax(0, _entries.size() - 200);
+    settings.beginWriteArray(QStringLiteral("Downloads"));
+    for (int index = first; index < _entries.size(); ++index) {
+        settings.setArrayIndex(index - first);
+        const Entry &entry = _entries.at(index);
+        settings.setValue(QStringLiteral("Path"), entry.path);
+        settings.setValue(QStringLiteral("Status"), entry.status);
+        settings.setValue(QStringLiteral("Received"), entry.received);
+        settings.setValue(QStringLiteral("Total"), entry.total);
+        settings.setValue(QStringLiteral("Completed"), entry.completed);
+        settings.setValue(QStringLiteral("Running"), entry.running);
+    }
+    settings.endArray();
+    settings.sync();
+}
+
+void EBWebDownloads::refreshFiles()
+{
+    for (int index = 0; index < _entries.size(); ++index) {
+        Entry &entry = _entries[index];
+        if (!entry.completed)
+            continue;
+        const QString status = QFileInfo::exists(entry.path)
+            ? tr("已完成") : tr("文件已移动或删除");
+        if (entry.status != status) {
+            entry.status = status;
+            emit entryChanged(index);
+        }
+    }
 }
