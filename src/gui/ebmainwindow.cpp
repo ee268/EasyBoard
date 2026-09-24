@@ -10,6 +10,7 @@
 #include "ebdocumentlibrary.h"
 #include "ebcommands.h"
 #include "ebpagepanel.h"
+#include "ebpdfoptionsdialog.h"
 #include "ebdisplayview.h"
 
 #include <QDebug>
@@ -319,8 +320,17 @@ bool EBMainWindow::importImage(const QString &path)
 
 bool EBMainWindow::importPdf(const QString &path)
 {
-    EBDocument imported;
+    int pageCount = 0;
     QString error;
+    if (!EBPDFImporter::inspectFile(path, &pageCount, &error)) {
+        statusBar()->showMessage(tr("无法读取 PDF：%1").arg(error), 5000);
+        return false;
+    }
+    EBPDFOptionsDialog optionsDialog(pageCount, this);
+    if (optionsDialog.exec() != QDialog::Accepted)
+        return false;
+    const EBPDFImporter::Options options = optionsDialog.options();
+    EBDocument imported;
     QEventLoop loop;
     QProgressDialog progress(tr("正在读取 PDF..."), tr("取消"), 0, 0, this);
     progress.setWindowModality(Qt::WindowModal);
@@ -343,7 +353,7 @@ bool EBMainWindow::importPdf(const QString &path)
                         QObject::tr("正在导入 PDF：%1 / %2 页")
                             .arg(current).arg(total));
                 }, Qt::QueuedConnection);
-            }, &cancelled);
+            }, &cancelled, options);
     });
     connect(worker, &QThread::finished, &loop, &QEventLoop::quit);
     worker->start();

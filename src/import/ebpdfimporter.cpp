@@ -18,12 +18,64 @@ namespace {
 constexpr qint64 kMaxPdfBytes = 256 * 1024 * 1024;
 constexpr qint64 kMaxImageBytes = 64 * 1024 * 1024;
 constexpr qint64 kMaxImagePixels = 40000000;
+
+QString rendererPath()
+{
+    return QDir(QCoreApplication::applicationDirPath()).filePath(
+        QStringLiteral("EasyBoardPdfRenderer.exe"));
+}
+}
+
+bool EBPDFImporter::inspectFile(const QString &path, int *pageCount,
+                                QString *error)
+{
+    const QFileInfo file(path);
+    if (!pageCount || !file.isFile() || file.size() <= 0
+        || file.size() > kMaxPdfBytes) {
+        if (error)
+            *error = QStringLiteral("PDF 文件不存在、为空或超过 256 MB");
+        return false;
+    }
+    const QString renderer = rendererPath();
+    if (!QFileInfo::exists(renderer)) {
+        if (error)
+            *error = QStringLiteral("缺少 PDF 渲染组件 EasyBoardPdfRenderer.exe");
+        return false;
+    }
+    QProcess process;
+    process.start(renderer, {QStringLiteral("--inspect"), file.absoluteFilePath()});
+    if (!process.waitForStarted(10000) || !process.waitForFinished(30000)
+        || process.exitStatus() != QProcess::NormalExit
+        || process.exitCode() != 0) {
+        if (process.state() != QProcess::NotRunning) {
+            process.kill();
+            process.waitForFinished(3000);
+        }
+        if (error) {
+            const QString detail = QString::fromUtf8(
+                process.readAllStandardError()).trimmed();
+            *error = detail.isEmpty() ? QStringLiteral("无法读取 PDF 页数") : detail;
+        }
+        return false;
+    }
+    const QByteArray output = process.readAllStandardOutput().trimmed();
+    bool countOk = false;
+    const int count = output.startsWith("COUNT ")
+        ? output.mid(6).toInt(&countOk) : 0;
+    if (!countOk || count < 1 || count > 200) {
+        if (error)
+            *error = QStringLiteral("PDF 页数无效");
+        return false;
+    }
+    *pageCount = count;
+    return true;
 }
 
 bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
                                QString *error,
                                const std::function<void(int, int)> &progress,
-                               const std::atomic_bool *cancelled)
+                               const std::atomic_bool *cancelled,
+                               const Options &options)
 {
     const QFileInfo file(path);
     if (!document || !file.isFile() || file.size() <= 0
@@ -38,15 +90,17 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
             *error = QStringLiteral("无法创建 PDF 导入临时目录");
         return false;
     }
-    const QString renderer = QDir(QCoreApplication::applicationDirPath()).filePath(
-        QStringLiteral("EasyBoardPdfRenderer.exe"));
+    const QString renderer = rendererPath();
     if (!QFileInfo::exists(renderer)) {
         if (error)
             *error = QStringLiteral("缺少 PDF 渲染组件 EasyBoardPdfRenderer.exe");
         return false;
     }
     QProcess process;
-    process.start(renderer, {file.absoluteFilePath(), temporary.path()});
+    process.start(renderer, {file.absoluteFilePath(), temporary.path(),
+                             QString::number(options.firstPage),
+                             QString::number(options.lastPage),
+                             QString::number(options.scale, 'f', 1)});
     if (!process.waitForStarted(10000)) {
         if (error)
             *error = QStringLiteral("无法启动 PDF 渲染组件");
@@ -114,7 +168,10 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     }
     const QJsonDocument index = QJsonDocument::fromJson(manifest.readAll());
     const QJsonArray pages = index.object().value(QStringLiteral("pages")).toArray();
-    if (pages.isEmpty() || pages.size() > 200) {
+    const int expectedCount = options.lastPage > 0
+        ? options.lastPage - options.firstPage + 1 : -1;
+    if (pages.isEmpty() || pages.size() > 200
+        || (expectedCount > 0 && pages.size() != expectedCount)) {
         if (error)
             *error = QStringLiteral("PDF 页面索引无效");
         return false;
