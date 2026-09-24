@@ -1,5 +1,7 @@
 #include "ebpage.h"
 
+#include <QtMath>
+
 qreal EBPage::widthForSize(Size size)
 {
     return size == Size::Standard ? 1200.0 : 1600.0;
@@ -33,9 +35,23 @@ EBPage::Size EBPage::size() const
 void EBPage::setSize(Size size)
 {
     _size = size;
-    const qreal width = widthForSize(size);
+    const qreal width = pageWidth();
     for (qreal &guide : _verticalGuides)
         guide = qMin(guide, width);
+}
+
+qreal EBPage::pageWidth() const
+{
+    return _size == Size::Custom ? _customWidth : widthForSize(_size);
+}
+
+bool EBPage::setCustomWidth(qreal width)
+{
+    if (!qIsFinite(width) || width < 100.0 || width > 5000.0)
+        return false;
+    _customWidth = width;
+    setSize(Size::Custom);
+    return true;
 }
 
 const EBPage::Strokes &EBPage::strokes() const

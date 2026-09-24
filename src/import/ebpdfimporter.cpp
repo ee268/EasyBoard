@@ -58,13 +58,8 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
                 return false;
             }
             const double ratio = double(size.Width) / double(size.Height);
-            const EBPage::Size pageSize =
-                std::abs(ratio - 16.0 / 9.0) < std::abs(ratio - 4.0 / 3.0)
-                    ? EBPage::Size::Widescreen : EBPage::Size::Standard;
-            const double targetRatio = pageSize == EBPage::Size::Widescreen
-                                           ? 16.0 / 9.0 : 4.0 / 3.0;
             const uint32_t width = static_cast<uint32_t>(
-                std::max(1.0, std::min(1600.0, 1200.0 * ratio / targetRatio)));
+                std::max(1.0, std::min(1600.0, 1200.0 * ratio)));
             const uint32_t height = static_cast<uint32_t>(
                 std::max(1.0, std::min(1200.0, double(width) / ratio)));
             PdfPageRenderOptions options;
@@ -94,7 +89,11 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
                 imported.setCurrentPageIndex(int(index));
             }
             EBPage *page = imported.currentPage();
-            page->setSize(pageSize);
+            if (!page->setCustomWidth(EBPage::Height * ratio)) {
+                if (error)
+                    *error = QStringLiteral("第 %1 页比例超出支持范围").arg(index + 1);
+                return false;
+            }
             page->setBackgroundImage(image);
         }
         imported.setCurrentPageIndex(0);

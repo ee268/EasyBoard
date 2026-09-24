@@ -24,7 +24,8 @@ public:
     };
     enum class Size {
         Standard,
-        Widescreen
+        Widescreen,
+        Custom
     };
     static constexpr qreal Height = 900.0;
     static qreal widthForSize(Size size);
@@ -41,6 +42,8 @@ public:
 
     Size size() const;
     void setSize(Size size);
+    qreal pageWidth() const;
+    bool setCustomWidth(qreal width);
 
     const Strokes &strokes() const;
     void setStrokes(const Strokes &strokes);
@@ -64,6 +67,7 @@ private:
     Color _color = Color::White;
     Pattern _pattern = Pattern::Blank;
     Size _size = Size::Standard;
+    qreal _customWidth = 1200.0;
     Strokes _strokes;
     Texts _texts;
     Images _images;

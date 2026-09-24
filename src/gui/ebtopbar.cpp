@@ -107,10 +107,15 @@ void EBTopBar::syncPage()
     else if (_boardView->pagePattern() == EBBoardView::PagePattern::Ruled)
         pattern = 2;
     const int size = _boardView->pageSize() == EBBoardView::PageSize::Standard
-        ? 0 : 1;
+        ? 0 : _boardView->pageSize() == EBBoardView::PageSize::Widescreen ? 1 : -1;
     _colorActions[color]->setChecked(true);
     _patternActions[pattern]->setChecked(true);
-    _sizeActions[size]->setChecked(true);
+    if (size >= 0)
+        _sizeActions[size]->setChecked(true);
+    else {
+        _sizeActions[0]->setChecked(false);
+        _sizeActions[1]->setChecked(false);
+    }
 }
 
 void EBTopBar::createZoomActions()

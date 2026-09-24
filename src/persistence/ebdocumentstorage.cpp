@@ -41,6 +41,8 @@ QString patternName(EBPage::Pattern pattern)
 
 QString sizeName(EBPage::Size size)
 {
+    if (size == EBPage::Size::Custom)
+        return QStringLiteral("custom");
     return size == EBPage::Size::Standard ? QStringLiteral("standard")
                                           : QStringLiteral("widescreen");
 }
@@ -183,6 +185,8 @@ QJsonObject pageObject(const EBPage &page, int index)
         {QStringLiteral("teachingTools"),
          EBTeachingStorage::toJson(page.teachingTools())}
     };
+    if (page.size() == EBPage::Size::Custom)
+        result.insert(QStringLiteral("width"), page.pageWidth());
     if (!horizontalGuides.isEmpty() || !verticalGuides.isEmpty()) {
         result.insert(QStringLiteral("guides"), QJsonObject{
             {QStringLiteral("horizontal"), horizontalGuides},
@@ -503,7 +507,11 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page)
         page->setSize(EBPage::Size::Standard);
     else if (size == QStringLiteral("widescreen"))
         page->setSize(EBPage::Size::Widescreen);
-    else
+    else if (size == QStringLiteral("custom")) {
+        const QJsonValue width = object.value(QStringLiteral("width"));
+        if (!width.isDouble() || !page->setCustomWidth(width.toDouble()))
+            return false;
+    } else
         return false;
 
     QImage backgroundImage;
@@ -550,7 +558,7 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page)
     EBPage::TeachingTools teachingTools;
     if (!EBTeachingStorage::fromJson(
             object.value(QStringLiteral("teachingTools")), &teachingTools,
-            QSizeF(EBPage::widthForSize(page->size()), EBPage::Height)))
+            QSizeF(page->pageWidth(), EBPage::Height)))
         return false;
     page->setTeachingTools(teachingTools);
     const QJsonValue guidesValue = object.value(QStringLiteral("guides"));
@@ -576,7 +584,7 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page)
                 return false;
             horizontalGuides.append(coordinate);
         }
-        const qreal width = EBPage::widthForSize(page->size());
+        const qreal width = page->pageWidth();
         for (const QJsonValue &value : vertical) {
             const qreal coordinate = value.toDouble(-1.0);
             if (!value.isDouble() || !qIsFinite(coordinate)

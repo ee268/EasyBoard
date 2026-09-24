@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QPdfWriter>
 #include <QSaveFile>
+#include <QtMath>
 
 #include "../board/ebboardscene.h"
 #include "../domain/ebdocument.h"
@@ -15,8 +16,7 @@ constexpr int kPdfResolution = 144;
 
 QSize pagePixelSize(const EBPage &page)
 {
-    return page.size() == EBPage::Size::Standard ? QSize(1200, 900)
-                                                  : QSize(1600, 900);
+    return QSize(qRound(page.pageWidth()), int(EBPage::Height));
 }
 
 QPageSize pdfPageSize(const EBPage &page)
