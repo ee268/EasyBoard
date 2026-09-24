@@ -321,6 +321,7 @@ void EBDesktopOverlay::mousePressEvent(QMouseEvent *event)
                       _tool == Tool::Eraser ? 32.0
                           : _tool == Tool::Marker ? _markerWidth : _penWidth};
     _current.path.moveTo(event->pos());
+    _strokeOrigin = event->pos();
     _drawing = true;
     event->accept();
 }
@@ -329,7 +330,11 @@ void EBDesktopOverlay::mouseMoveEvent(QMouseEvent *event)
 {
     if (!_drawing)
         return;
-    if (QLineF(_current.path.currentPosition(), event->pos()).length() >= 1.0) {
+    if (_tool == Tool::Line || _tool == Tool::Rectangle
+        || _tool == Tool::Ellipse) {
+        updateShape(event->pos());
+        update();
+    } else if (QLineF(_current.path.currentPosition(), event->pos()).length() >= 1.0) {
         _current.path.lineTo(event->pos());
         update();
     }
@@ -340,16 +345,39 @@ void EBDesktopOverlay::mouseReleaseEvent(QMouseEvent *event)
 {
     if (!_drawing || event->button() != Qt::LeftButton)
         return;
-    if (QLineF(_current.path.currentPosition(), event->pos()).length() >= 1.0)
+    if (_tool == Tool::Line || _tool == Tool::Rectangle
+        || _tool == Tool::Ellipse)
+        updateShape(event->pos());
+    else if (QLineF(_current.path.currentPosition(), event->pos()).length() >= 1.0)
         _current.path.lineTo(event->pos());
     finishStroke();
     event->accept();
+}
+
+void EBDesktopOverlay::updateShape(const QPointF &end)
+{
+    _current.path = QPainterPath();
+    if (_tool == Tool::Line) {
+        _current.path.moveTo(_strokeOrigin);
+        _current.path.lineTo(end);
+    } else if (_tool == Tool::Rectangle) {
+        _current.path.addRect(QRectF(_strokeOrigin, end).normalized());
+    } else if (_tool == Tool::Ellipse) {
+        _current.path.addEllipse(QRectF(_strokeOrigin, end).normalized());
+    }
 }
 
 void EBDesktopOverlay::finishStroke()
 {
     if (!_drawing)
         return;
+    if ((_tool == Tool::Rectangle || _tool == Tool::Ellipse)
+        && (_current.path.boundingRect().width() < 2.0
+            || _current.path.boundingRect().height() < 2.0)) {
+        _drawing = false;
+        update();
+        return;
+    }
     if (_current.path.elementCount() == 1)
         _current.path.lineTo(_current.path.currentPosition()
                              + QPointF(0.1, 0.1));

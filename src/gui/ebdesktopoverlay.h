@@ -17,7 +17,7 @@ class EBDesktopOverlay : public QWidget
 {
     Q_OBJECT
 public:
-    enum class Tool { Pen, Marker, Eraser };
+    enum class Tool { Pen, Marker, Eraser, Line, Rectangle, Ellipse };
 
     explicit EBDesktopOverlay(QWidget *parent = nullptr);
 
@@ -64,6 +64,7 @@ private:
     };
 
     void paintStroke(QPainter *painter, const Stroke &stroke) const;
+    void updateShape(const QPointF &end);
     void saveScreenInk();
     void restoreScreenInk(QScreen *screen, const QSize &size);
     void resizeInk(const QSize &size);
@@ -79,6 +80,7 @@ private:
     QSize _inkSize;
     int _applied = 0;
     Stroke _current;
+    QPointF _strokeOrigin;
     Tool _tool = Tool::Pen;
     QColor _penColor = QColor(36, 58, 72);
     QColor _markerColor = QColor(255, 214, 59, 115);

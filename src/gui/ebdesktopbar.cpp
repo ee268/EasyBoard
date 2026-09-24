@@ -30,11 +30,14 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     addWidget(drag);
     QActionGroup *tools = new QActionGroup(this);
     tools->setExclusive(true);
-    const char *icons[] = {"pen", "marker", "eraser"};
+    const char *icons[] = {"pen", "marker", "eraser",
+                           "line", "rectangle", "ellipse"};
     const char *names[] = {"desktopPenAction", "desktopMarkerAction",
-                           "desktopEraserAction"};
-    const QString labels[] = {tr("画笔"), tr("荧光笔"), tr("橡皮")};
-    for (int index = 0; index < 3; ++index) {
+                           "desktopEraserAction", "desktopLineAction",
+                           "desktopRectangleAction", "desktopEllipseAction"};
+    const QString labels[] = {tr("画笔"), tr("荧光笔"), tr("橡皮"),
+                              tr("直线"), tr("矩形"), tr("椭圆")};
+    for (int index = 0; index < 6; ++index) {
         QAction *action = addAction(ebToolbarIcon(icons[index]), labels[index]);
         action->setObjectName(QString::fromLatin1(names[index]));
         action->setCheckable(true);
