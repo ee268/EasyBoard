@@ -35,6 +35,8 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
             this, &EBDesktopOverlay::clear);
     connect(_bar, &EBDesktopBar::captureRequested,
             this, &EBDesktopOverlay::captureToBoard);
+    connect(_bar, &EBDesktopBar::screenSelected,
+            this, &EBDesktopOverlay::selectScreen);
     connect(_bar, &EBDesktopBar::penColorChanged,
             this, [this](const QColor &color) { _penColor = color; });
     connect(_bar, &EBDesktopBar::markerColorChanged,
@@ -50,7 +52,11 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
     connect(qGuiApp, &QGuiApplication::primaryScreenChanged,
             this, &EBDesktopOverlay::followScreen);
     connect(qGuiApp, &QGuiApplication::screenRemoved, this,
-            [this]() { QTimer::singleShot(0, this, &EBDesktopOverlay::followScreen); });
+            [this](QScreen *screen) {
+        if (_targetScreen == screen)
+            _targetScreen = nullptr;
+        QTimer::singleShot(0, this, &EBDesktopOverlay::followScreen);
+    });
     const auto watchScreen = [this](QScreen *screen) {
         connect(screen, &QScreen::geometryChanged,
                 this, &EBDesktopOverlay::followScreen);
@@ -150,18 +156,27 @@ void EBDesktopOverlay::captureToBoard()
     const QRect area = geometry();
     const qreal ratio = devicePixelRatioF();
     hide();
-    QTimer::singleShot(180, this, [this, area, ratio]() {
-        QImage image = ebCaptureScreens(area, ratio);
-        if (image.isNull()) {
-            _capturing = false;
-            openOnDesktop();
-            emit statusMessage(tr("桌面截图失败"));
-            return;
-        }
-        image = compositeImage(image);
-        _capturing = false;
-        emit imageCaptured(image);
+    QTimer::singleShot(200, this, [this, area, ratio]() {
+        finishCapture(area, ratio, 0);
     });
+}
+
+void EBDesktopOverlay::finishCapture(const QRect &area, qreal ratio, int attempt)
+{
+    QImage image = ebCaptureScreens(area, ratio);
+    if (image.isNull() && attempt < 2) {
+        QTimer::singleShot(200, this, [this, area, ratio, attempt]() {
+            finishCapture(area, ratio, attempt + 1);
+        });
+        return;
+    }
+    _capturing = false;
+    if (image.isNull()) {
+        openOnDesktop();
+        emit statusMessage(tr("无法读取桌面画面，请确认屏幕捕获权限"));
+        return;
+    }
+    emit imageCaptured(compositeImage(image));
 }
 
 QImage EBDesktopOverlay::compositeImage(QImage background) const
@@ -187,11 +202,22 @@ QImage EBDesktopOverlay::compositeImage(QImage background) const
 
 void EBDesktopOverlay::followScreen()
 {
-    if (QScreen *screen = QGuiApplication::primaryScreen()) {
+    QScreen *screen = _targetScreen ? _targetScreen.data()
+                                    : QGuiApplication::primaryScreen();
+    if (screen) {
         if (windowHandle() && windowHandle()->screen() != screen)
             windowHandle()->setScreen(screen);
         setGeometry(screen->geometry());
+        _bar->setCurrentScreen(screen);
     }
+}
+
+void EBDesktopOverlay::selectScreen(QScreen *screen)
+{
+    if (!screen || screen == _targetScreen)
+        return;
+    _targetScreen = screen;
+    followScreen();
 }
 
 void EBDesktopOverlay::paintEvent(QPaintEvent *event)

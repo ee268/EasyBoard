@@ -3,10 +3,12 @@
 
 #include <QToolBar>
 #include <QColor>
+#include <QPointer>
 
 #include "ebdesktopoverlay.h"
 
 class QAction;
+class QScreen;
 
 // 桌面工具栏只表达绘图、历史和退出操作。
 class EBDesktopBar : public QToolBar
@@ -17,6 +19,7 @@ public:
     void setHistory(bool undoAvailable, bool redoAvailable);
     void setBrushes(const QColor &penColor, qreal penWidth,
                     const QColor &markerColor, qreal markerWidth);
+    void setCurrentScreen(QScreen *screen);
 
 signals:
     void toolSelected(EBDesktopOverlay::Tool tool);
@@ -24,6 +27,7 @@ signals:
     void redoRequested();
     void clearRequested();
     void captureRequested();
+    void screenSelected(QScreen *screen);
     void penColorChanged(const QColor &color);
     void markerColorChanged(const QColor &color);
     void penWidthChanged(qreal width);
@@ -42,6 +46,7 @@ private:
     QColor _markerColor;
     qreal _penWidth = 3.0;
     qreal _markerWidth = 18.0;
+    QPointer<QScreen> _currentScreen;
 };
 
 #endif

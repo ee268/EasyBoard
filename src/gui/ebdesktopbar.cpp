@@ -4,8 +4,10 @@
 #include <QActionGroup>
 #include <QColorDialog>
 #include <QInputDialog>
+#include <QGuiApplication>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QScreen>
 #include <QToolButton>
 
 #include "ebbarstyle.h"
@@ -108,6 +110,32 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     QAction *capture = addAction(ebToolbarIcon("image_object"), tr("插入白板"));
     capture->setObjectName(QStringLiteral("desktopCaptureAction"));
     connect(capture, &QAction::triggered, this, &EBDesktopBar::captureRequested);
+    QToolButton *screenButton = new QToolButton(this);
+    screenButton->setObjectName(QStringLiteral("desktopScreenButton"));
+    screenButton->setIcon(ebToolbarIcon("desktop"));
+    screenButton->setText(tr("屏幕"));
+    screenButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    screenButton->setPopupMode(QToolButton::InstantPopup);
+    QMenu *screenMenu = new QMenu(screenButton);
+    connect(screenMenu, &QMenu::aboutToShow, this, [this, screenMenu]() {
+        screenMenu->clear();
+        int number = 1;
+        for (QScreen *screen : QGuiApplication::screens()) {
+            const QSize size = screen->geometry().size();
+            QAction *action = screenMenu->addAction(
+                tr("屏幕 %1：%2 × %3").arg(number++)
+                    .arg(size.width()).arg(size.height()));
+            action->setCheckable(true);
+            action->setChecked(screen == _currentScreen);
+            QPointer<QScreen> selected = screen;
+            connect(action, &QAction::triggered, this, [this, selected]() {
+                if (selected)
+                    emit screenSelected(selected);
+            });
+        }
+    });
+    screenButton->setMenu(screenMenu);
+    addWidget(screenButton);
     addSeparator();
     QAction *exit = addAction(ebToolbarIcon("file_exit"), tr("返回白板"));
     exit->setObjectName(QStringLiteral("desktopExitAction"));
@@ -129,6 +157,11 @@ void EBDesktopBar::setBrushes(const QColor &penColor, qreal penWidth,
     _penWidth = penWidth;
     _markerColor = markerColor;
     _markerWidth = markerWidth;
+}
+
+void EBDesktopBar::setCurrentScreen(QScreen *screen)
+{
+    _currentScreen = screen;
 }
 
 bool EBDesktopBar::eventFilter(QObject *watched, QEvent *event)

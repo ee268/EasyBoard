@@ -4,10 +4,12 @@
 #include <QColor>
 #include <QImage>
 #include <QPainterPath>
+#include <QPointer>
 #include <QVector>
 #include <QWidget>
 
 class EBDesktopBar;
+class QScreen;
 
 // 桌面批注只保存在当前会话；透明窗口上按绘制顺序重放笔迹和局部擦除。
 class EBDesktopOverlay : public QWidget
@@ -31,6 +33,7 @@ public:
     void clear();
     void captureToBoard();
     QImage compositeImage(QImage background) const;
+    void selectScreen(QScreen *screen);
 
 signals:
     void exitRequested();
@@ -58,6 +61,7 @@ private:
     void finishStroke();
     void refreshHistory();
     void followScreen();
+    void finishCapture(const QRect &area, qreal ratio, int attempt);
 
     EBDesktopBar *_bar;
     QVector<Stroke> _strokes;
@@ -71,6 +75,7 @@ private:
     bool _drawing = false;
     bool _barPositioned = false;
     bool _capturing = false;
+    QPointer<QScreen> _targetScreen;
 };
 
 #endif
