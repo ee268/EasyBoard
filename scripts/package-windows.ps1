@@ -88,10 +88,19 @@ foreach ($runtime in @('vcruntime140.dll', 'msvcp140.dll')) {
 }
 
 $checksums = @('EasyBoard.exe', 'EasyBoardPdfRenderer.exe') | ForEach-Object {
-    $hash = Get-FileHash -LiteralPath (Join-Path $packageDir $_) -Algorithm SHA256
-    "$($hash.Hash)  $_"
+    $file = [System.IO.File]::OpenRead((Join-Path $packageDir $_))
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hash = [System.BitConverter]::ToString($sha256.ComputeHash($file))
+        "$($hash.Replace('-', ''))  $_"
+    } finally {
+        $file.Dispose()
+        $sha256.Dispose()
+    }
 }
 Set-Content -LiteralPath (Join-Path $packageDir 'SHA256SUMS.txt') `
     -Value $checksums -Encoding Ascii
-Compress-Archive -LiteralPath $packageDir -DestinationPath $zipPath
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::CreateFromDirectory(
+    $packageDir, $zipPath, [System.IO.Compression.CompressionLevel]::Optimal, $true)
 Write-Output $zipPath
