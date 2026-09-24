@@ -2,10 +2,11 @@
 
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QProgressDialog>
 #include <QStandardPaths>
 #include <QWebEngineDownloadItem>
 #include <QWebEngineProfile>
+
+#include "ebwebdownloadsdialog.h"
 
 EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
     : QObject(window)
@@ -26,38 +27,80 @@ EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
         const QFileInfo file(path);
         download->setDownloadDirectory(file.absolutePath());
         download->setDownloadFileName(file.fileName());
-        QProgressDialog *progress = new QProgressDialog(
-            tr("正在下载：%1").arg(file.fileName()), tr("取消"), 0, 100,
-            _window);
-        progress->setObjectName(QStringLiteral("webDownloadProgress"));
-        progress->setWindowModality(Qt::NonModal);
-        progress->setAutoClose(false);
-        progress->setMinimumDuration(0);
-        connect(progress, &QProgressDialog::canceled,
-                download, &QWebEngineDownloadItem::cancel);
+        const int index = _entries.size();
+        Entry entry;
+        entry.path = file.absoluteFilePath();
+        entry.status = tr("正在下载");
+        entry.running = true;
+        entry.item = download;
+        _entries.append(entry);
+        emit entryAdded(index);
         connect(download, &QWebEngineDownloadItem::downloadProgress,
-                progress, [progress](qint64 received, qint64 total) {
-            if (total <= 0) {
-                progress->setRange(0, 0);
-            } else {
-                progress->setRange(0, 100);
-                progress->setValue(int(qBound(qint64(0),
-                    received * 100 / total, qint64(100))));
-            }
+                this, [this, index](qint64 received, qint64 total) {
+            Entry &entry = _entries[index];
+            entry.received = received;
+            entry.total = total;
+            emit entryChanged(index);
         });
         connect(download, &QWebEngineDownloadItem::finished,
-                this, [this, download, progress, path]() {
-            progress->close();
-            progress->deleteLater();
-            if (download->state() == QWebEngineDownloadItem::DownloadCompleted)
-                emit statusMessage(tr("下载完成：%1").arg(path));
-            else if (download->state() == QWebEngineDownloadItem::DownloadInterrupted)
-                emit statusMessage(tr("下载失败：%1")
-                                   .arg(download->interruptReasonString()));
-            else
+                this, [this, download, index]() {
+            Entry &entry = _entries[index];
+            entry.running = false;
+            entry.completed = download->state()
+                == QWebEngineDownloadItem::DownloadCompleted;
+            if (entry.completed) {
+                entry.status = tr("已完成");
+                emit statusMessage(tr("下载完成：%1").arg(entry.path));
+            } else if (download->state()
+                       == QWebEngineDownloadItem::DownloadInterrupted) {
+                entry.status = tr("失败：%1")
+                    .arg(download->interruptReasonString());
+                emit statusMessage(entry.status);
+            } else {
+                entry.status = tr("已取消");
                 emit statusMessage(tr("下载已取消"));
+            }
+            emit entryChanged(index);
+        });
+        connect(download, &QObject::destroyed, this, [this, index]() {
+            Entry &entry = _entries[index];
+            if (entry.running) {
+                entry.running = false;
+                entry.status = tr("已中断");
+                emit entryChanged(index);
+            }
         });
         download->accept();
-        progress->show();
+        showManager();
     });
+}
+
+int EBWebDownloads::count() const
+{
+    return _entries.size();
+}
+
+const EBWebDownloads::Entry &EBWebDownloads::entryAt(int index) const
+{
+    return _entries.at(index);
+}
+
+void EBWebDownloads::cancel(int index)
+{
+    if (index < 0 || index >= _entries.size())
+        return;
+    const Entry &entry = _entries.at(index);
+    if (entry.running && entry.item)
+        entry.item->cancel();
+}
+
+void EBWebDownloads::showManager()
+{
+    if (!_dialog) {
+        _dialog = new EBWebDownloadsDialog(this, _window);
+        _dialog->setAttribute(Qt::WA_DeleteOnClose);
+    }
+    _dialog->show();
+    _dialog->raise();
+    _dialog->activateWindow();
 }

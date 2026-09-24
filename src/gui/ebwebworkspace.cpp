@@ -46,6 +46,7 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     , _address(new QLineEdit(this))
     , _history(new EBWebHistory(this))
     , _bookmarks(new EBWebBookmarks(this))
+    , _downloads(new EBWebDownloads(_profile, this))
     , _backAction(nullptr)
     , _forwardAction(nullptr)
     , _reloadAction(nullptr)
@@ -60,8 +61,7 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     _profile->setPersistentStoragePath(webDirectory.filePath(
         QStringLiteral("profile")));
     _profile->setCachePath(webDirectory.filePath(QStringLiteral("cache")));
-    EBWebDownloads *downloads = new EBWebDownloads(_profile, this);
-    connect(downloads, &EBWebDownloads::statusMessage,
+    connect(_downloads, &EBWebDownloads::statusMessage,
             this, &EBWebWorkspace::statusMessage);
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -121,6 +121,11 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     QAction *historyAction = bar->addAction(ebToolbarIcon("history"),
                                             tr("历史"));
     historyAction->setObjectName(QStringLiteral("webHistoryAction"));
+    QAction *downloadsAction = bar->addAction(ebToolbarIcon("download"),
+                                              tr("下载"));
+    downloadsAction->setObjectName(QStringLiteral("webDownloadsAction"));
+    connect(downloadsAction, &QAction::triggered,
+            _downloads, &EBWebDownloads::showManager);
     QToolButton *bookmarksButton = new QToolButton(bar);
     bookmarksButton->setObjectName(QStringLiteral("webBookmarksButton"));
     bookmarksButton->setIcon(ebToolbarIcon("bookmark"));
