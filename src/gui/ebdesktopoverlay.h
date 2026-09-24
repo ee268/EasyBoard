@@ -9,17 +9,21 @@
 #include <QVector>
 #include <QWidget>
 
+#include "ebdesktopinkstore.h"
+
 class EBDesktopBar;
 class QScreen;
+class QTimer;
 
 // 桌面批注只保存在当前会话；透明窗口上按绘制顺序重放笔迹和局部擦除。
 class EBDesktopOverlay : public QWidget
 {
     Q_OBJECT
 public:
-    enum class Tool { Pen, Marker, Eraser, Line, Rectangle, Ellipse };
+    using Tool = EBDesktopInkStore::Tool;
 
     explicit EBDesktopOverlay(QWidget *parent = nullptr);
+    ~EBDesktopOverlay() override;
 
     void openOnDesktop();
     void setBrushes(const QColor &penColor, qreal penWidth,
@@ -54,17 +58,8 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private:
-    struct Stroke {
-        Tool tool;
-        QPainterPath path;
-        QColor color;
-        qreal width;
-    };
-    struct ScreenInk {
-        QVector<Stroke> strokes;
-        int applied = 0;
-        QSize size;
-    };
+    using Stroke = EBDesktopInkStore::Stroke;
+    using ScreenInk = EBDesktopInkStore::ScreenInk;
 
     void paintStroke(QPainter *painter, const Stroke &stroke) const;
     void updateShape(const QPointF &end);
@@ -79,8 +74,10 @@ private:
     void startCapture();
 
     EBDesktopBar *_bar;
+    QTimer *_saveTimer;
     QVector<Stroke> _strokes;
     QHash<QScreen *, ScreenInk> _screenInk;
+    QHash<QString, ScreenInk> _savedInk;
     QPointer<QScreen> _activeScreen;
     QSize _inkSize;
     int _applied = 0;

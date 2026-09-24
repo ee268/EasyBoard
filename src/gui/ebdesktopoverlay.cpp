@@ -26,7 +26,15 @@
 EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
     : QWidget(parent)
     , _bar(new EBDesktopBar(this))
+    , _saveTimer(new QTimer(this))
 {
+    _savedInk = EBDesktopInkStore::load();
+    _saveTimer->setSingleShot(true);
+    _saveTimer->setInterval(500);
+    connect(_saveTimer, &QTimer::timeout, this, [this]() {
+        if (!EBDesktopInkStore::save(_savedInk))
+            emit statusMessage(tr("桌面批注保存失败"));
+    });
     setObjectName(QStringLiteral("desktopOverlay"));
     setWindowTitle(tr("EasyBoard 桌面批注"));
     setWindowFlags(Qt::Window | Qt::FramelessWindowHint
@@ -69,6 +77,8 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
             this, &EBDesktopOverlay::followScreen);
     connect(qGuiApp, &QGuiApplication::screenRemoved, this,
             [this](QScreen *screen) {
+        if (_activeScreen == screen)
+            saveScreenInk();
         _screenInk.remove(screen);
         if (_activeScreen == screen) {
             _activeScreen = nullptr;
@@ -88,6 +98,12 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
     for (QScreen *screen : QGuiApplication::screens())
         watchScreen(screen);
     connect(qGuiApp, &QGuiApplication::screenAdded, this, watchScreen);
+}
+
+EBDesktopOverlay::~EBDesktopOverlay()
+{
+    saveScreenInk();
+    EBDesktopInkStore::save(_savedInk);
 }
 
 void EBDesktopOverlay::openOnDesktop()
@@ -183,6 +199,7 @@ void EBDesktopOverlay::undo()
     --_applied;
     update();
     refreshHistory();
+    saveScreenInk();
 }
 
 void EBDesktopOverlay::redo()
@@ -192,6 +209,7 @@ void EBDesktopOverlay::redo()
     ++_applied;
     update();
     refreshHistory();
+    saveScreenInk();
 }
 
 void EBDesktopOverlay::clear()
@@ -202,6 +220,7 @@ void EBDesktopOverlay::clear()
     _applied = 0;
     update();
     refreshHistory();
+    saveScreenInk();
 }
 
 void EBDesktopOverlay::captureToBoard()
@@ -324,13 +343,19 @@ void EBDesktopOverlay::followScreen()
 
 void EBDesktopOverlay::saveScreenInk()
 {
-    if (_activeScreen)
-        _screenInk.insert(_activeScreen, {_strokes, _applied, _inkSize});
+    if (!_activeScreen)
+        return;
+    const ScreenInk ink{_strokes, _applied, _inkSize};
+    _screenInk.insert(_activeScreen, ink);
+    _savedInk.insert(EBDesktopInkStore::screenId(_activeScreen), ink);
+    _saveTimer->start();
 }
 
 void EBDesktopOverlay::restoreScreenInk(QScreen *screen, const QSize &size)
 {
-    const ScreenInk ink = _screenInk.value(screen);
+    const ScreenInk ink = _screenInk.contains(screen)
+        ? _screenInk.value(screen)
+        : _savedInk.value(EBDesktopInkStore::screenId(screen));
     _strokes = ink.strokes;
     _applied = qMin(ink.applied, _strokes.size());
     _inkSize = ink.size;
@@ -346,6 +371,8 @@ void EBDesktopOverlay::resizeInk(const QSize &size)
             qreal(size.height()) / _inkSize.height());
         for (Stroke &stroke : _strokes)
             stroke.path = transform.map(stroke.path);
+        _inkSize = size;
+        saveScreenInk();
     }
     _inkSize = size;
     update();
@@ -491,6 +518,7 @@ void EBDesktopOverlay::finishStroke()
     _drawing = false;
     update();
     refreshHistory();
+    saveScreenInk();
 }
 
 void EBDesktopOverlay::refreshHistory()
