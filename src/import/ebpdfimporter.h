@@ -19,12 +19,13 @@ public:
     };
 
     static bool inspectFile(const QString &path, int *pageCount,
-                            QString *error);
+                            QString *error, const QString &password = QString());
     static bool importFile(const QString &path, EBDocument *document,
                            QString *error,
                            const std::function<void(int, int)> &progress = {},
                            const std::atomic_bool *cancelled = nullptr,
-                           const Options &options = Options());
+                           const Options &options = Options(),
+                           const QString &password = QString());
 };
 
 #endif

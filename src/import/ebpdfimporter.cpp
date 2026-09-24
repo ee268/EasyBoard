@@ -18,6 +18,7 @@ namespace {
 constexpr qint64 kMaxPdfBytes = 256 * 1024 * 1024;
 constexpr qint64 kMaxImageBytes = 64 * 1024 * 1024;
 constexpr qint64 kMaxImagePixels = 40000000;
+constexpr int kPasswordError = 11;
 
 QString rendererPath()
 {
@@ -27,7 +28,7 @@ QString rendererPath()
 }
 
 bool EBPDFImporter::inspectFile(const QString &path, int *pageCount,
-                                QString *error)
+                                QString *error, const QString &password)
 {
     const QFileInfo file(path);
     if (!pageCount || !file.isFile() || file.size() <= 0
@@ -44,7 +45,14 @@ bool EBPDFImporter::inspectFile(const QString &path, int *pageCount,
     }
     QProcess process;
     process.start(renderer, {QStringLiteral("--inspect"), file.absoluteFilePath()});
-    if (!process.waitForStarted(10000) || !process.waitForFinished(30000)
+    if (!process.waitForStarted(10000)) {
+        if (error)
+            *error = QStringLiteral("无法启动 PDF 渲染组件");
+        return false;
+    }
+    process.write(password.toUtf8());
+    process.closeWriteChannel();
+    if (!process.waitForFinished(30000)
         || process.exitStatus() != QProcess::NormalExit
         || process.exitCode() != 0) {
         if (process.state() != QProcess::NotRunning) {
@@ -52,6 +60,10 @@ bool EBPDFImporter::inspectFile(const QString &path, int *pageCount,
             process.waitForFinished(3000);
         }
         if (error) {
+            if (process.exitCode() == kPasswordError) {
+                *error = QStringLiteral("PASSWORD_REQUIRED");
+                return false;
+            }
             const QString detail = QString::fromUtf8(
                 process.readAllStandardError()).trimmed();
             *error = detail.isEmpty() ? QStringLiteral("无法读取 PDF 页数") : detail;
@@ -75,7 +87,7 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
                                QString *error,
                                const std::function<void(int, int)> &progress,
                                const std::atomic_bool *cancelled,
-                               const Options &options)
+                               const Options &options, const QString &password)
 {
     const QFileInfo file(path);
     if (!document || !file.isFile() || file.size() <= 0
@@ -106,6 +118,8 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
             *error = QStringLiteral("无法启动 PDF 渲染组件");
         return false;
     }
+    process.write(password.toUtf8());
+    process.closeWriteChannel();
     QElapsedTimer elapsed;
     elapsed.start();
     QByteArray messages;
@@ -153,6 +167,10 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     if (process.exitStatus() != QProcess::NormalExit
         || process.exitCode() != 0) {
         if (error) {
+            if (process.exitCode() == kPasswordError) {
+                *error = QStringLiteral("PDF 密码错误");
+                return false;
+            }
             const QString detail = QString::fromUtf8(
                 process.readAllStandardError()).trimmed();
             *error = detail.isEmpty() ? QStringLiteral("PDF 渲染失败或超时")

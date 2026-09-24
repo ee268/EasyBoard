@@ -15,6 +15,8 @@
 
 #include <QDebug>
 #include <QHBoxLayout>
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -322,7 +324,18 @@ bool EBMainWindow::importPdf(const QString &path)
 {
     int pageCount = 0;
     QString error;
-    if (!EBPDFImporter::inspectFile(path, &pageCount, &error)) {
+    QString password;
+    while (!EBPDFImporter::inspectFile(path, &pageCount, &error, password)) {
+        if (error != QStringLiteral("PASSWORD_REQUIRED"))
+            break;
+        bool accepted = false;
+        password = QInputDialog::getText(this, tr("PDF 密码"),
+            password.isEmpty() ? tr("请输入 PDF 密码") : tr("密码错误，请重试"),
+            QLineEdit::Password, QString(), &accepted);
+        if (!accepted)
+            return false;
+    }
+    if (pageCount == 0) {
         statusBar()->showMessage(tr("无法读取 PDF：%1").arg(error), 5000);
         return false;
     }
@@ -353,7 +366,7 @@ bool EBMainWindow::importPdf(const QString &path)
                         QObject::tr("正在导入 PDF：%1 / %2 页")
                             .arg(current).arg(total));
                 }, Qt::QueuedConnection);
-            }, &cancelled, options);
+            }, &cancelled, options, password);
     });
     connect(worker, &QThread::finished, &loop, &QEventLoop::quit);
     worker->start();

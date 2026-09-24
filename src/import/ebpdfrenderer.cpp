@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QJsonArray>
@@ -19,9 +20,10 @@
 namespace {
 constexpr int kMaxPages = 200;
 constexpr int kMaxRenderedBytes = 64 * 1024 * 1024;
+constexpr int kWrongPassword = 0x8007052B;
 
 int render(const QString &path, const QString &directory, int firstPage,
-           int lastPage, double scale, bool inspectOnly)
+           int lastPage, double scale, bool inspectOnly, const QString &password)
 {
     try {
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
@@ -31,7 +33,10 @@ int render(const QString &path, const QString &directory, int firstPage,
         const auto storageFile = StorageFile::GetFileFromPathAsync(
             winrt::hstring(QDir::toNativeSeparators(
                 QFileInfo(path).absoluteFilePath()).toStdWString())).get();
-        const PdfDocument pdf = PdfDocument::LoadFromFileAsync(storageFile).get();
+        const PdfDocument pdf = password.isEmpty()
+            ? PdfDocument::LoadFromFileAsync(storageFile).get()
+            : PdfDocument::LoadFromFileAsync(storageFile,
+                winrt::hstring(password.toStdWString())).get();
         if (pdf.PageCount() == 0 || pdf.PageCount() > kMaxPages) {
             fputs("PDF 页数为空或超过 200 页\n", stderr);
             return 2;
@@ -113,6 +118,10 @@ int render(const QString &path, const QString &directory, int firstPage,
         }
         return 0;
     } catch (const winrt::hresult_error &failure) {
+        if (unsigned(failure.code()) == unsigned(kWrongPassword)) {
+            fputs("PASSWORD_REQUIRED\n", stderr);
+            return 11;
+        }
         fprintf(stderr, "PDF 打开或渲染失败（0x%08x）\n",
                 unsigned(failure.code()));
         return 9;
@@ -123,9 +132,16 @@ int render(const QString &path, const QString &directory, int firstPage,
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+    QFile input;
+    if (!input.open(stdin, QIODevice::ReadOnly))
+        return 1;
+    const QByteArray rawPassword = input.readAll();
+    if (rawPassword.size() > 4096)
+        return 1;
+    const QString password = QString::fromUtf8(rawPassword);
     const QStringList args = app.arguments();
     if (args.size() == 3 && args.at(1) == QStringLiteral("--inspect"))
-        return render(args.at(2), QString(), 1, 0, 1.0, true);
+        return render(args.at(2), QString(), 1, 0, 1.0, true, password);
     if (args.size() != 6)
         return 1;
     bool firstOk = false;
@@ -136,5 +152,5 @@ int main(int argc, char **argv)
     const double scale = args.at(5).toDouble(&scaleOk);
     if (!firstOk || !lastOk || !scaleOk)
         return 1;
-    return render(args.at(1), args.at(2), first, last, scale, false);
+    return render(args.at(1), args.at(2), first, last, scale, false, password);
 }
