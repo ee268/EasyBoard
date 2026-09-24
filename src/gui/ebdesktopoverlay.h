@@ -74,6 +74,7 @@ private:
     void finishStroke();
     void refreshHistory();
     void followScreen();
+    void positionBar(bool center);
     void finishCapture(const QRect &area, qreal ratio, int attempt);
     void startCapture();
 

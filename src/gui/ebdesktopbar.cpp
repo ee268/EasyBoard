@@ -8,6 +8,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QScreen>
+#include <QSignalBlocker>
 #include <QToolButton>
 
 #include "ebbarstyle.h"
@@ -17,6 +18,7 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     : QToolBar(tr("桌面批注"), parent)
     , _undoAction(nullptr)
     , _redoAction(nullptr)
+    , _interactionAction(nullptr)
 {
     setObjectName(QStringLiteral("desktopAnnotationBar"));
     ebStyleBar(this, QStringLiteral("border: 1px solid #DCE6EA; border-radius: 10px;"), true);
@@ -118,11 +120,11 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     saveImage->setObjectName(QStringLiteral("desktopSaveImageAction"));
     connect(saveImage, &QAction::triggered,
             this, &EBDesktopBar::saveImageRequested);
-    QAction *interaction = addAction(ebToolbarIcon("desktop"), tr("交互"));
-    interaction->setObjectName(QStringLiteral("desktopInteractionAction"));
-    interaction->setCheckable(true);
-    interaction->setToolTip(tr("允许操作桌面程序；再次点击恢复批注"));
-    connect(interaction, &QAction::toggled,
+    _interactionAction = addAction(ebToolbarIcon("desktop"), tr("交互"));
+    _interactionAction->setObjectName(QStringLiteral("desktopInteractionAction"));
+    _interactionAction->setCheckable(true);
+    _interactionAction->setToolTip(tr("切换为桌面交互"));
+    connect(_interactionAction, &QAction::toggled,
             this, &EBDesktopBar::interactionModeChanged);
     QToolButton *screenButton = new QToolButton(this);
     screenButton->setObjectName(QStringLiteral("desktopScreenButton"));
@@ -176,6 +178,15 @@ void EBDesktopBar::setBrushes(const QColor &penColor, qreal penWidth,
 void EBDesktopBar::setCurrentScreen(QScreen *screen)
 {
     _currentScreen = screen;
+}
+
+void EBDesktopBar::setInteractionMode(bool enabled)
+{
+    const QSignalBlocker blocker(_interactionAction);
+    _interactionAction->setChecked(enabled);
+    _interactionAction->setText(enabled ? tr("批注") : tr("交互"));
+    _interactionAction->setToolTip(enabled ? tr("切换为桌面批注")
+                                           : tr("切换为桌面交互"));
 }
 
 bool EBDesktopBar::eventFilter(QObject *watched, QEvent *event)

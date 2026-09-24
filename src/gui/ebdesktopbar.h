@@ -20,6 +20,7 @@ public:
     void setBrushes(const QColor &penColor, qreal penWidth,
                     const QColor &markerColor, qreal markerWidth);
     void setCurrentScreen(QScreen *screen);
+    void setInteractionMode(bool enabled);
 
 signals:
     void toolSelected(EBDesktopOverlay::Tool tool);
@@ -42,6 +43,7 @@ protected:
 private:
     QAction *_undoAction;
     QAction *_redoAction;
+    QAction *_interactionAction;
     QWidget *_dragHandle;
     QPoint _dragOrigin;
     QColor _penColor;
