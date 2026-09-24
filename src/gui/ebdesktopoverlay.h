@@ -34,6 +34,7 @@ public:
     void clear();
     void captureToBoard();
     void saveSnapshot();
+    void setInteractionMode(bool enabled);
     QImage compositeImage(QImage background) const;
     void selectScreen(QScreen *screen);
 
@@ -45,6 +46,7 @@ signals:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -91,6 +93,7 @@ private:
     bool _drawing = false;
     bool _barPositioned = false;
     bool _capturing = false;
+    bool _interactionMode = false;
     QString _capturePath;
     QPointer<QScreen> _targetScreen;
 };

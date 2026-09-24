@@ -118,6 +118,12 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     saveImage->setObjectName(QStringLiteral("desktopSaveImageAction"));
     connect(saveImage, &QAction::triggered,
             this, &EBDesktopBar::saveImageRequested);
+    QAction *interaction = addAction(ebToolbarIcon("desktop"), tr("交互"));
+    interaction->setObjectName(QStringLiteral("desktopInteractionAction"));
+    interaction->setCheckable(true);
+    interaction->setToolTip(tr("允许操作桌面程序；再次点击恢复批注"));
+    connect(interaction, &QAction::toggled,
+            this, &EBDesktopBar::interactionModeChanged);
     QToolButton *screenButton = new QToolButton(this);
     screenButton->setObjectName(QStringLiteral("desktopScreenButton"));
     screenButton->setIcon(ebToolbarIcon("desktop"));
@@ -186,9 +192,13 @@ bool EBDesktopBar::eventFilter(QObject *watched, QEvent *event)
             if (mouse->buttons() & Qt::LeftButton) {
                 const QPoint target = mouse->globalPos() - _dragOrigin;
                 QWidget *surface = parentWidget();
-                if (surface)
-                    move(qBound(0, target.x(), qMax(0, surface->width() - width())),
-                         qBound(0, target.y(), qMax(0, surface->height() - height())));
+                if (surface) {
+                    const QRect area = surface->geometry();
+                    move(qBound(area.left(), target.x(),
+                                qMax(area.left(), area.right() - width() + 1)),
+                         qBound(area.top(), target.y(),
+                                qMax(area.top(), area.bottom() - height() + 1)));
+                }
                 return true;
             }
         }

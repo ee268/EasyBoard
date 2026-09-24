@@ -28,6 +28,7 @@ signals:
     void clearRequested();
     void captureRequested();
     void saveImageRequested();
+    void interactionModeChanged(bool enabled);
     void screenSelected(QScreen *screen);
     void penColorChanged(const QColor &color);
     void markerColorChanged(const QColor &color);

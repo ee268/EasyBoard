@@ -1,6 +1,7 @@
 #include "ebdesktopoverlay.h"
 
 #include <QGuiApplication>
+#include <QHideEvent>
 #include <QFileDialog>
 #include <QImageWriter>
 #include <QKeyEvent>
@@ -17,6 +18,11 @@
 #include "ebdesktopbar.h"
 #include "ebscreencapture.h"
 
+#ifdef Q_OS_WIN
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
     : QWidget(parent)
     , _bar(new EBDesktopBar(this))
@@ -29,6 +35,8 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
     setAttribute(Qt::WA_NoSystemBackground);
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
+    _bar->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint
+                         | Qt::WindowStaysOnTopHint);
     connect(_bar, &EBDesktopBar::toolSelected,
             this, &EBDesktopOverlay::setTool);
     connect(_bar, &EBDesktopBar::undoRequested,
@@ -41,6 +49,8 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
             this, &EBDesktopOverlay::captureToBoard);
     connect(_bar, &EBDesktopBar::saveImageRequested,
             this, &EBDesktopOverlay::saveSnapshot);
+    connect(_bar, &EBDesktopBar::interactionModeChanged,
+            this, &EBDesktopOverlay::setInteractionMode);
     connect(_bar, &EBDesktopBar::screenSelected,
             this, &EBDesktopOverlay::selectScreen);
     connect(_bar, &EBDesktopBar::penColorChanged,
@@ -84,13 +94,40 @@ void EBDesktopOverlay::openOnDesktop()
 {
     followScreen();
     showFullScreen();
+    raise();
     _bar->show();
     _bar->adjustSize();
-    _bar->move((width() - _bar->width()) / 2, 12);
+    if (!_barPositioned) {
+        _bar->move(geometry().x() + (width() - _bar->width()) / 2,
+                   geometry().y() + 12);
+        _barPositioned = true;
+    }
     _bar->raise();
-    raise();
-    activateWindow();
-    setFocus();
+    setInteractionMode(_interactionMode);
+    if (!_interactionMode) {
+        activateWindow();
+        setFocus();
+    }
+}
+
+void EBDesktopOverlay::setInteractionMode(bool enabled)
+{
+    if (_drawing)
+        finishStroke();
+    _interactionMode = enabled;
+#ifdef Q_OS_WIN
+    const HWND handle = reinterpret_cast<HWND>(winId());
+    LONG_PTR style = GetWindowLongPtrW(handle, GWL_EXSTYLE);
+    style = enabled ? style | WS_EX_TRANSPARENT : style & ~WS_EX_TRANSPARENT;
+    SetWindowLongPtrW(handle, GWL_EXSTYLE, style);
+    SetWindowPos(handle, nullptr, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+                     | SWP_FRAMECHANGED);
+#else
+    setWindowFlag(Qt::WindowTransparentForInput, enabled);
+    showFullScreen();
+#endif
+    emit statusMessage(enabled ? tr("桌面交互已开启") : tr("桌面批注已开启"));
 }
 
 void EBDesktopOverlay::setBrushes(const QColor &penColor, qreal penWidth,
@@ -328,6 +365,12 @@ void EBDesktopOverlay::paintEvent(QPaintEvent *event)
     painter.fillRect(rect(), QColor(127, 127, 127, 1));
 }
 
+void EBDesktopOverlay::hideEvent(QHideEvent *event)
+{
+    _bar->hide();
+    QWidget::hideEvent(event);
+}
+
 void EBDesktopOverlay::paintStroke(QPainter *painter,
                                    const Stroke &stroke) const
 {
@@ -345,11 +388,15 @@ void EBDesktopOverlay::resizeEvent(QResizeEvent *event)
     QWidget::resizeEvent(event);
     _bar->adjustSize();
     if (!_barPositioned) {
-        _bar->move((width() - _bar->width()) / 2, 12);
+        _bar->move(geometry().x() + (width() - _bar->width()) / 2,
+                   geometry().y() + 12);
         _barPositioned = true;
     } else {
-        _bar->move(qBound(0, _bar->x(), qMax(0, width() - _bar->width())),
-                   qBound(0, _bar->y(), qMax(0, height() - _bar->height())));
+        const QRect area = geometry();
+        _bar->move(qBound(area.left(), _bar->x(),
+                          qMax(area.left(), area.right() - _bar->width() + 1)),
+                   qBound(area.top(), _bar->y(),
+                          qMax(area.top(), area.bottom() - _bar->height() + 1)));
     }
 }
 
