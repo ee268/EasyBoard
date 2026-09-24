@@ -5,6 +5,7 @@
 #include <QColorDialog>
 #include <QInputDialog>
 #include <QGuiApplication>
+#include <QLabel>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QScreen>
@@ -19,6 +20,7 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     , _undoAction(nullptr)
     , _redoAction(nullptr)
     , _interactionAction(nullptr)
+    , _modeLabel(nullptr)
 {
     setObjectName(QStringLiteral("desktopAnnotationBar"));
     ebStyleBar(this, QStringLiteral("border: 1px solid #DCE6EA; border-radius: 10px;"), true);
@@ -30,6 +32,10 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     drag->installEventFilter(this);
     _dragHandle = drag;
     addWidget(drag);
+    _modeLabel = new QLabel(tr("批注模式"), this);
+    _modeLabel->setObjectName(QStringLiteral("desktopModeLabel"));
+    _modeLabel->setMinimumWidth(64);
+    addWidget(_modeLabel);
     QActionGroup *tools = new QActionGroup(this);
     tools->setExclusive(true);
     const char *icons[] = {"pen", "marker", "eraser",
@@ -187,6 +193,7 @@ void EBDesktopBar::setInteractionMode(bool enabled)
     _interactionAction->setText(enabled ? tr("批注") : tr("交互"));
     _interactionAction->setToolTip(enabled ? tr("切换为桌面批注")
                                            : tr("切换为桌面交互"));
+    _modeLabel->setText(enabled ? tr("桌面交互") : tr("批注模式"));
 }
 
 bool EBDesktopBar::eventFilter(QObject *watched, QEvent *event)

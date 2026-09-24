@@ -109,6 +109,9 @@ EBDesktopOverlay::~EBDesktopOverlay()
 void EBDesktopOverlay::openOnDesktop()
 {
     followScreen();
+    if (_activeScreen && windowHandle()
+        && windowHandle()->screen() != _activeScreen)
+        windowHandle()->setScreen(_activeScreen);
     showFullScreen();
     raise();
     _bar->show();
@@ -127,6 +130,7 @@ void EBDesktopOverlay::setInteractionMode(bool enabled)
     if (_drawing)
         finishStroke();
     const bool changed = _interactionMode != enabled;
+    const bool previous = _interactionMode;
     _interactionMode = enabled;
     _bar->setInteractionMode(enabled);
     if (!isVisible())
@@ -134,11 +138,22 @@ void EBDesktopOverlay::setInteractionMode(bool enabled)
 #ifdef Q_OS_WIN
     const HWND handle = reinterpret_cast<HWND>(winId());
     LONG_PTR style = GetWindowLongPtrW(handle, GWL_EXSTYLE);
-    style = enabled ? style | WS_EX_TRANSPARENT : style & ~WS_EX_TRANSPARENT;
-    SetWindowLongPtrW(handle, GWL_EXSTYLE, style);
-    SetWindowPos(handle, nullptr, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
-                     | SWP_FRAMECHANGED);
+    const bool alreadySet = (style & WS_EX_TRANSPARENT) != 0;
+    if (alreadySet != enabled) {
+        style = enabled ? style | WS_EX_TRANSPARENT
+                        : style & ~WS_EX_TRANSPARENT;
+        SetWindowLongPtrW(handle, GWL_EXSTYLE, style);
+        SetWindowPos(handle, nullptr, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+                         | SWP_FRAMECHANGED);
+    }
+    if (((GetWindowLongPtrW(handle, GWL_EXSTYLE)
+           & WS_EX_TRANSPARENT) != 0) != enabled) {
+        _interactionMode = previous;
+        _bar->setInteractionMode(previous);
+        emit statusMessage(tr("无法切换桌面输入模式"));
+        return;
+    }
 #else
     setWindowFlag(Qt::WindowTransparentForInput, enabled);
     showFullScreen();
@@ -269,6 +284,7 @@ void EBDesktopOverlay::finishCapture(const QRect &area, qreal ratio, int attempt
     }
     _capturing = false;
     if (image.isNull()) {
+        _capturePath.clear();
         openOnDesktop();
         emit statusMessage(tr("无法读取桌面画面，请确认屏幕捕获权限"));
         return;
@@ -330,6 +346,8 @@ void EBDesktopOverlay::followScreen()
         } else if (_inkSize != size) {
             resizeInk(size);
         }
+        if (!windowHandle())
+            winId();
         if (windowHandle() && windowHandle()->screen() != screen)
             windowHandle()->setScreen(screen);
         setGeometry(screen->geometry());

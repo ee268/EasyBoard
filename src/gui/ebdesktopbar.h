@@ -8,6 +8,7 @@
 #include "ebdesktopoverlay.h"
 
 class QAction;
+class QLabel;
 class QScreen;
 
 // 桌面工具栏只表达绘图、历史和退出操作。
@@ -44,6 +45,7 @@ private:
     QAction *_undoAction;
     QAction *_redoAction;
     QAction *_interactionAction;
+    QLabel *_modeLabel;
     QWidget *_dragHandle;
     QPoint _dragOrigin;
     QColor _penColor;
