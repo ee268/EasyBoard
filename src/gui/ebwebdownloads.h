@@ -33,6 +33,7 @@ public:
     bool removeRecord(int index);
     void clearFinished();
     bool relink(int index, const QString &path, QString *error = nullptr);
+    void refreshFiles();
     void showManager();
 
 signals:
@@ -44,7 +45,6 @@ signals:
 private:
     void load();
     void save() const;
-    void refreshFiles();
     int indexFor(quint64 id) const;
 
     QWidget *_window;

@@ -1,6 +1,7 @@
 #include "ebpdfimporter.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -96,6 +97,8 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
             *error = QStringLiteral("PDF 文件不存在、为空或超过 256 MB");
         return false;
     }
+    const qint64 sourceSize = file.size();
+    const QDateTime sourceModified = file.lastModified();
     QTemporaryDir temporary;
     if (!temporary.isValid()) {
         if (error)
@@ -178,6 +181,13 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
         }
         return false;
     }
+    const QFileInfo currentSource(path);
+    if (!currentSource.isFile() || currentSource.size() != sourceSize
+        || currentSource.lastModified() != sourceModified) {
+        if (error)
+            *error = QStringLiteral("PDF 文件在导入过程中发生变化，请重新导入");
+        return false;
+    }
     QFile manifest(QDir(temporary.path()).filePath(QStringLiteral("pages.json")));
     if (!manifest.open(QIODevice::ReadOnly)) {
         if (error)
@@ -205,9 +215,12 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
         const QJsonObject pageInfo = pages.at(pageIndex).toObject();
         const QString name = pageInfo.value(QStringLiteral("file")).toString();
         const QJsonValue width = pageInfo.value(QStringLiteral("width"));
+        const int sourcePage = pageInfo.value(
+            QStringLiteral("sourcePage")).toInt(-1);
         const QString expected = QStringLiteral("page-%1.png").arg(pageIndex + 1);
         const QFileInfo imageFile(QDir(temporary.path()).filePath(name));
-        if (name != expected || !width.isDouble() || !imageFile.isFile()
+        if (name != expected || sourcePage != options.firstPage + pageIndex
+            || !width.isDouble() || !imageFile.isFile() || imageFile.isSymLink()
             || imageFile.size() <= 0 || imageFile.size() > kMaxImageBytes) {
             if (error)
                 *error = QStringLiteral("第 %1 页图像无效").arg(pageIndex + 1);

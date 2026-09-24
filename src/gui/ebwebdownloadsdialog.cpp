@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTableWidget>
+#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -76,6 +77,11 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
     connect(_clear, &QPushButton::clicked,
             _downloads, &EBWebDownloads::clearFinished);
     connect(close, &QPushButton::clicked, this, &QDialog::close);
+    QTimer *refreshTimer = new QTimer(this);
+    refreshTimer->setInterval(3000);
+    connect(refreshTimer, &QTimer::timeout,
+            _downloads, &EBWebDownloads::refreshFiles);
+    refreshTimer->start();
     refreshRows();
 }
 
@@ -157,8 +163,14 @@ void EBWebDownloadsDialog::openFile()
     if (row < 0 || row >= _downloads->count())
         return;
     const EBWebDownloads::Entry &entry = _downloads->entryAt(row);
-    if (!entry.completed || !QFileInfo::exists(entry.path))
+    if (!entry.completed)
         return;
+    if (!QFileInfo(entry.path).isFile()) {
+        _downloads->refreshFiles();
+        QMessageBox::warning(this, tr("打开下载"),
+                             tr("文件已移动或删除，请重新定位"));
+        return;
+    }
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(entry.path)))
         QMessageBox::warning(this, tr("打开下载"), tr("无法打开下载文件"));
 }
@@ -170,6 +182,11 @@ void EBWebDownloadsDialog::openFolder()
         return;
     const QString directory = QFileInfo(
         _downloads->entryAt(row).path).absolutePath();
+    if (!QDir(directory).exists()) {
+        QMessageBox::warning(this, tr("打开文件夹"),
+                             tr("下载目录已移动或删除"));
+        return;
+    }
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(directory)))
         QMessageBox::warning(this, tr("打开文件夹"), tr("无法打开下载目录"));
 }
