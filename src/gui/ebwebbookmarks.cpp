@@ -58,7 +58,8 @@ bool EBWebBookmarks::add(const QUrl &url, const QString &title,
         return false;
     const int index = indexOf(url);
     if (index >= 0) {
-        update(index, title, folder);
+        update(index, title.isEmpty() ? _entries.at(index).title : title,
+               folder.isEmpty() ? _entries.at(index).folder : folder);
         return true;
     }
     if (_entries.size() >= 500)
