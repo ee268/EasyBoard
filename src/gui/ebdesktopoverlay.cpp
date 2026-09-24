@@ -8,6 +8,7 @@
 #include <QResizeEvent>
 #include <QScreen>
 #include <QTimer>
+#include <QTransform>
 #include <QWindow>
 
 #include "ebdesktopbar.h"
@@ -53,6 +54,14 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
             this, &EBDesktopOverlay::followScreen);
     connect(qGuiApp, &QGuiApplication::screenRemoved, this,
             [this](QScreen *screen) {
+        _screenInk.remove(screen);
+        if (_activeScreen == screen) {
+            _activeScreen = nullptr;
+            _strokes.clear();
+            _applied = 0;
+            _drawing = false;
+            refreshHistory();
+        }
         if (_targetScreen == screen)
             _targetScreen = nullptr;
         QTimer::singleShot(0, this, &EBDesktopOverlay::followScreen);
@@ -154,7 +163,8 @@ void EBDesktopOverlay::captureToBoard()
         finishStroke();
     _capturing = true;
     const QRect area = geometry();
-    const qreal ratio = devicePixelRatioF();
+    const qreal ratio = _activeScreen
+        ? _activeScreen->devicePixelRatio() : devicePixelRatioF();
     hide();
     QTimer::singleShot(200, this, [this, area, ratio]() {
         finishCapture(area, ratio, 0);
@@ -205,11 +215,51 @@ void EBDesktopOverlay::followScreen()
     QScreen *screen = _targetScreen ? _targetScreen.data()
                                     : QGuiApplication::primaryScreen();
     if (screen) {
+        const QSize size = screen->geometry().size();
+        if (_activeScreen != screen) {
+            if (_drawing)
+                finishStroke();
+            saveScreenInk();
+            _activeScreen = screen;
+            restoreScreenInk(screen, size);
+        } else if (_inkSize != size) {
+            resizeInk(size);
+        }
         if (windowHandle() && windowHandle()->screen() != screen)
             windowHandle()->setScreen(screen);
         setGeometry(screen->geometry());
         _bar->setCurrentScreen(screen);
+        update();
     }
+}
+
+void EBDesktopOverlay::saveScreenInk()
+{
+    if (_activeScreen)
+        _screenInk.insert(_activeScreen, {_strokes, _applied, _inkSize});
+}
+
+void EBDesktopOverlay::restoreScreenInk(QScreen *screen, const QSize &size)
+{
+    const ScreenInk ink = _screenInk.value(screen);
+    _strokes = ink.strokes;
+    _applied = qMin(ink.applied, _strokes.size());
+    _inkSize = ink.size;
+    resizeInk(size);
+    refreshHistory();
+}
+
+void EBDesktopOverlay::resizeInk(const QSize &size)
+{
+    if (_inkSize.isValid() && size.isValid() && _inkSize != size) {
+        const QTransform transform = QTransform::fromScale(
+            qreal(size.width()) / _inkSize.width(),
+            qreal(size.height()) / _inkSize.height());
+        for (Stroke &stroke : _strokes)
+            stroke.path = transform.map(stroke.path);
+    }
+    _inkSize = size;
+    update();
 }
 
 void EBDesktopOverlay::selectScreen(QScreen *screen)

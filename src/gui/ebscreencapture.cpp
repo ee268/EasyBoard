@@ -27,10 +27,37 @@ bool entirelyBlack(const QImage &image)
 }
 
 #ifdef Q_OS_WIN
-QImage captureWithGdi(const QRect &area, qreal ratio)
+struct MonitorOrigin {
+    QString name;
+    QPoint position;
+    bool found = false;
+};
+
+BOOL CALLBACK findMonitorOrigin(HMONITOR monitor, HDC, LPRECT, LPARAM context)
+{
+    MonitorOrigin *result = reinterpret_cast<MonitorOrigin *>(context);
+    MONITORINFOEXW info = {};
+    info.cbSize = sizeof(info);
+    if (GetMonitorInfoW(monitor, &info)
+        && QString::fromWCharArray(info.szDevice).compare(
+            result->name, Qt::CaseInsensitive) == 0) {
+        result->position = QPoint(info.rcMonitor.left, info.rcMonitor.top);
+        result->found = true;
+        return FALSE;
+    }
+    return TRUE;
+}
+
+QImage captureWithGdi(const QRect &area, QScreen *screen, qreal ratio)
 {
     const int width = qCeil(area.width() * ratio);
     const int height = qCeil(area.height() * ratio);
+    MonitorOrigin origin{screen->name(), screen->geometry().topLeft()};
+    EnumDisplayMonitors(nullptr, nullptr, findMonitorOrigin,
+                        reinterpret_cast<LPARAM>(&origin));
+    const QPoint local = area.topLeft() - screen->geometry().topLeft();
+    const int sourceX = origin.position.x() + qRound(local.x() * ratio);
+    const int sourceY = origin.position.y() + qRound(local.y() * ratio);
     HDC desktop = GetDC(nullptr);
     if (!desktop)
         return QImage();
@@ -49,7 +76,7 @@ QImage captureWithGdi(const QRect &area, qreal ratio)
     if (memory && bitmap && pixels) {
         HGDIOBJ previous = SelectObject(memory, bitmap);
         if (BitBlt(memory, 0, 0, width, height, desktop,
-                   qRound(area.x() * ratio), qRound(area.y() * ratio),
+                   sourceX, sourceY,
                    SRCCOPY | CAPTUREBLT)) {
             image = QImage(static_cast<uchar *>(pixels), width, height,
                            width * 4, QImage::Format_RGB32).copy();
@@ -88,7 +115,7 @@ QImage ebCaptureScreens(const QRect &area, qreal devicePixelRatio)
         const QRectF target(part.topLeft() - area.topLeft(), part.size());
 #ifdef Q_OS_WIN
         if (entirelyBlack(screenImage)) {
-            const QImage fallback = captureWithGdi(part, sourceRatio);
+            const QImage fallback = captureWithGdi(part, screen, sourceRatio);
             if (fallback.isNull())
                 continue;
             painter.drawImage(target, fallback);

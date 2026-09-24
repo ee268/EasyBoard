@@ -2,6 +2,7 @@
 #define EBDESKTOPOVERLAY_H
 
 #include <QColor>
+#include <QHash>
 #include <QImage>
 #include <QPainterPath>
 #include <QPointer>
@@ -56,8 +57,16 @@ private:
         QColor color;
         qreal width;
     };
+    struct ScreenInk {
+        QVector<Stroke> strokes;
+        int applied = 0;
+        QSize size;
+    };
 
     void paintStroke(QPainter *painter, const Stroke &stroke) const;
+    void saveScreenInk();
+    void restoreScreenInk(QScreen *screen, const QSize &size);
+    void resizeInk(const QSize &size);
     void finishStroke();
     void refreshHistory();
     void followScreen();
@@ -65,6 +74,9 @@ private:
 
     EBDesktopBar *_bar;
     QVector<Stroke> _strokes;
+    QHash<QScreen *, ScreenInk> _screenInk;
+    QPointer<QScreen> _activeScreen;
+    QSize _inkSize;
     int _applied = 0;
     Stroke _current;
     Tool _tool = Tool::Pen;
