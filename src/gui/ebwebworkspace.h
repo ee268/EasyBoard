@@ -12,6 +12,7 @@ class QTabWidget;
 class QWebEngineView;
 class QWebEngineProfile;
 class EBWebCapture;
+class EBWebHistory;
 
 // 网页模式只负责浏览和可见区域截图，不直接修改白板文档。
 class EBWebWorkspace : public QWidget
@@ -41,6 +42,7 @@ private:
     QTabWidget *_tabs;
     QWebEngineProfile *_profile;
     QLineEdit *_address;
+    EBWebHistory *_history;
     QAction *_backAction;
     QAction *_forwardAction;
     QAction *_reloadAction;

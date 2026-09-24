@@ -24,6 +24,8 @@
 #include "ebwebdownloads.h"
 #include "ebwebview.h"
 #include "ebwebsession.h"
+#include "ebwebhistory.h"
+#include "ebwebhistorydialog.h"
 
 namespace {
 const char *welcomeHtml =
@@ -39,6 +41,7 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     , _tabs(new QTabWidget(this))
     , _profile(new QWebEngineProfile(QStringLiteral("EasyBoard"), this))
     , _address(new QLineEdit(this))
+    , _history(new EBWebHistory(this))
     , _backAction(nullptr)
     , _forwardAction(nullptr)
     , _reloadAction(nullptr)
@@ -111,6 +114,9 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
         style()->standardIcon(QStyle::SP_FileIcon), tr("新建标签页"));
     newTab->setObjectName(QStringLiteral("webNewTabAction"));
     newTab->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
+    QAction *historyAction = bar->addAction(ebToolbarIcon("history"),
+                                            tr("历史"));
+    historyAction->setObjectName(QStringLiteral("webHistoryAction"));
     _captureAction = bar->addAction(ebToolbarIcon("image_object"),
                                     tr("截取网页区域到白板"));
     _captureAction->setObjectName(QStringLiteral("webCaptureAction"));
@@ -146,6 +152,13 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
         createTab();
         _address->setFocus();
         _address->selectAll();
+    });
+    connect(historyAction, &QAction::triggered, this, [this]() {
+        EBWebHistoryDialog *dialog = new EBWebHistoryDialog(_history, this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        connect(dialog, &EBWebHistoryDialog::openRequested,
+                this, [this](const QUrl &url) { createTab(url); });
+        dialog->open();
     });
     connect(_captureAction, &QAction::triggered,
             this, &EBWebWorkspace::startCapture);
@@ -208,6 +221,8 @@ QWebEngineView *EBWebWorkspace::createTab(const QUrl &url)
             [this, view](bool success) {
         if (currentView() == view)
             refreshNavigation();
+        if (success && !view->property("welcomePage").toBool())
+            _history->record(view->url(), view->title());
         if (!success && !view->property("welcomePage").toBool())
             emit statusMessage(tr("网页加载失败：%1").arg(view->url().toString()));
     });

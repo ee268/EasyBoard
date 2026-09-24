@@ -54,6 +54,7 @@
         <file>icons/toolbar/document.svg</file>
         <file>icons/toolbar/page_sidebar.svg</file>
         <file>icons/toolbar/web.svg</file>
+        <file>icons/toolbar/history.svg</file>
         <file>icons/toolbar/desktop.svg</file>
         <file>icons/toolbar/file_new.svg</file>
         <file>icons/toolbar/file_open.svg</file>
