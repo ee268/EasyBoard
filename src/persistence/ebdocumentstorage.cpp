@@ -895,7 +895,9 @@ bool EBDocumentStorage::load(const QString &path, EBDocument *document,
     QFile file(path);
     QString primaryError;
     if (file.open(QIODevice::ReadOnly)) {
-        if (fromJson(file.readAll(), document, &primaryError,
+        const QByteArray primary = file.readAll();
+        file.close();
+        if (fromJson(primary, document, &primaryError,
                      assetDirectoryFor(path))) {
             if (error)
                 error->clear();
