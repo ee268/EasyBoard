@@ -16,6 +16,8 @@ file(GLOB_RECURSE EASYBOARD_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
 )
+list(REMOVE_ITEM EASYBOARD_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/import/ebpdfrenderer.cpp")
 
 add_executable(${PROJECT_NAME}
     ${EASYBOARD_SOURCES}
@@ -24,7 +26,6 @@ add_executable(${PROJECT_NAME}
 
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
-    target_link_libraries(${PROJECT_NAME} PRIVATE windowsapp)
 endif()
 
 
@@ -51,3 +52,12 @@ install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+if(WIN32)
+    add_executable(EasyBoardPdfRenderer src/import/ebpdfrenderer.cpp)
+    target_compile_options(EasyBoardPdfRenderer PRIVATE /utf-8)
+    target_link_libraries(EasyBoardPdfRenderer PRIVATE
+        Qt5::Core Qt5::Gui windowsapp)
+    install(TARGETS EasyBoardPdfRenderer
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()

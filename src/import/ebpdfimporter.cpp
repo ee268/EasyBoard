@@ -1,23 +1,22 @@
 #include "ebpdfimporter.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
-#include <QImage>
-
-#include <algorithm>
-#include <cmath>
+#include <QImageReader>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QProcess>
+#include <QTemporaryDir>
 
 #include "../domain/ebdocument.h"
 
-#ifdef Q_OS_WIN
-#include <winrt/Windows.Data.Pdf.h>
-#include <winrt/Windows.Storage.h>
-#include <winrt/Windows.Storage.Streams.h>
-#endif
-
 namespace {
 constexpr qint64 kMaxPdfBytes = 256 * 1024 * 1024;
-constexpr int kMaxPages = 200;
-constexpr int kMaxRenderedBytes = 64 * 1024 * 1024;
+constexpr qint64 kMaxImageBytes = 64 * 1024 * 1024;
+constexpr qint64 kMaxImagePixels = 40000000;
 }
 
 bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
@@ -30,84 +29,90 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
             *error = QStringLiteral("PDF 文件不存在、为空或超过 256 MB");
         return false;
     }
-#ifdef Q_OS_WIN
-    try {
-        // WinRT 的异步结果必须在工作线程等待，由调用方负责提供工作线程。
-        winrt::init_apartment(winrt::apartment_type::multi_threaded);
-        using namespace winrt::Windows::Data::Pdf;
-        using namespace winrt::Windows::Storage;
-        using namespace winrt::Windows::Storage::Streams;
-        const auto storageFile = StorageFile::GetFileFromPathAsync(
-            winrt::hstring(file.absoluteFilePath().toStdWString())).get();
-        const PdfDocument pdf = PdfDocument::LoadFromFileAsync(storageFile).get();
-        const uint32_t pageCount = pdf.PageCount();
-        if (pageCount == 0 || pageCount > kMaxPages) {
-            if (error)
-                *error = QStringLiteral("PDF 页数为空或超过 200 页");
-            return false;
-        }
-
-        EBDocument imported;
-        imported.setTitle(file.completeBaseName());
-        for (uint32_t index = 0; index < pageCount; ++index) {
-            const PdfPage pdfPage = pdf.GetPage(index);
-            const auto size = pdfPage.Size();
-            if (size.Width <= 0 || size.Height <= 0) {
-                if (error)
-                    *error = QStringLiteral("第 %1 页尺寸无效").arg(index + 1);
-                return false;
-            }
-            const double ratio = double(size.Width) / double(size.Height);
-            const uint32_t width = static_cast<uint32_t>(
-                std::max(1.0, std::min(1600.0, 1200.0 * ratio)));
-            const uint32_t height = static_cast<uint32_t>(
-                std::max(1.0, std::min(1200.0, double(width) / ratio)));
-            PdfPageRenderOptions options;
-            options.DestinationWidth(width);
-            options.DestinationHeight(height);
-            InMemoryRandomAccessStream stream;
-            pdfPage.RenderToStreamAsync(stream, options).get();
-            if (stream.Size() == 0 || stream.Size() > kMaxRenderedBytes) {
-                if (error)
-                    *error = QStringLiteral("第 %1 页渲染结果过大").arg(index + 1);
-                return false;
-            }
-            QByteArray png(int(stream.Size()), '\0');
-            DataReader reader = DataReader::CreateInputStreamReader(
-                stream.GetInputStreamAt(0));
-            reader.LoadAsync(uint32_t(png.size())).get();
-            reader.ReadBytes({reinterpret_cast<uint8_t *>(png.data()),
-                              reinterpret_cast<uint8_t *>(png.data()) + png.size()});
-            const QImage image = QImage::fromData(png, "PNG");
-            if (image.isNull()) {
-                if (error)
-                    *error = QStringLiteral("第 %1 页渲染失败").arg(index + 1);
-                return false;
-            }
-            if (index > 0) {
-                imported.addPage();
-                imported.setCurrentPageIndex(int(index));
-            }
-            EBPage *page = imported.currentPage();
-            if (!page->setCustomWidth(EBPage::Height * ratio)) {
-                if (error)
-                    *error = QStringLiteral("第 %1 页比例超出支持范围").arg(index + 1);
-                return false;
-            }
-            page->setBackgroundImage(image);
-        }
-        imported.setCurrentPageIndex(0);
-        *document = imported;
-        return true;
-    } catch (const winrt::hresult_error &failure) {
+    QTemporaryDir temporary;
+    if (!temporary.isValid()) {
         if (error)
-            *error = QStringLiteral("PDF 无法打开或渲染（0x%1）")
-                .arg(quint32(failure.code()), 8, 16, QLatin1Char('0'));
+            *error = QStringLiteral("无法创建 PDF 导入临时目录");
         return false;
     }
-#else
-    if (error)
-        *error = QStringLiteral("当前系统不支持 PDF 导入");
-    return false;
-#endif
+    const QString renderer = QDir(QCoreApplication::applicationDirPath()).filePath(
+        QStringLiteral("EasyBoardPdfRenderer.exe"));
+    if (!QFileInfo::exists(renderer)) {
+        if (error)
+            *error = QStringLiteral("缺少 PDF 渲染组件 EasyBoardPdfRenderer.exe");
+        return false;
+    }
+    QProcess process;
+    process.start(renderer, {file.absoluteFilePath(), temporary.path()});
+    if (!process.waitForStarted(10000) || !process.waitForFinished(300000)
+        || process.exitStatus() != QProcess::NormalExit
+        || process.exitCode() != 0) {
+        if (process.state() != QProcess::NotRunning) {
+            process.kill();
+            process.waitForFinished(3000);
+        }
+        if (error) {
+            const QString detail = QString::fromUtf8(
+                process.readAllStandardError()).trimmed();
+            *error = detail.isEmpty() ? QStringLiteral("PDF 渲染失败或超时")
+                                      : detail;
+        }
+        return false;
+    }
+    QFile manifest(QDir(temporary.path()).filePath(QStringLiteral("pages.json")));
+    if (!manifest.open(QIODevice::ReadOnly)) {
+        if (error)
+            *error = QStringLiteral("PDF 页面索引缺失");
+        return false;
+    }
+    const QJsonDocument index = QJsonDocument::fromJson(manifest.readAll());
+    const QJsonArray pages = index.object().value(QStringLiteral("pages")).toArray();
+    if (pages.isEmpty() || pages.size() > 200) {
+        if (error)
+            *error = QStringLiteral("PDF 页面索引无效");
+        return false;
+    }
+    EBDocument imported;
+    imported.setTitle(file.completeBaseName());
+    for (int pageIndex = 0; pageIndex < pages.size(); ++pageIndex) {
+        const QJsonObject pageInfo = pages.at(pageIndex).toObject();
+        const QString name = pageInfo.value(QStringLiteral("file")).toString();
+        const QJsonValue width = pageInfo.value(QStringLiteral("width"));
+        const QString expected = QStringLiteral("page-%1.png").arg(pageIndex + 1);
+        const QFileInfo imageFile(QDir(temporary.path()).filePath(name));
+        if (name != expected || !width.isDouble() || !imageFile.isFile()
+            || imageFile.size() <= 0 || imageFile.size() > kMaxImageBytes) {
+            if (error)
+                *error = QStringLiteral("第 %1 页图像无效").arg(pageIndex + 1);
+            return false;
+        }
+        QImageReader reader(imageFile.absoluteFilePath(), "PNG");
+        const QSize size = reader.size();
+        if (!size.isValid()
+            || qint64(size.width()) * size.height() > kMaxImagePixels) {
+            if (error)
+                *error = QStringLiteral("第 %1 页图像过大").arg(pageIndex + 1);
+            return false;
+        }
+        const QImage image = reader.read();
+        if (image.isNull()) {
+            if (error)
+                *error = QStringLiteral("第 %1 页图像读取失败").arg(pageIndex + 1);
+            return false;
+        }
+        if (pageIndex > 0) {
+            imported.addPage();
+            imported.setCurrentPageIndex(pageIndex);
+        }
+        EBPage *page = imported.currentPage();
+        if (!page->setCustomWidth(width.toDouble())) {
+            if (error)
+                *error = QStringLiteral("第 %1 页比例无效").arg(pageIndex + 1);
+            return false;
+        }
+        page->setBackgroundImage(image);
+    }
+    imported.setCurrentPageIndex(0);
+    *document = imported;
+    return true;
 }
