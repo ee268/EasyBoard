@@ -49,6 +49,16 @@ void EBCommands::createFileMenu()
             emit fileImportRequested(path);
     });
 
+    QAction *importPdfAction = fileMenu->addAction(
+        ebToolbarIcon("file_import_pdf"), tr("导入 PDF 为新文档..."));
+    importPdfAction->setObjectName(QStringLiteral("importPdfAction"));
+    connect(importPdfAction, &QAction::triggered, this, [this]() {
+        const QString path = QFileDialog::getOpenFileName(
+            _window, tr("导入 PDF 为新文档"), QString(), tr("PDF 文件 (*.pdf)"));
+        if (!path.isEmpty())
+            emit fileImportRequested(path);
+    });
+
     _insertImageObjectAction = fileMenu->addAction(tr("插入图片对象..."));
     _insertImageObjectAction->setObjectName(
         QStringLiteral("insertImageObjectAction"));

@@ -4,6 +4,7 @@
 #include "../core/ebsettings.h"
 #include "../export/ebdocumentexporter.h"
 #include "../import/ebimageimporter.h"
+#include "../import/ebpdfimporter.h"
 #include "../persistence/ebdocumentpackage.h"
 #include "../persistence/ebdocumentstorage.h"
 #include "ebdocumentlibrary.h"
@@ -16,8 +17,11 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QEventLoop>
+#include <QProgressDialog>
 #include <QStackedWidget>
 #include <QStatusBar>
+#include <QThread>
 
 namespace {
 bool documentHasContent(const EBDocument &document)
@@ -307,6 +311,43 @@ bool EBMainWindow::importImage(const QString &path)
     }
     statusBar()->showMessage(
         tr("图片已导入：%1").arg(QDir::toNativeSeparators(path)), 5000);
+    return true;
+}
+
+bool EBMainWindow::importPdf(const QString &path)
+{
+    EBDocument imported;
+    QString error;
+    QEventLoop loop;
+    QProgressDialog progress(tr("正在导入 PDF..."), QString(), 0, 0, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setCancelButton(nullptr);
+    QThread *worker = QThread::create([&]() {
+        EBPDFImporter::importFile(path, &imported, &error);
+    });
+    connect(worker, &QThread::finished, &loop, &QEventLoop::quit);
+    worker->start();
+    progress.show();
+    if (worker->isRunning())
+        loop.exec();
+    worker->wait();
+    delete worker;
+    progress.close();
+    if (!error.isEmpty()) {
+        statusBar()->showMessage(tr("导入 PDF 失败：%1").arg(error), 5000);
+        return false;
+    }
+    if (!prepareForImportedDocument()) {
+        statusBar()->showMessage(tr("当前文档保存失败，PDF 未导入"), 5000);
+        return false;
+    }
+    QString savedPath;
+    if (!activateImportedDocument(imported, &savedPath, &error)) {
+        statusBar()->showMessage(tr("导入文档保存失败：%1").arg(error), 5000);
+        return false;
+    }
+    statusBar()->showMessage(
+        tr("PDF 已导入：%1").arg(QDir::toNativeSeparators(path)), 5000);
     return true;
 }
 

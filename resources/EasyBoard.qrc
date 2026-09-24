@@ -60,6 +60,7 @@
         <file>icons/toolbar/file_new.svg</file>
         <file>icons/toolbar/file_open.svg</file>
         <file>icons/toolbar/file_import_image.svg</file>
+        <file>icons/toolbar/file_import_pdf.svg</file>
         <file>icons/toolbar/file_package_import.svg</file>
         <file>icons/toolbar/file_save.svg</file>
         <file>icons/toolbar/file_export_image.svg</file>

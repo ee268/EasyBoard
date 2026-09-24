@@ -26,6 +26,7 @@ public:
     void showMode(EBApplicationController::MainMode mode);
     bool openDocument(const QString &path);
     bool importImage(const QString &path);
+    bool importPdf(const QString &path);
     bool insertImageObject(const QString &path);
     bool importDocumentPackage(const QString &path);
 

@@ -120,6 +120,8 @@ void EBApplication::handleImportFileRequest(const QString &filePath)
         _mainWindow->openDocument(file.absoluteFilePath());
     else if (file.suffix().compare(QStringLiteral("ebz"), Qt::CaseInsensitive) == 0)
         _mainWindow->importDocumentPackage(file.absoluteFilePath());
+    else if (file.suffix().compare(QStringLiteral("pdf"), Qt::CaseInsensitive) == 0)
+        _mainWindow->importPdf(file.absoluteFilePath());
     else
         _mainWindow->importImage(file.absoluteFilePath());
 }
