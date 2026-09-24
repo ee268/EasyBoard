@@ -481,7 +481,8 @@ bool EBMainWindow::loadDocument(const QString &path, bool switchToBoard)
     settings->save();
     refreshDocumentLibrary();
     statusBar()->showMessage(
-        tr("文档已打开：%1").arg(QDir::toNativeSeparators(path)), 5000);
+        error.isEmpty() ? tr("文档已打开：%1").arg(QDir::toNativeSeparators(path))
+                        : error, 8000);
     if (switchToBoard)
         emit modeRequested(EBApplicationController::MainMode::Board);
     return true;

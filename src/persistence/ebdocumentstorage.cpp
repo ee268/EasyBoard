@@ -1,4 +1,5 @@
 #include "ebdocumentstorage.h"
+#include "ebdocumentbackup.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -44,7 +45,7 @@ void cleanupAssets(const QString &documentPath, const QByteArray &data)
 {
     const QJsonArray pages = QJsonDocument::fromJson(data).object()
         .value(QStringLiteral("pages")).toArray();
-    QSet<QString> used;
+    QSet<QString> used = EBDocumentBackup::referencedAssets(documentPath);
     for (const QJsonValue &value : pages) {
         const QString name = value.toObject()
             .value(QStringLiteral("backgroundImage")).toObject()
@@ -728,13 +729,11 @@ bool fileInDirectory(const QString &path, const QString &directory)
            && samePath(file.absolutePath(), directory);
 }
 
-bool readSummary(const QString &path, bool inTrash, EBDocumentSummary *summary)
+bool readSummaryData(const QString &path, bool inTrash,
+                     const QByteArray &data, EBDocumentSummary *summary)
 {
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly))
-        return false;
     QJsonParseError error;
-    const QJsonDocument json = QJsonDocument::fromJson(file.readAll(), &error);
+    const QJsonDocument json = QJsonDocument::fromJson(data, &error);
     if (error.error != QJsonParseError::NoError || !json.isObject())
         return false;
     const QJsonObject root = json.object();
@@ -759,6 +758,16 @@ bool readSummary(const QString &path, bool inTrash, EBDocumentSummary *summary)
                 QFileInfo(path).absoluteFilePath(), createdAt,
                 updatedAt, pageCount, inTrash};
     return true;
+}
+
+bool readSummary(const QString &path, bool inTrash, EBDocumentSummary *summary)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    if (readSummaryData(path, inTrash, file.readAll(), summary))
+        return true;
+    return readSummaryData(path, inTrash, EBDocumentBackup::read(path), summary);
 }
 
 bool moveFile(const QString &source, const QString &destination, QString *error)
@@ -789,8 +798,14 @@ bool moveWithAssets(const QString &source, const QString &destination,
             *error = QStringLiteral("无法移动文档背景图像");
         return false;
     }
+    if (!EBDocumentBackup::move(source, destination, error)) {
+        if (hasAssets)
+            QDir().rename(destinationAssets, sourceAssets);
+        return false;
+    }
     if (moveFile(source, destination, error))
         return true;
+    EBDocumentBackup::move(destination, source, nullptr);
     if (hasAssets)
         QDir().rename(destinationAssets, sourceAssets);
     return false;
@@ -853,6 +868,8 @@ bool EBDocumentStorage::save(const EBDocument &document, QString *savedPath,
         return false;
     }
 
+    if (!EBDocumentBackup::snapshot(path, assetDirectoryFor(path), error))
+        return false;
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         if (error)
@@ -876,13 +893,36 @@ bool EBDocumentStorage::load(const QString &path, EBDocument *document,
                              QString *error)
 {
     QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        if (error)
-            *error = file.errorString();
-        return false;
+    QString primaryError;
+    if (file.open(QIODevice::ReadOnly)) {
+        if (fromJson(file.readAll(), document, &primaryError,
+                     assetDirectoryFor(path))) {
+            if (error)
+                error->clear();
+            return true;
+        }
+    } else {
+        primaryError = file.errorString();
     }
-    return fromJson(file.readAll(), document, error,
-                    assetDirectoryFor(path));
+    const QByteArray backup = EBDocumentBackup::read(path);
+    QString backupError;
+    if (!backup.isEmpty()
+        && fromJson(backup, document, &backupError, assetDirectoryFor(path))) {
+        QSaveFile restored(path);
+        if (!restored.open(QIODevice::WriteOnly)
+            || restored.write(backup) != backup.size() || !restored.commit()) {
+            if (error)
+                *error = QStringLiteral("备份可读取，但无法恢复原文档：%1")
+                    .arg(restored.errorString());
+            return false;
+        }
+        if (error)
+            *error = QStringLiteral("原文档损坏，已从上一版本备份恢复");
+        return true;
+    }
+    if (error)
+        *error = primaryError.isEmpty() ? backupError : primaryError;
+    return false;
 }
 
 QByteArray EBDocumentStorage::toJson(const EBDocument &document,
@@ -1087,6 +1127,7 @@ bool EBDocumentStorage::deleteFromTrash(const QString &path, QString *error)
             *error = file.errorString();
         return false;
     }
+    EBDocumentBackup::remove(path);
     QDir(assetDirectoryFor(path)).removeRecursively();
     return true;
 }
