@@ -100,7 +100,7 @@ $checksums = @('EasyBoard.exe', 'EasyBoardPdfRenderer.exe') | ForEach-Object {
 }
 Set-Content -LiteralPath (Join-Path $packageDir 'SHA256SUMS.txt') `
     -Value $checksums -Encoding Ascii
-Add-Type -AssemblyName System.IO.Compression.FileSystem
+[void][System.Reflection.Assembly]::LoadWithPartialName('System.IO.Compression.FileSystem')
 [System.IO.Compression.ZipFile]::CreateFromDirectory(
     $packageDir, $zipPath, [System.IO.Compression.CompressionLevel]::Optimal, $true)
 Write-Output $zipPath
