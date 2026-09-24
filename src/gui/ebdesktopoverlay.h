@@ -2,6 +2,7 @@
 #define EBDESKTOPOVERLAY_H
 
 #include <QColor>
+#include <QImage>
 #include <QPainterPath>
 #include <QVector>
 #include <QWidget>
@@ -27,9 +28,14 @@ public:
     bool canRedo() const;
     void undo();
     void redo();
+    void clear();
+    void captureToBoard();
+    QImage compositeImage(QImage background) const;
 
 signals:
     void exitRequested();
+    void imageCaptured(const QImage &image);
+    void statusMessage(const QString &message);
     void historyAvailabilityChanged(bool undoAvailable, bool redoAvailable);
 
 protected:
@@ -51,6 +57,7 @@ private:
     void paintStroke(QPainter *painter, const Stroke &stroke) const;
     void finishStroke();
     void refreshHistory();
+    void followScreen();
 
     EBDesktopBar *_bar;
     QVector<Stroke> _strokes;
@@ -62,6 +69,8 @@ private:
     qreal _penWidth = 3.0;
     qreal _markerWidth = 18.0;
     bool _drawing = false;
+    bool _barPositioned = false;
+    bool _capturing = false;
 };
 
 #endif

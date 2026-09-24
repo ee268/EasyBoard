@@ -43,24 +43,45 @@ void EBMainWindow::ensureDesktopOverlay()
             this, [this]() {
         emit modeRequested(EBApplicationController::MainMode::Board);
     });
+    connect(_desktopOverlay, &EBDesktopOverlay::imageCaptured,
+            this, &EBMainWindow::insertCapturedDesktopImage);
+    connect(_desktopOverlay, &EBDesktopOverlay::statusMessage,
+            this, [this](const QString &message) {
+        statusBar()->showMessage(message, 5000);
+    });
 }
 
 void EBMainWindow::insertCapturedWebImage(const QImage &image)
 {
+    insertCapturedImage(image, tr("网页"));
+}
+
+void EBMainWindow::insertCapturedDesktopImage(const QImage &image)
+{
+    if (!insertCapturedImage(image, tr("桌面")) && _desktopOverlay)
+        _desktopOverlay->openOnDesktop();
+}
+
+bool EBMainWindow::insertCapturedImage(const QImage &image,
+                                      const QString &source)
+{
     if (image.isNull()) {
-        statusBar()->showMessage(tr("网页截图失败"), 5000);
-        return;
+        statusBar()->showMessage(tr("%1截图失败").arg(source), 5000);
+        return false;
     }
     EBImageItem::State state;
     state.format = EBImageItem::Format::Png;
+    state.size = QSizeF(image.width() / image.devicePixelRatioF(),
+                        image.height() / image.devicePixelRatioF());
     QBuffer buffer(&state.data);
     if (!buffer.open(QIODevice::WriteOnly) || !image.save(&buffer, "PNG")
         || !_boardView->insertImageObject(state)) {
-        statusBar()->showMessage(tr("网页截图无法插入白板"), 5000);
-        return;
+        statusBar()->showMessage(tr("%1截图无法插入白板").arg(source), 5000);
+        return false;
     }
     emit modeRequested(EBApplicationController::MainMode::Board);
-    statusBar()->showMessage(tr("网页区域已插入当前白板页"), 5000);
+    statusBar()->showMessage(tr("%1截图已插入当前白板页").arg(source), 5000);
+    return true;
 }
 
 void EBMainWindow::showMode(EBApplicationController::MainMode mode)
@@ -75,7 +96,7 @@ void EBMainWindow::showMode(EBApplicationController::MainMode mode)
     if (mode != EBApplicationController::MainMode::Board && _displayView)
         _displayView->close();
     if (mode != EBApplicationController::MainMode::Desktop
-        && _desktopOverlay && _desktopOverlay->isVisible()) {
+        && _desktopOverlay && _modeStack->currentIndex() == 3) {
         show();
         _desktopOverlay->hide();
         raise();

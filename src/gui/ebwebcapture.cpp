@@ -1,13 +1,14 @@
 #include "ebwebcapture.h"
 
 #include <QEvent>
-#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QScreen>
 #include <QTimer>
 #include <QWebEngineView>
+#include <QtMath>
+
+#include "ebscreencapture.h"
 
 EBWebCapture::EBWebCapture(QWebEngineView *view)
     : QWidget(view)
@@ -85,14 +86,23 @@ void EBWebCapture::mouseReleaseEvent(QMouseEvent *event)
         deleteLater();
         return;
     }
-    QTimer::singleShot(80, this, [this, selected]() {
-        if (_view) {
-            const QPoint topLeft = _view->mapToGlobal(selected.topLeft());
-            QScreen *screen = QGuiApplication::screenAt(topLeft);
-            const QImage image = screen
-                ? screen->grabWindow(0, topLeft.x(), topLeft.y(),
-                                     selected.width(), selected.height()).toImage()
-                : QImage();
+    QTimer::singleShot(160, this, [this, selected]() {
+        if (_view && _view->isVisible()) {
+            const QPixmap content = _view->grab();
+            const qreal ratio = content.devicePixelRatioF();
+            const QRect pixels(qRound(selected.x() * ratio),
+                               qRound(selected.y() * ratio),
+                               qRound(selected.width() * ratio),
+                               qRound(selected.height() * ratio));
+            QImage image = content.toImage().copy(
+                pixels.intersected(content.rect()));
+            if (image.isNull()) {
+                const QRect global(_view->mapToGlobal(selected.topLeft()),
+                                   selected.size());
+                image = ebCaptureScreens(global, _view->devicePixelRatioF());
+            } else {
+                image.setDevicePixelRatio(ratio);
+            }
             emit captured(image);
         }
         deleteLater();

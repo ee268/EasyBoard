@@ -9,6 +9,8 @@
 #include <QSizePolicy>
 #include <QStyle>
 #include <QTabWidget>
+#include <QTabBar>
+#include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -19,7 +21,9 @@
 #include "ebbarstyle.h"
 #include "ebicons.h"
 #include "ebwebcapture.h"
+#include "ebwebdownloads.h"
 #include "ebwebview.h"
+#include "ebwebsession.h"
 
 namespace {
 const char *welcomeHtml =
@@ -40,6 +44,7 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     , _reloadAction(nullptr)
     , _externalAction(nullptr)
     , _captureAction(nullptr)
+    , _sessionTimer(new QTimer(this))
 {
     setObjectName(QStringLiteral("webWorkspace"));
     const QDir webDirectory(QDir(EBSettings::userDataDir()).filePath(
@@ -48,6 +53,9 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     _profile->setPersistentStoragePath(webDirectory.filePath(
         QStringLiteral("profile")));
     _profile->setCachePath(webDirectory.filePath(QStringLiteral("cache")));
+    EBWebDownloads *downloads = new EBWebDownloads(_profile, this);
+    connect(downloads, &EBWebDownloads::statusMessage,
+            this, &EBWebWorkspace::statusMessage);
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
@@ -113,6 +121,10 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     _tabs->setDocumentMode(true);
     _tabs->setTabsClosable(true);
     _tabs->setMovable(true);
+    _sessionTimer->setSingleShot(true);
+    _sessionTimer->setInterval(300);
+    connect(_sessionTimer, &QTimer::timeout,
+            this, &EBWebWorkspace::saveSession);
     layout->addWidget(_tabs, 1);
 
     connect(_backAction, &QAction::triggered, this, [this]() {
@@ -144,11 +156,30 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
                 emit statusMessage(tr("无法打开外部浏览器"));
         }
     });
-    connect(_tabs, &QTabWidget::currentChanged,
-            this, &EBWebWorkspace::refreshNavigation);
+    connect(_tabs, &QTabWidget::currentChanged, this, [this]() {
+        refreshNavigation();
+        scheduleSessionSave();
+    });
+    connect(_tabs->tabBar(), &QTabBar::tabMoved,
+            this, &EBWebWorkspace::scheduleSessionSave);
     connect(_tabs, &QTabWidget::tabCloseRequested,
             this, &EBWebWorkspace::closeTab);
-    createTab();
+    _restoringSession = true;
+    const EBWebSession session = EBWebSession::load();
+    for (const QString &address : session.addresses) {
+        const QUrl url(address);
+        createTab(address.isEmpty() || !url.isValid() ? QUrl() : url);
+    }
+    if (_tabs->count() == 0)
+        createTab();
+    _tabs->setCurrentIndex(qBound(0, session.currentIndex, _tabs->count() - 1));
+    _restoringSession = false;
+    refreshNavigation();
+}
+
+EBWebWorkspace::~EBWebWorkspace()
+{
+    saveSession();
 }
 
 QWebEngineView *EBWebWorkspace::createTab(const QUrl &url)
@@ -171,6 +202,7 @@ QWebEngineView *EBWebWorkspace::createTab(const QUrl &url)
             view->setProperty("welcomePage", false);
         if (currentView() == view)
             refreshNavigation();
+        scheduleSessionSave();
     });
     connect(view, &QWebEngineView::loadFinished, this,
             [this, view](bool success) {
@@ -184,6 +216,7 @@ QWebEngineView *EBWebWorkspace::createTab(const QUrl &url)
     else
         view->load(url);
     refreshNavigation();
+    scheduleSessionSave();
     return view;
 }
 
@@ -237,12 +270,33 @@ void EBWebWorkspace::closeTab(int index)
     if (_tabs->count() == 1) {
         currentView()->setProperty("welcomePage", true);
         currentView()->setHtml(QString::fromUtf8(welcomeHtml));
+        scheduleSessionSave();
         return;
     }
     QWidget *view = _tabs->widget(index);
     _tabs->removeTab(index);
     view->deleteLater();
     refreshNavigation();
+    scheduleSessionSave();
+}
+
+void EBWebWorkspace::scheduleSessionSave()
+{
+    if (!_restoringSession)
+        _sessionTimer->start();
+}
+
+void EBWebWorkspace::saveSession() const
+{
+    EBWebSession session;
+    for (int index = 0; index < _tabs->count(); ++index) {
+        QWebEngineView *view = qobject_cast<QWebEngineView *>(_tabs->widget(index));
+        const bool welcome = view && view->property("welcomePage").toBool();
+        session.addresses.append(view && !welcome ? view->url().toString()
+                                                  : QString());
+    }
+    session.currentIndex = _tabs->currentIndex();
+    session.save();
 }
 
 void EBWebWorkspace::refreshNavigation()

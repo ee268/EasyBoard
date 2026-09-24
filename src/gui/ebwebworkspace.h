@@ -19,6 +19,7 @@ class EBWebWorkspace : public QWidget
     Q_OBJECT
 public:
     explicit EBWebWorkspace(QWidget *parent = nullptr);
+    ~EBWebWorkspace() override;
 
     QWebEngineView *createTab(const QUrl &url = QUrl());
     QWebEngineView *currentView() const;
@@ -34,6 +35,8 @@ signals:
 private:
     void closeTab(int index);
     void refreshNavigation();
+    void scheduleSessionSave();
+    void saveSession() const;
 
     QTabWidget *_tabs;
     QWebEngineProfile *_profile;
@@ -44,6 +47,8 @@ private:
     QAction *_externalAction;
     QAction *_captureAction;
     QPointer<EBWebCapture> _capture;
+    class QTimer *_sessionTimer;
+    bool _restoringSession = false;
 };
 
 #endif

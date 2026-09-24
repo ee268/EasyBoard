@@ -7,8 +7,11 @@
 #include <QPainter>
 #include <QResizeEvent>
 #include <QScreen>
+#include <QTimer>
+#include <QWindow>
 
 #include "ebdesktopbar.h"
+#include "ebscreencapture.h"
 
 EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
     : QWidget(parent)
@@ -28,17 +31,40 @@ EBDesktopOverlay::EBDesktopOverlay(QWidget *parent)
             this, &EBDesktopOverlay::undo);
     connect(_bar, &EBDesktopBar::redoRequested,
             this, &EBDesktopOverlay::redo);
+    connect(_bar, &EBDesktopBar::clearRequested,
+            this, &EBDesktopOverlay::clear);
+    connect(_bar, &EBDesktopBar::captureRequested,
+            this, &EBDesktopOverlay::captureToBoard);
+    connect(_bar, &EBDesktopBar::penColorChanged,
+            this, [this](const QColor &color) { _penColor = color; });
+    connect(_bar, &EBDesktopBar::markerColorChanged,
+            this, [this](const QColor &color) { _markerColor = color; });
+    connect(_bar, &EBDesktopBar::penWidthChanged,
+            this, [this](qreal width) { _penWidth = width; });
+    connect(_bar, &EBDesktopBar::markerWidthChanged,
+            this, [this](qreal width) { _markerWidth = width; });
     connect(_bar, &EBDesktopBar::exitRequested,
             this, &EBDesktopOverlay::exitRequested);
     connect(this, &EBDesktopOverlay::historyAvailabilityChanged,
             _bar, &EBDesktopBar::setHistory);
+    connect(qGuiApp, &QGuiApplication::primaryScreenChanged,
+            this, &EBDesktopOverlay::followScreen);
+    connect(qGuiApp, &QGuiApplication::screenRemoved, this,
+            [this]() { QTimer::singleShot(0, this, &EBDesktopOverlay::followScreen); });
+    const auto watchScreen = [this](QScreen *screen) {
+        connect(screen, &QScreen::geometryChanged,
+                this, &EBDesktopOverlay::followScreen);
+    };
+    for (QScreen *screen : QGuiApplication::screens())
+        watchScreen(screen);
+    connect(qGuiApp, &QGuiApplication::screenAdded, this, watchScreen);
 }
 
 void EBDesktopOverlay::openOnDesktop()
 {
-    if (QScreen *screen = QGuiApplication::primaryScreen())
-        setGeometry(screen->geometry());
+    followScreen();
     showFullScreen();
+    _bar->show();
     _bar->adjustSize();
     _bar->move((width() - _bar->width()) / 2, 12);
     _bar->raise();
@@ -56,6 +82,7 @@ void EBDesktopOverlay::setBrushes(const QColor &penColor, qreal penWidth,
         _markerColor = markerColor;
     _penWidth = qBound(1.0, penWidth, 24.0);
     _markerWidth = qBound(4.0, markerWidth, 48.0);
+    _bar->setBrushes(_penColor, _penWidth, _markerColor, _markerWidth);
 }
 
 void EBDesktopOverlay::setTool(Tool tool)
@@ -103,6 +130,70 @@ void EBDesktopOverlay::redo()
     refreshHistory();
 }
 
+void EBDesktopOverlay::clear()
+{
+    if (_drawing)
+        _drawing = false;
+    _strokes.clear();
+    _applied = 0;
+    update();
+    refreshHistory();
+}
+
+void EBDesktopOverlay::captureToBoard()
+{
+    if (_capturing)
+        return;
+    if (_drawing)
+        finishStroke();
+    _capturing = true;
+    const QRect area = geometry();
+    const qreal ratio = devicePixelRatioF();
+    hide();
+    QTimer::singleShot(180, this, [this, area, ratio]() {
+        QImage image = ebCaptureScreens(area, ratio);
+        if (image.isNull()) {
+            _capturing = false;
+            openOnDesktop();
+            emit statusMessage(tr("桌面截图失败"));
+            return;
+        }
+        image = compositeImage(image);
+        _capturing = false;
+        emit imageCaptured(image);
+    });
+}
+
+QImage EBDesktopOverlay::compositeImage(QImage background) const
+{
+    if (background.isNull())
+        return background;
+    const qreal ratio = background.devicePixelRatioF();
+    QImage marks(background.size(), QImage::Format_ARGB32_Premultiplied);
+    marks.fill(Qt::transparent);
+    QPainter marksPainter(&marks);
+    marksPainter.setRenderHint(QPainter::Antialiasing);
+    marksPainter.scale(ratio, ratio);
+    for (int index = 0; index < _applied; ++index)
+        paintStroke(&marksPainter, _strokes.at(index));
+    marksPainter.end();
+    background.setDevicePixelRatio(1.0);
+    QPainter painter(&background);
+    painter.drawImage(QPoint(0, 0), marks);
+    painter.end();
+    background.setDevicePixelRatio(ratio);
+    return background;
+}
+
+void EBDesktopOverlay::followScreen()
+{
+    if (QScreen *screen = QGuiApplication::primaryScreen()) {
+        if (windowHandle() && windowHandle()->screen() != screen)
+            windowHandle()->setScreen(screen);
+        setGeometry(screen->geometry());
+    }
+}
+
 void EBDesktopOverlay::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event)
@@ -114,6 +205,10 @@ void EBDesktopOverlay::paintEvent(QPaintEvent *event)
         paintStroke(&painter, _strokes.at(index));
     if (_drawing)
         paintStroke(&painter, _current);
+    // Windows 会让全透明的分层窗口透过鼠标；保留极低不透明度以接收绘制输入。
+    // 最后填充可让橡皮擦清除笔迹后，擦除区域仍能再次绘制。
+    painter.setCompositionMode(QPainter::CompositionMode_DestinationOver);
+    painter.fillRect(rect(), QColor(127, 127, 127, 1));
 }
 
 void EBDesktopOverlay::paintStroke(QPainter *painter,
@@ -132,7 +227,13 @@ void EBDesktopOverlay::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     _bar->adjustSize();
-    _bar->move((width() - _bar->width()) / 2, 12);
+    if (!_barPositioned) {
+        _bar->move((width() - _bar->width()) / 2, 12);
+        _barPositioned = true;
+    } else {
+        _bar->move(qBound(0, _bar->x(), qMax(0, width() - _bar->width())),
+                   qBound(0, _bar->y(), qMax(0, height() - _bar->height())));
+    }
 }
 
 void EBDesktopOverlay::mousePressEvent(QMouseEvent *event)

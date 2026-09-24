@@ -52,6 +52,8 @@ private:
     void ensureWebWorkspace();
     void ensureDesktopOverlay();
     void insertCapturedWebImage(const QImage &image);
+    void insertCapturedDesktopImage(const QImage &image);
+    bool insertCapturedImage(const QImage &image, const QString &source);
 
     EBDocument _document;
     QStackedWidget *_modeStack;
