@@ -45,6 +45,8 @@ bool EBTeachingTools::press(const QPointF &position, const QRectF &page,
         const QPointF local = toLocal(position);
         if (QLineF(position, compassHingePoint()).length() <= 25.0) {
             _operation = Operation::Rotate;
+            _rotationOffset = _rotation - qRadiansToDegrees(qAtan2(
+                position.y() - _center.y(), position.x() - _center.x()));
         } else if (QLineF(position, compassPencilPoint()).length() <= 20.0) {
             _operation = Operation::Draw;
             _startAngle = angleAt(compassPencilPoint());
@@ -64,6 +66,8 @@ bool EBTeachingTools::press(const QPointF &position, const QRectF &page,
     }
     if (controlsVisible && QLineF(position, rotationPoint()).length() <= 18.0) {
         _operation = Operation::Rotate;
+        _rotationOffset = _rotation - qRadiansToDegrees(qAtan2(
+            position.y() - _center.y(), position.x() - _center.x()));
         return true;
     }
     if (_kind == Kind::Protractor) {
@@ -137,7 +141,7 @@ void EBTeachingTools::move(const QPointF &position, const QRectF &page)
     } else if (_operation == Operation::Rotate) {
         _rotation = qRadiansToDegrees(qAtan2(bounded.y() - _center.y(),
                                              bounded.x() - _center.x()))
-                    + (_kind == Kind::Compass ? 0.0 : 90.0);
+                    + _rotationOffset;
     } else if (_operation == Operation::Draw) {
         if (_kind == Kind::Compass) {
             const qreal angle = angleAt(bounded);

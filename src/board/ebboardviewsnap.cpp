@@ -30,6 +30,8 @@ void EBBoardView::updateObjectMove(const QPointF &scenePosition,
         _movingObjects.at(index)->setPos(_moveStartPositions.at(index) + delta);
     keepObjectsInsidePage(_movingObjects);
     hideSnapGuides();
+    // 选择边框在视图前景绘制，移动对象时需重绘原位置和新位置。
+    viewport()->update();
     if (!snapEnabled || !_snapEnabled)
         return;
 

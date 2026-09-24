@@ -64,6 +64,7 @@ private:
     QPointF _drawEnd;
     QRectF _frame;
     qreal _rotation = 0.0;
+    qreal _rotationOffset = 0.0;
     qreal _scale = 1.0;
     qreal _radius = 100.0;
     qreal _startAngle = 0.0;

@@ -2,7 +2,10 @@
 
 #include <QGraphicsItem>
 #include <QPainter>
+#include <QTransform>
 #include <QtMath>
+
+#include <cmath>
 
 #include "../global/ebtheme.h"
 
@@ -42,6 +45,49 @@ QVector<QPoint> EBBoardView::selectionFrame() const
                 mapFromScene(object->mapToScene(bounds.topRight())),
                 mapFromScene(object->mapToScene(bounds.bottomRight())),
                 mapFromScene(object->mapToScene(bounds.bottomLeft()))};
+    }
+    if (objects.size() > 1) {
+        const qreal angle = objects.first()->rotation();
+        bool sameAngle = true;
+        for (QGraphicsItem *object : objects) {
+            if (qAbs(std::remainder(object->rotation() - angle, 360.0))
+                > 0.1) {
+                sameAngle = false;
+                break;
+            }
+        }
+        if (sameAngle && qAbs(std::remainder(angle, 360.0)) > 0.1) {
+            QTransform align;
+            align.rotate(-angle);
+            QPointF minimum;
+            QPointF maximum;
+            bool first = true;
+            for (QGraphicsItem *object : objects) {
+                const QRectF bounds = object->boundingRect();
+                const QPointF corners[] = {bounds.topLeft(), bounds.topRight(),
+                                           bounds.bottomRight(), bounds.bottomLeft()};
+                for (const QPointF &corner : corners) {
+                    const QPointF point = align.map(object->mapToScene(corner));
+                    if (first) {
+                        minimum = point;
+                        maximum = point;
+                    } else {
+                        minimum.setX(qMin(minimum.x(), point.x()));
+                        minimum.setY(qMin(minimum.y(), point.y()));
+                        maximum.setX(qMax(maximum.x(), point.x()));
+                        maximum.setY(qMax(maximum.y(), point.y()));
+                    }
+                    first = false;
+                }
+            }
+            const QRectF alignedBounds(minimum, maximum);
+            QTransform restore;
+            restore.rotate(angle);
+            return {mapFromScene(restore.map(alignedBounds.topLeft())),
+                    mapFromScene(restore.map(alignedBounds.topRight())),
+                    mapFromScene(restore.map(alignedBounds.bottomRight())),
+                    mapFromScene(restore.map(alignedBounds.bottomLeft()))};
+        }
     }
     const QRectF bounds = selectedObjectBounds();
     if (bounds.isEmpty())
