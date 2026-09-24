@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(EasyBoard VERSION 0.1 LANGUAGES CXX)
+project(EasyBoard VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -23,6 +23,18 @@ add_executable(${PROJECT_NAME}
     ${EASYBOARD_SOURCES}
     resources/EasyBoard.qrc
 )
+configure_file(src/core/ebversion.h.in
+    "${CMAKE_CURRENT_BINARY_DIR}/ebversion.h" @ONLY)
+target_include_directories(${PROJECT_NAME} PRIVATE
+    "${CMAKE_CURRENT_BINARY_DIR}")
+
+if(WIN32)
+    enable_language(RC)
+    configure_file(resources/easyboard.rc.in
+        "${CMAKE_CURRENT_BINARY_DIR}/easyboard.rc" @ONLY)
+    target_sources(${PROJECT_NAME} PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}/easyboard.rc")
+endif()
 
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)

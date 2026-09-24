@@ -1,0 +1,6 @@
+#ifndef EBVERSION_H
+#define EBVERSION_H
+
+#define EASYBOARD_VERSION "@PROJECT_VERSION@"
+
+#endif

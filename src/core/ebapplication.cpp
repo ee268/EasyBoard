@@ -1,4 +1,5 @@
 #include "ebapplication.h"
+#include "ebversion.h"
 
 #include <QDebug>
 #include <QFileInfo>
@@ -16,7 +17,7 @@ EBApplication::EBApplication(const QString &id, int &argc, char **argv)
     setOrganizationName("ee268");
     setOrganizationDomain("ee268.cn");
     setApplicationName("EasyBoard");
-    setApplicationVersion("0.0.2");
+    setApplicationVersion(QString::fromLatin1(EASYBOARD_VERSION));
 
     const QIcon icon = EBResources::resources()->appIcon();
     setWindowIcon(icon);
