@@ -26,14 +26,19 @@ add_executable(${PROJECT_NAME}
 configure_file(src/core/ebversion.h.in
     "${CMAKE_CURRENT_BINARY_DIR}/ebversion.h" @ONLY)
 target_include_directories(${PROJECT_NAME} PRIVATE
-    "${CMAKE_CURRENT_BINARY_DIR}")
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources")
 
 if(WIN32)
+    set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
     enable_language(RC)
     configure_file(resources/easyboard.rc.in
         "${CMAKE_CURRENT_BINARY_DIR}/easyboard.rc" @ONLY)
     target_sources(${PROJECT_NAME} PRIVATE
-        "${CMAKE_CURRENT_BINARY_DIR}/easyboard.rc")
+        "${CMAKE_CURRENT_BINARY_DIR}/easyboard.rc"
+        resources/appIcon.rc)
+    set_source_files_properties(resources/appIcon.rc PROPERTIES
+        OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/easyboard.ico")
 endif()
 
 if(MSVC)

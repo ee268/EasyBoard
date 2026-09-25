@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 100 100">
+  <title>EasyBoard</title>
+  <rect x="8" y="10" width="84" height="80" rx="9" fill="#ededed"/>
+  <path d="M22 62c15-22 32-17 49-30" fill="none" stroke="#36B9AC" stroke-width="8" stroke-linecap="round"/>
+  <path d="m54 74 23-30 10 7-24 30-13 5z" fill="#F29A49"/>
+  <path d="m54 74 9 7-13 5z" fill="#173C56"/>
+</svg>
