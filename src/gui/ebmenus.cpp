@@ -267,4 +267,10 @@ void EBCommands::createEditMenu()
             _boardView, &EBBoardView::moveSelectedObjectForward);
     connect(_layerActions[3], &QAction::triggered,
             _boardView, &EBBoardView::bringSelectedObjectToFront);
+
+    editMenu->addSeparator();
+    QAction *settingsAction = editMenu->addAction(tr("设置..."));
+    settingsAction->setObjectName(QStringLiteral("settingsAction"));
+    connect(settingsAction, &QAction::triggered,
+            this, &EBCommands::settingsRequested);
 }

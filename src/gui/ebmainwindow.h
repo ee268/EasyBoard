@@ -37,6 +37,7 @@ private:
     void exportCurrentPageImage();
     void exportDocumentPdf();
     void exportDocumentPackage();
+    void showSettings();
     bool prepareForImportedDocument();
     bool activateImportedDocument(const EBDocument &document,
                                   QString *savedPath, QString *error);

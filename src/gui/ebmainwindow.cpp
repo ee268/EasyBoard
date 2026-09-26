@@ -11,12 +11,14 @@
 #include "ebcommands.h"
 #include "ebpagepanel.h"
 #include "ebpdfoptionsdialog.h"
+#include "ebsettingsdialog.h"
 #include "ebdisplayview.h"
 
 #include <QDebug>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -150,6 +152,8 @@ EBMainWindow::EBMainWindow(QWidget *parent)
             this, &EBMainWindow::exportDocumentPackage);
     connect(_commands, &EBCommands::quitRequested,
             this, &EBMainWindow::quitRequested);
+    connect(_commands, &EBCommands::settingsRequested,
+            this, &EBMainWindow::showSettings);
     connect(_commands, &EBCommands::modeRequested,
             this, &EBMainWindow::modeRequested);
     connect(_commands,
@@ -163,6 +167,28 @@ EBMainWindow::EBMainWindow(QWidget *parent)
 void EBMainWindow::saveDocument()
 {
     saveCurrentDocument(true);
+}
+
+void EBMainWindow::showSettings()
+{
+    EBSettingsDialog dialog(this);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const EBSettingsDialog::Values values = dialog.values();
+    EBSettings *settings = EBSettings::settings();
+    if (!settings->setExportDirectory(values.exportDirectory)
+        || !settings->setDownloadDirectory(values.downloadDirectory)
+        || !settings->setDefaultPageSize(values.pageSize)) {
+        QMessageBox::warning(this, tr("设置"), tr("目录或画布尺寸无效。"));
+        return;
+    }
+    settings->setPenColor(values.penColor);
+    settings->setMarkerColor(values.markerColor);
+    settings->setPenWidth(values.penWidth);
+    settings->setMarkerWidth(values.markerWidth);
+    if (!settings->save())
+        QMessageBox::warning(this, tr("设置"), tr("保存设置失败。"));
 }
 
 void EBMainWindow::newDocument()

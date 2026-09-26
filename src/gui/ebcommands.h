@@ -32,6 +32,7 @@ signals:
     void exportDocumentPdfRequested();
     void exportDocumentPackageRequested();
     void quitRequested();
+    void settingsRequested();
     void modeRequested(EBApplicationController::MainMode mode);
     void pagePanelVisibilityRequested(bool visible);
     void displayViewRequested(bool visible);
