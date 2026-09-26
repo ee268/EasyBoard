@@ -1,7 +1,9 @@
 #include "ebapplication.h"
 #include "ebsettings.h"
+#include "../gui/ebdialoglocalizer.h"
 
 #include <QFile>
+#include <QTranslator>
 #include <QDebug>
 #include <QDebug>
 #include <QDir>
@@ -52,6 +54,12 @@ int main(int argc, char *argv[])
     qInstallMessageHandler(ebMessageOutput);
 
     EBApplication app("EasyBoard", argc, argv);
+    QTranslator qtTranslator;
+    if (qtTranslator.load(QStringLiteral(":/translations/qt_zh_CN.qm")))
+        app.installTranslator(&qtTranslator);
+    EBDialogLocalizer dialogLocalizer;
+    app.installEventFilter(&dialogLocalizer);
+
     const QStringList arguments = app.arguments();
 
     QString fileToOpen;

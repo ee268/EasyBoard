@@ -2,6 +2,9 @@
     <qresource prefix="/images">
         <file alias="easyboard.svg">images/easyboard.svg</file>
     </qresource>
+    <qresource prefix="/translations">
+        <file alias="qt_zh_CN.qm">translations/qt_zh_CN.qm</file>
+    </qresource>
     <qresource prefix="/toolbar">
         <file>icons/toolbar/background.svg</file>
         <file>icons/toolbar/image_object.svg</file>
