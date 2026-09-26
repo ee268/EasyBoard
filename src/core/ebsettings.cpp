@@ -5,6 +5,21 @@
 #include <QSettings>
 #include <QtMath>
 
+namespace {
+QString defaultDirectory(QStandardPaths::StandardLocation location)
+{
+    const QString directory = QStandardPaths::writableLocation(location);
+    return !directory.isEmpty() && QDir(directory).exists() ? QDir(directory).absolutePath()
+                                    : QDir::homePath();
+}
+
+QString existingDirectory(const QString &directory, const QString &fallback)
+{
+    return QDir::isAbsolutePath(directory) && QDir(directory).exists()
+        ? QDir(directory).absolutePath() : fallback;
+}
+}
+
 QPointer<EBSettings> EBSettings::_instance = nullptr;
 
 EBSettings *EBSettings::settings()
@@ -62,6 +77,63 @@ QString EBSettings::lastDocumentPath() const
 void EBSettings::setLastDocumentPath(const QString &path)
 {
     _userSettings->setValue(QStringLiteral("Document/LastPath"), path);
+}
+
+QString EBSettings::exportDirectory() const
+{
+    return existingDirectory(_userSettings->value(
+        QStringLiteral("Files/ExportDirectory")).toString(),
+        defaultDirectory(QStandardPaths::DocumentsLocation));
+}
+
+bool EBSettings::setExportDirectory(const QString &directory)
+{
+    if (!QDir::isAbsolutePath(directory) || !QDir(directory).exists())
+        return false;
+    _userSettings->setValue(QStringLiteral("Files/ExportDirectory"),
+                            QDir(directory).absolutePath());
+    return true;
+}
+
+QString EBSettings::downloadDirectory() const
+{
+    return existingDirectory(_userSettings->value(
+        QStringLiteral("Files/DownloadDirectory")).toString(),
+        defaultDirectory(QStandardPaths::DownloadLocation));
+}
+
+bool EBSettings::setDownloadDirectory(const QString &directory)
+{
+    if (!QDir::isAbsolutePath(directory) || !QDir(directory).exists())
+        return false;
+    _userSettings->setValue(QStringLiteral("Files/DownloadDirectory"),
+                            QDir(directory).absolutePath());
+    return true;
+}
+
+QSizeF EBSettings::defaultPageSize() const
+{
+    const QSizeF size(_userSettings->value(
+        QStringLiteral("Page/DefaultWidth"), 1200.0).toDouble(),
+        _userSettings->value(
+            QStringLiteral("Page/DefaultHeight"), 900.0).toDouble());
+    return isValidPageSize(size) ? size : QSizeF(1200.0, 900.0);
+}
+
+bool EBSettings::setDefaultPageSize(const QSizeF &size)
+{
+    if (!isValidPageSize(size))
+        return false;
+    _userSettings->setValue(QStringLiteral("Page/DefaultWidth"), size.width());
+    _userSettings->setValue(QStringLiteral("Page/DefaultHeight"), size.height());
+    return true;
+}
+
+bool EBSettings::isValidPageSize(const QSizeF &size)
+{
+    return qIsFinite(size.width()) && qIsFinite(size.height())
+        && size.width() >= 100.0 && size.width() <= 5000.0
+        && size.height() >= 100.0 && size.height() <= 5000.0;
 }
 
 bool EBSettings::snapEnabled() const
