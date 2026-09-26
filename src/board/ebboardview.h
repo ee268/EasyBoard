@@ -65,6 +65,7 @@ public:
     void setPenWidth(qreal width);
     qreal markerWidth() const;
     void setMarkerWidth(qreal width);
+    void reloadBrushSettings();
     bool canFormatSelectedText() const;
     QFont selectedTextFont() const;
     QColor selectedTextColor() const;

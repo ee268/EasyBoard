@@ -13,6 +13,7 @@
 #include "ebpdfoptionsdialog.h"
 #include "ebsettingsdialog.h"
 #include "ebdisplayview.h"
+#include "ebdesktopoverlay.h"
 
 #include <QDebug>
 #include <QHBoxLayout>
@@ -187,8 +188,15 @@ void EBMainWindow::showSettings()
     settings->setMarkerColor(values.markerColor);
     settings->setPenWidth(values.penWidth);
     settings->setMarkerWidth(values.markerWidth);
-    if (!settings->save())
+    if (!settings->save()) {
         QMessageBox::warning(this, tr("设置"), tr("保存设置失败。"));
+        return;
+    }
+    _boardView->reloadBrushSettings();
+    if (_desktopOverlay)
+        _desktopOverlay->setBrushes(_boardView->penColor(),
+            _boardView->penWidth(), _boardView->markerColor(),
+            _boardView->markerWidth());
 }
 
 void EBMainWindow::newDocument()

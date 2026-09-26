@@ -203,6 +203,15 @@ void EBBoardView::setMarkerWidth(qreal width)
     EBSettings::settings()->save();
 }
 
+void EBBoardView::reloadBrushSettings()
+{
+    EBSettings *settings = EBSettings::settings();
+    _penColor = settings->penColor();
+    _markerColor = settings->markerColor();
+    _penWidth = settings->penWidth();
+    _markerWidth = settings->markerWidth();
+}
+
 int EBBoardView::addPage()
 {
     finishPageInteraction();
