@@ -26,6 +26,7 @@ public:
     ~EBDesktopOverlay() override;
 
     void openOnDesktop();
+    void retranslate();
     void setBrushes(const QColor &penColor, qreal penWidth,
                     const QColor &markerColor, qreal markerWidth);
     void setTool(Tool tool);

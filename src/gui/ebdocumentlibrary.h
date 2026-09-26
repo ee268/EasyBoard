@@ -17,6 +17,7 @@ public:
     explicit EBDocumentLibrary(QWidget *parent = nullptr);
 
     void refresh(const QString &currentDocumentId = QString());
+    void retranslate();
 
 signals:
     void newRequested();

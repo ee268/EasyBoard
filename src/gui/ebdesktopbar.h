@@ -18,6 +18,7 @@ class EBDesktopBar : public QToolBar
 public:
     explicit EBDesktopBar(QWidget *parent = nullptr);
     void setHistory(bool undoAvailable, bool redoAvailable);
+    void retranslate();
     void setBrushes(const QColor &penColor, qreal penWidth,
                     const QColor &markerColor, qreal markerWidth);
     void setCurrentScreen(QScreen *screen);

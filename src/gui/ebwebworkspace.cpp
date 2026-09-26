@@ -1,6 +1,7 @@
 #include "ebwebworkspace.h"
 
 #include <QAction>
+#include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFrame>
@@ -31,12 +32,17 @@
 #include "ebwebbookmarksdialog.h"
 
 namespace {
-const char *welcomeHtml =
-    "<!doctype html><html lang='zh'><meta charset='utf-8'>"
-    "<body style='font-family:sans-serif;color:#344854;background:#f8fafb;"
-    "display:grid;place-items:center;height:90vh'>"
-    "<div style='text-align:center'><h2>EasyBoard 网页</h2>"
-    "<p>在上方地址栏输入网址开始浏览</p></div></body></html>";
+QString welcomeHtml()
+{
+    return QStringLiteral(
+        "<!doctype html><html><meta charset='utf-8'>"
+        "<body style='font-family:sans-serif;color:#344854;background:#f8fafb;"
+        "display:grid;place-items:center;height:90vh'>"
+        "<div style='text-align:center'><h2>%1</h2><p>%2</p></div></body></html>")
+        .arg(QCoreApplication::translate("EBWebWorkspace", "EasyBoard 网页").toHtmlEscaped(),
+             QCoreApplication::translate("EBWebWorkspace",
+                 "在上方地址栏输入网址开始浏览").toHtmlEscaped());
+}
 }
 
 EBWebWorkspace::EBWebWorkspace(QWidget *parent)
@@ -286,12 +292,41 @@ QWebEngineView *EBWebWorkspace::createTab(const QUrl &url)
             emit statusMessage(tr("网页加载失败：%1").arg(view->url().toString()));
     });
     if (url.isEmpty())
-        view->setHtml(QString::fromUtf8(welcomeHtml));
+        view->setHtml(welcomeHtml());
     else
         view->load(url);
     refreshNavigation();
     scheduleSessionSave();
     return view;
+}
+
+void EBWebWorkspace::retranslate()
+{
+    QToolBar *bar = findChild<QToolBar *>(QStringLiteral("webNavigationBar"));
+    bar->setWindowTitle(tr("网页导航"));
+    const struct { const char *name; const char *source; } actions[] = {
+        {"webBackAction", "后退"}, {"webForwardAction", "前进"},
+        {"webReloadAction", "刷新"}, {"webNewTabAction", "新建标签页"},
+        {"webHistoryAction", "历史"}, {"webDownloadsAction", "下载"},
+        {"webCaptureAction", "截取网页区域到白板"},
+        {"webExternalAction", "在外部浏览器打开"}
+    };
+    for (const auto &entry : actions) {
+        if (QAction *action = findChild<QAction *>(QString::fromLatin1(entry.name)))
+            action->setText(tr(entry.source));
+    }
+    _address->setPlaceholderText(tr("输入网址"));
+    QToolButton *clear = findChild<QToolButton *>(QStringLiteral("webAddressClearButton"));
+    clear->setToolTip(tr("清除地址"));
+    clear->setAccessibleName(tr("清除地址"));
+    findChild<QToolButton *>(QStringLiteral("webBookmarksButton"))->setText(tr("书签"));
+    for (int index = 0; index < _tabs->count(); ++index) {
+        QWebEngineView *view = qobject_cast<QWebEngineView *>(_tabs->widget(index));
+        if (view && view->property("welcomePage").toBool()) {
+            _tabs->setTabText(index, tr("新标签页"));
+            view->setHtml(welcomeHtml());
+        }
+    }
 }
 
 QWebEngineView *EBWebWorkspace::currentView() const
@@ -343,7 +378,7 @@ void EBWebWorkspace::closeTab(int index)
         return;
     if (_tabs->count() == 1) {
         currentView()->setProperty("welcomePage", true);
-        currentView()->setHtml(QString::fromUtf8(welcomeHtml));
+        currentView()->setHtml(welcomeHtml());
         scheduleSessionSave();
         return;
     }

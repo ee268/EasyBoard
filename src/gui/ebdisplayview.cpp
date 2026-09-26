@@ -31,6 +31,11 @@ EBDisplayView::EBDisplayView(EBBoardView *boardView, QWidget *parent)
     connect(_refreshTimer, &QTimer::timeout, this, &EBDisplayView::syncView);
 }
 
+void EBDisplayView::retranslate()
+{
+    setWindowTitle(tr("EasyBoard 展示视图"));
+}
+
 void EBDisplayView::openOnPreferredScreen()
 {
     const QList<QScreen *> screens = QGuiApplication::screens();

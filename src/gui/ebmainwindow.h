@@ -38,6 +38,7 @@ private:
     void exportDocumentPdf();
     void exportDocumentPackage();
     void showSettings();
+    void retranslate();
     bool prepareForImportedDocument();
     bool activateImportedDocument(const EBDocument &document,
                                   QString *savedPath, QString *error);

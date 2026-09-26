@@ -1057,6 +1057,10 @@
 <context>
     <name>EBMainWindow</name>
     <message>
+        <source>无法加载所选语言。</source>
+        <translation>Could not load the selected language.</translation>
+    </message>
+    <message>
         <location filename="../../src/gui/ebmainwindow.cpp" line="+82"/>
         <location line="+549"/>
         <source>EasyBoard</source>
@@ -1663,11 +1667,6 @@
         <translation>Language:</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>更改语言后，重新启动 EasyBoard 生效。</source>
-        <translation>Restart EasyBoard for the language change to take effect.</translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>通用</source>
         <translation>General</translation>
@@ -2197,6 +2196,14 @@
 </context>
 <context>
     <name>EBWebWorkspace</name>
+    <message>
+        <source>在上方地址栏输入网址开始浏览</source>
+        <translation>Enter a website address above to start browsing</translation>
+    </message>
+    <message>
+        <source>EasyBoard 网页</source>
+        <translation>EasyBoard Web</translation>
+    </message>
     <message>
         <location filename="../../src/gui/ebwebworkspace.cpp" line="+69"/>
         <source>网页导航</source>

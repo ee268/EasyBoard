@@ -1,4 +1,5 @@
 #include "ebmainwindow.h"
+#include "../core/eblanguage.h"
 
 #include "../board/ebboardview.h"
 #include "../core/ebsettings.h"
@@ -14,6 +15,7 @@
 #include "ebsettingsdialog.h"
 #include "ebdisplayview.h"
 #include "ebdesktopoverlay.h"
+#include "ebwebworkspace.h"
 
 #include <QDebug>
 #include <QHBoxLayout>
@@ -143,6 +145,8 @@ EBMainWindow::EBMainWindow(QWidget *parent)
     setCentralWidget(_modeStack);
 
     _commands = new EBCommands(this, _boardView);
+    connect(EBLanguage::instance(), &EBLanguage::languageChanged,
+            this, &EBMainWindow::retranslate);
     connect(_commands, &EBCommands::newDocumentRequested,
             this, &EBMainWindow::newDocument);
     connect(_commands, &EBCommands::fileImportRequested,
@@ -178,6 +182,21 @@ void EBMainWindow::saveDocument()
     saveCurrentDocument(true);
 }
 
+void EBMainWindow::retranslate()
+{
+    _commands->retranslate();
+    _pagePanel->retranslate();
+    _documentLibrary->retranslate();
+    if (_webWorkspace)
+        _webWorkspace->retranslate();
+    if (_desktopOverlay)
+        _desktopOverlay->retranslate();
+    if (_displayView)
+        _displayView->retranslate();
+    setWindowTitle(tr("%1 - EasyBoard").arg(_document.title()));
+    statusBar()->clearMessage();
+}
+
 void EBMainWindow::showSettings()
 {
     EBSettingsDialog dialog(this);
@@ -186,6 +205,7 @@ void EBMainWindow::showSettings()
 
     const EBSettingsDialog::Values values = dialog.values();
     EBSettings *settings = EBSettings::settings();
+    const QString previousLanguage = settings->language();
     if (!settings->setExportDirectory(values.exportDirectory)
         || !settings->setDownloadDirectory(values.downloadDirectory)
         || !settings->setDefaultPageSize(values.pageSize)
@@ -197,7 +217,14 @@ void EBMainWindow::showSettings()
     settings->setMarkerColor(values.markerColor);
     settings->setPenWidth(values.penWidth);
     settings->setMarkerWidth(values.markerWidth);
+    if (!EBLanguage::instance()->setLanguage(values.language)) {
+        settings->setLanguage(previousLanguage);
+        QMessageBox::warning(this, tr("设置"), tr("无法加载所选语言。"));
+        return;
+    }
     if (!settings->save()) {
+        EBLanguage::instance()->setLanguage(previousLanguage);
+        settings->setLanguage(previousLanguage);
         QMessageBox::warning(this, tr("设置"), tr("保存设置失败。"));
         return;
     }

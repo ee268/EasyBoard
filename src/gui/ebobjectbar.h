@@ -31,6 +31,7 @@ public:
                 const Actions &actions);
 
     void setBoardActive(bool active);
+    void retranslate();
     void setArrangeAvailable(bool available);
     void updateTransformActions();
 

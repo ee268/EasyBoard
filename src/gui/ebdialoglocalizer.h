@@ -11,6 +11,7 @@ class EBDialogLocalizer : public QObject
 {
 public:
     explicit EBDialogLocalizer(bool english = false, QObject *parent = nullptr);
+    void setEnglish(bool english);
 
 protected:
     bool eventFilter(QObject *object, QEvent *event) override;

@@ -1,4 +1,7 @@
 #include "ebcommands.h"
+#include "ebtopbar.h"
+#include "ebdrawbar.h"
+#include "ebobjectbar.h"
 
 #include "ebicons.h"
 
@@ -14,9 +17,68 @@
 #include "../import/ebimageimporter.h"
 #include "../persistence/ebdocumentpackage.h"
 
+
+void EBCommands::retranslate()
+{
+    const struct { const char *name; const char *source; } menus[] = {
+        {"fileMenu", "文件(&F)"}, {"editMenu", "编辑(&E)"},
+        {"arrangeMenu", "对齐与分布"}, {"snapMenu", "吸附"}
+    };
+    for (const auto &entry : menus) {
+        if (QMenu *menu = _window->findChild<QMenu *>(QString::fromLatin1(entry.name)))
+            menu->setTitle(tr(entry.source));
+    }
+    const struct { const char *name; const char *source; } labels[] = {
+        {"newDocumentAction", "新建文档"},
+        {"openFileAction", "打开文档..."},
+        {"importImageAction", "导入图片为新文档..."},
+        {"importPdfAction", "导入 PDF 为新文档..."},
+        {"insertImageObjectAction", "插入图片对象..."},
+        {"importDocumentPackageAction", "导入课程文档包..."},
+        {"saveDocumentAction", "保存"},
+        {"exportPageImageAction", "导出当前页图片..."},
+        {"exportDocumentPdfAction", "导出整份文档 PDF..."},
+        {"exportDocumentPackageAction", "导出课程文档包..."},
+        {"quitAction", "退出"},
+        {"cutObjectAction", "剪切"},
+        {"copyObjectAction", "复制"},
+        {"pasteObjectAction", "粘贴"},
+        {"duplicateObjectsAction", "快速复制"},
+        {"selectAllObjectsAction", "全选"},
+        {"groupObjectsAction", "组合"},
+        {"ungroupObjectsAction", "取消组合"},
+        {"lockObjectsAction", "锁定对象"},
+        {"unlockObjectsAction", "解锁对象"},
+        {"snapObjectsAction", "启用吸附"},
+        {"snapGridAction", "吸附到网格"},
+        {"sendObjectToBackAction", "置于底层"},
+        {"moveObjectBackwardAction", "下移一层"},
+        {"moveObjectForwardAction", "上移一层"},
+        {"bringObjectToFrontAction", "置于顶层"},
+        {"settingsAction", "设置..."},
+        {"alignObjectsLeftAction", "左对齐"},
+        {"alignObjectsHorizontalCenterAction", "水平居中"},
+        {"alignObjectsRightAction", "右对齐"},
+        {"alignObjectsTopAction", "顶部对齐"},
+        {"alignObjectsVerticalCenterAction", "垂直居中"},
+        {"alignObjectsBottomAction", "底部对齐"},
+        {"distributeObjectsHorizontalAction", "水平等距分布"},
+        {"distributeObjectsVerticalAction", "垂直等距分布"},
+    };
+    for (const auto &entry : labels) {
+        if (QAction *action = _window->findChild<QAction *>(QString::fromLatin1(entry.name)))
+            action->setText(tr(entry.source));
+    }
+    _gridSnapAction->setToolTip(tr("仅在当前页面使用网格底纹时生效"));
+    _topBar->retranslate();
+    _drawBar->retranslate();
+    _objectBar->retranslate();
+}
+
 void EBCommands::createFileMenu()
 {
     QMenu *fileMenu = _window->menuBar()->addMenu(tr("文件(&F)"));
+    fileMenu->setObjectName(QStringLiteral("fileMenu"));
     QAction *newAction = fileMenu->addAction(ebToolbarIcon("file_new"),
                                               tr("新建文档"));
     newAction->setObjectName(QStringLiteral("newDocumentAction"));
@@ -120,6 +182,7 @@ void EBCommands::createFileMenu()
 void EBCommands::createEditMenu()
 {
     QMenu *editMenu = _window->menuBar()->addMenu(tr("编辑(&E)"));
+    editMenu->setObjectName(QStringLiteral("editMenu"));
     _cutAction = editMenu->addAction(tr("剪切"));
     _cutAction->setObjectName(QStringLiteral("cutObjectAction"));
     _cutAction->setShortcut(QKeySequence::Cut);
@@ -186,6 +249,7 @@ void EBCommands::createEditMenu()
 
     QMenu *arrangeMenu = editMenu->addMenu(ebToolbarIcon("object_arrange"),
                                             tr("对齐与分布"));
+    arrangeMenu->setObjectName(QStringLiteral("arrangeMenu"));
     const QString arrangeLabels[] = {
         tr("左对齐"), tr("水平居中"), tr("右对齐"),
         tr("顶部对齐"), tr("垂直居中"), tr("底部对齐"),
@@ -219,6 +283,7 @@ void EBCommands::createEditMenu()
 
     editMenu->addSeparator();
     QMenu *snapMenu = editMenu->addMenu(tr("吸附"));
+    snapMenu->setObjectName(QStringLiteral("snapMenu"));
     _snapAction = snapMenu->addAction(tr("启用吸附"));
     _snapAction->setObjectName(QStringLiteral("snapObjectsAction"));
     _snapAction->setCheckable(true);

@@ -168,6 +168,41 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     setMinimumWidth(sizeHint().width());
 }
 
+void EBDesktopBar::retranslate()
+{
+    setWindowTitle(tr("桌面批注"));
+    QToolButton *drag = findChild<QToolButton *>(QStringLiteral("desktopBarDragHandle"));
+    drag->setText(tr("移动"));
+    drag->setToolTip(tr("拖动工具栏"));
+    const QString toolLabels[] = {tr("画笔"), tr("荧光笔"), tr("橡皮"),
+                                  tr("直线"), tr("矩形"), tr("椭圆")};
+    const char *toolNames[] = {"desktopPenAction", "desktopMarkerAction",
+        "desktopEraserAction", "desktopLineAction", "desktopRectangleAction",
+        "desktopEllipseAction"};
+    for (int index = 0; index < 6; ++index)
+        findChild<QAction *>(QString::fromLatin1(toolNames[index]))->setText(toolLabels[index]);
+    QToolButton *brush = findChild<QToolButton *>(QStringLiteral("desktopBrushSettings"));
+    brush->setText(tr("画笔设置"));
+    const QString brushLabels[] = {tr("画笔颜色"), tr("画笔粗细"),
+                                   tr("荧光笔颜色"), tr("荧光笔粗细")};
+    const QList<QAction *> brushActions = brush->menu()->actions();
+    int brushIndex = 0;
+    for (QAction *action : brushActions) {
+        if (!action->isSeparator())
+            action->setText(brushLabels[brushIndex++]);
+    }
+    _undoAction->setText(tr("撤销"));
+    _redoAction->setText(tr("重做"));
+    findChild<QAction *>(QStringLiteral("desktopClearAction"))->setText(tr("清空批注"));
+    findChild<QAction *>(QStringLiteral("desktopCaptureAction"))->setText(tr("插入白板"));
+    findChild<QAction *>(QStringLiteral("desktopSaveImageAction"))->setText(tr("保存图片"));
+    findChild<QToolButton *>(QStringLiteral("desktopScreenButton"))->setText(tr("屏幕"));
+    findChild<QAction *>(QStringLiteral("desktopExitAction"))->setText(tr("返回白板"));
+    setInteractionMode(_interactionAction->isChecked());
+    setMinimumWidth(0);
+    setMinimumWidth(sizeHint().width());
+}
+
 void EBDesktopBar::setHistory(bool undoAvailable, bool redoAvailable)
 {
     _undoAction->setEnabled(undoAvailable);

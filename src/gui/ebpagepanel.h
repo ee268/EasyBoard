@@ -17,6 +17,7 @@ public:
     explicit EBPagePanel(EBDocument *document, QWidget *parent = nullptr);
 
     void refreshPages();
+    void retranslate();
     void refreshPage(int index);
     void setCurrentPageIndex(int index);
 

@@ -54,6 +54,70 @@ EBDrawBar::EBDrawBar(QMainWindow *window, EBBoardView *boardView)
     });
 }
 
+void EBDrawBar::retranslate()
+{
+    setWindowTitle(tr("绘图工具"));
+    const struct { const char *name; const char *source; } labels[] = {
+        {"selectToolAction", "选择"},
+        {"textToolAction", "文本"},
+        {"penToolAction", "画笔"},
+        {"markerToolAction", "荧光笔"},
+        {"lineToolAction", "直线"},
+        {"eraserToolAction", "橡皮"},
+        {"pointerToolAction", "指示"},
+        {"panToolAction", "平移"},
+        {"rectangleToolAction", "矩形"},
+        {"ellipseToolAction", "椭圆"},
+        {"arrowToolAction", "箭头"},
+        {"penColorAction", "画笔颜色..."},
+        {"penWidthAction", "画笔粗细..."},
+        {"markerColorAction", "荧光笔颜色..."},
+        {"markerWidthAction", "荧光笔粗细..."},
+        {"textFontAction", "字体和字号..."},
+        {"textColorAction", "文字颜色..."},
+        {"teachingRulerAction", "直尺"},
+        {"teachingTriangle45Action", "45° 三角板"},
+        {"teachingTriangle30Action", "30° 三角板"},
+        {"teachingProtractorAction", "量角器"},
+        {"teachingCompassAction", "圆规"},
+        {"teachingCurtainAction", "幕布"},
+        {"teachingSpotlightAction", "聚光灯"},
+        {"teachingMagnifierAction", "放大镜"},
+        {"teachingCircleAction", "圆规画整圆"},
+        {"teachingFlipHorizontalAction", "三角板水平翻转"},
+        {"teachingFlipVerticalAction", "三角板垂直翻转"},
+        {"teachingResetAction", "量角器归零"},
+        {"teachingMagnifierZoomInAction", "放大镜增加倍率"},
+        {"teachingMagnifierZoomOutAction", "放大镜降低倍率"},
+        {"teachingMagnifierShapeAction", "切换放大镜形状"},
+        {"teachingHideAction", "收起教具"},
+    };
+    for (const auto &entry : labels) {
+        if (QAction *action = findChild<QAction *>(QString::fromLatin1(entry.name)))
+            action->setText(tr(entry.source));
+    }
+    for (QAction *action : _toolActions)
+        action->setToolTip(action->text());
+    _toolActions[1]->setToolTip(tr("文本（Ctrl+Enter 完成编辑）"));
+    QAction *selectedShape = nullptr;
+    for (int index = 8; index < 11; ++index) {
+        if (_toolActions[index]->isChecked())
+            selectedShape = _toolActions[index];
+    }
+    _shapeButton->setText(selectedShape ? selectedShape->text() : tr("形状"));
+    _shapeButton->setToolTip(selectedShape ? selectedShape->text() : tr("形状工具"));
+    _shapeButton->setAccessibleName(tr("形状工具"));
+    for (QToolButton *button : {_brushButton, _textFormatButton, _teachingButton}) {
+        const QString label = button == _brushButton ? tr("画笔设置")
+            : button == _textFormatButton ? tr("文字格式") : tr("教学工具");
+        button->setText(label);
+        button->setToolTip(label);
+        button->setAccessibleName(label);
+    }
+    _teachingButton->setToolTip(_boardView->teachingTool() == EBTeachingTools::Kind::None
+                                ? tr("教学工具") : tr("教学工具（已开启）"));
+}
+
 void EBDrawBar::setBoardActive(bool active)
 {
     _boardModeActive = active;
@@ -120,10 +184,10 @@ void EBDrawBar::createDrawingActions()
         });
         if (index >= 8) {
             connect(action, &QAction::triggered, this,
-                    [this, icon = icons[index], label = labels[index]]() {
+                    [this, action, icon = icons[index]]() {
                 _shapeButton->setIcon(ebToolbarIcon(icon));
-                _shapeButton->setText(label);
-                _shapeButton->setToolTip(label);
+                _shapeButton->setText(action->text());
+                _shapeButton->setToolTip(action->text());
             });
         }
     }

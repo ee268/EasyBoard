@@ -96,6 +96,57 @@ EBObjectBar::EBObjectBar(QMainWindow *window, EBBoardView *boardView,
             this, &EBObjectBar::updateTransformActions);
 }
 
+void EBObjectBar::retranslate()
+{
+    setWindowTitle(tr("对象操作"));
+    if (QToolButton *button = findChild<QToolButton *>(QStringLiteral("objectClipboardButton"))) {
+        button->setText(tr("剪贴板"));
+        button->setToolTip(tr("剪切、复制与粘贴"));
+        button->setAccessibleName(tr("剪切、复制与粘贴"));
+    }
+    if (QToolButton *button = findChild<QToolButton *>(QStringLiteral("objectGroupButton"))) {
+        button->setText(tr("组合锁定"));
+        button->setToolTip(tr("组合与锁定"));
+        button->setAccessibleName(tr("组合与锁定"));
+    }
+    if (QToolButton *button = findChild<QToolButton *>(QStringLiteral("arrangeObjectsButton"))) {
+        button->setText(tr("对齐分布"));
+        button->setToolTip(tr("对齐与分布"));
+        button->setAccessibleName(tr("对齐与分布"));
+    }
+    if (QToolButton *button = findChild<QToolButton *>(QStringLiteral("objectLayerButton"))) {
+        button->setText(tr("对象层级"));
+        button->setToolTip(tr("对象层级"));
+        button->setAccessibleName(tr("对象层级"));
+    }
+    if (QToolButton *button = findChild<QToolButton *>(QStringLiteral("objectTransformButton"))) {
+        button->setText(tr("变换删除"));
+        button->setToolTip(tr("对象变换与删除"));
+        button->setAccessibleName(tr("对象变换与删除"));
+    }
+    const QString labels[] = {tr("放大对象"), tr("缩小对象"),
+                              tr("逆时针旋转"), tr("顺时针旋转"), tr("删除对象")};
+    for (int index = 0; index < 5; ++index) {
+        _objectActions[index]->setText(labels[index]);
+        _objectActions[index]->setToolTip(labels[index]);
+    }
+    if (QAction *action = _window->findChild<QAction *>(QStringLiteral("duplicateObjectsAction")))
+        action->setToolTip(tr("快速复制（Ctrl+D）"));
+    const QString tips[] = {tr("剪切"), tr("复制"), tr("粘贴"),
+        tr("组合（Ctrl+G）"), tr("取消组合（Ctrl+Shift+G）"),
+        tr("锁定对象（Ctrl+L）"), tr("解锁对象（Ctrl+Shift+L）")};
+    const char *names[] = {"cutObjectAction", "copyObjectAction", "pasteObjectAction",
+        "groupObjectsAction", "ungroupObjectsAction", "lockObjectsAction", "unlockObjectsAction"};
+    for (int index = 0; index < 7; ++index) {
+        if (QAction *action = _window->findChild<QAction *>(QString::fromLatin1(names[index])))
+            action->setToolTip(tips[index]);
+    }
+    if (QToolButton *button = findChild<QToolButton *>(QStringLiteral("objectLayerButton"))) {
+        for (QAction *action : button->menu()->actions())
+            action->setToolTip(action->text());
+    }
+}
+
 void EBObjectBar::setBoardActive(bool active)
 {
     _boardModeActive = active;

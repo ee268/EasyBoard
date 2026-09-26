@@ -1,9 +1,9 @@
 #include "ebapplication.h"
 #include "ebsettings.h"
+#include "eblanguage.h"
 #include "../gui/ebdialoglocalizer.h"
 
 #include <QFile>
-#include <QTranslator>
 #include <QDebug>
 #include <QDebug>
 #include <QDir>
@@ -54,24 +54,14 @@ int main(int argc, char *argv[])
     qInstallMessageHandler(ebMessageOutput);
 
     EBApplication app("EasyBoard", argc, argv);
-    QTranslator qtTranslator;
-    QTranslator englishTranslator;
-    bool english = EBSettings::settings()->language() == QStringLiteral("en_US");
-    if (english) {
-        const QString path = QDir(app.applicationDirPath()).filePath(
-            QStringLiteral("easyboard_en.qm"));
-        if (englishTranslator.load(path))
-            app.installTranslator(&englishTranslator);
-        else {
-            qWarning() << "Could not load English translation:" << path;
-            english = false;
-        }
-    }
-    if (!english && qtTranslator.load(
-            QStringLiteral(":/translations/qt_zh_CN.qm")))
-        app.installTranslator(&qtTranslator);
-    EBDialogLocalizer dialogLocalizer(english);
+    EBLanguage language(&app);
+    language.setLanguage(EBSettings::settings()->language());
+    EBDialogLocalizer dialogLocalizer(language.language() == QStringLiteral("en_US"));
     app.installEventFilter(&dialogLocalizer);
+    QObject::connect(&language, &EBLanguage::languageChanged, &dialogLocalizer,
+                     [&language, &dialogLocalizer]() {
+        dialogLocalizer.setEnglish(language.language() == QStringLiteral("en_US"));
+    });
 
     const QStringList arguments = app.arguments();
 

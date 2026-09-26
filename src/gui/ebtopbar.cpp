@@ -68,6 +68,53 @@ EBTopBar::EBTopBar(QMainWindow *window, EBBoardView *boardView,
     syncPage();
 }
 
+void EBTopBar::retranslate()
+{
+    setWindowTitle(tr("工作模式"));
+    const struct { const char *name; const char *source; } labels[] = {
+        {"boardModeAction", "白板"},
+        {"documentModeAction", "文档"},
+        {"webModeAction", "网页"},
+        {"desktopModeAction", "桌面"},
+        {"pageNavigatorAction", "显示页面栏"},
+        {"displayViewAction", "展示视图"},
+        {"zoomInAction", "放大"},
+        {"zoomOutAction", "缩小"},
+        {"fitPageAction", "适应页面"},
+        {"undoAction", "撤销"},
+        {"redoAction", "重做"},
+        {"whitePageAction", "纯白"},
+        {"creamPageAction", "暖白"},
+        {"blankPatternAction", "空白"},
+        {"gridPatternAction", "网格"},
+        {"ruledPatternAction", "横线"},
+        {"standardPageAction", "常规 4:3"},
+        {"widescreenPageAction", "宽屏 16:9"},
+        {"customPageAction", "自定义尺寸..."},
+    };
+    for (const auto &entry : labels) {
+        if (QAction *action = findChild<QAction *>(QString::fromLatin1(entry.name)))
+            action->setText(tr(entry.source));
+    }
+    const QString modes[] = {tr("白板"), tr("文档"), tr("网页"), tr("桌面")};
+    for (int index = 0; index < 4; ++index)
+        _modeActions[index]->setToolTip(modes[index]);
+    _pagePanelAction->setToolTip(tr("显示或隐藏左侧页面栏"));
+    _displayAction->setToolTip(tr("打开或关闭独立展示视图"));
+    _insertImageAction->setToolTip(tr("插入图片对象"));
+    _backgroundButton->setText(tr("背景"));
+    _backgroundButton->setToolTip(tr("背景"));
+    _backgroundButton->setAccessibleName(tr("背景"));
+    if (QMenu *menu = _backgroundButton->menu()) {
+        const QString labels[] = {tr("页面底色"), tr("页面底纹"), tr("页面尺寸")};
+        for (int index = 0; index < 3 && index < menu->actions().size(); ++index)
+            menu->actions().at(index)->setText(labels[index]);
+    }
+    _zoomInAction->setToolTip(tr("放大"));
+    _zoomOutAction->setToolTip(tr("缩小"));
+    _fitPageAction->setToolTip(tr("适应页面"));
+}
+
 void EBTopBar::setMode(EBApplicationController::MainMode mode)
 {
     const int index = static_cast<int>(mode);

@@ -14,6 +14,7 @@ class EBDisplayView : public QGraphicsView
 public:
     EBDisplayView(EBBoardView *boardView, QWidget *parent = nullptr);
     void openOnPreferredScreen();
+    void retranslate();
 
 signals:
     void displayClosed();

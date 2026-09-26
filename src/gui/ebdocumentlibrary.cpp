@@ -16,6 +16,9 @@
 namespace {
 constexpr int kPathRole = Qt::UserRole;
 constexpr int kTitleRole = Qt::UserRole + 1;
+constexpr int kPageCountRole = Qt::UserRole + 2;
+constexpr int kUpdatedAtRole = Qt::UserRole + 3;
+constexpr int kCurrentRole = Qt::UserRole + 4;
 
 void fillList(QListWidget *list, const QVector<EBDocumentSummary> &documents,
               const QString &currentDocumentId)
@@ -32,6 +35,9 @@ void fillList(QListWidget *list, const QVector<EBDocumentSummary> &documents,
             document.title + QLatin1Char('\n') + details, list);
         item->setData(kPathRole, document.path);
         item->setData(kTitleRole, document.title);
+        item->setData(kPageCountRole, document.pageCount);
+        item->setData(kUpdatedAtRole, document.updatedAt);
+        item->setData(kCurrentRole, document.id == currentDocumentId);
         item->setToolTip(document.path);
         item->setSizeHint(QSize(0, 58));
         if (document.id == currentDocumentId) {
@@ -74,6 +80,7 @@ EBDocumentLibrary::EBDocumentLibrary(QWidget *parent)
     QVBoxLayout *root = new QVBoxLayout(this);
     root->setContentsMargins(18, 16, 18, 16);
     QLabel *title = new QLabel(tr("文档管理"), this);
+    title->setObjectName(QStringLiteral("documentLibraryTitle"));
     QFont titleFont = title->font();
     titleFont.setPointSize(titleFont.pointSize() + 3);
     titleFont.setBold(true);
@@ -175,6 +182,34 @@ EBDocumentLibrary::EBDocumentLibrary(QWidget *parent)
             emit deleteRequested(path);
     });
     refresh();
+}
+
+void EBDocumentLibrary::retranslate()
+{
+    findChild<QLabel *>(QStringLiteral("documentLibraryTitle"))->setText(tr("文档管理"));
+    _tabs->setTabText(0, tr("我的文档"));
+    _tabs->setTabText(1, tr("回收站"));
+    _search->setPlaceholderText(tr("搜索文档名称"));
+    _newButton->setText(tr("新建"));
+    _duplicateButton->setText(tr("复制"));
+    _openButton->setText(tr("打开"));
+    _renameButton->setText(tr("重命名"));
+    _trashButton->setText(tr("移入回收站"));
+    _restoreButton->setText(tr("恢复"));
+    _deleteButton->setText(tr("永久删除"));
+    for (QListWidget *list : {_documents, _trash}) {
+        for (int index = 0; index < list->count(); ++index) {
+            QListWidgetItem *item = list->item(index);
+            const QString details = QObject::tr("%1 页 · %2")
+                .arg(item->data(kPageCountRole).toInt())
+                .arg(item->data(kUpdatedAtRole).toDateTime().toLocalTime()
+                     .toString(QStringLiteral("yyyy-MM-dd HH:mm")));
+            const QString title = item->data(kTitleRole).toString();
+            item->setText(item->data(kCurrentRole).toBool()
+                          ? QObject::tr("当前 · %1\n%2").arg(title, details)
+                          : title + QLatin1Char('\n') + details);
+        }
+    }
 }
 
 void EBDocumentLibrary::refresh(const QString &currentDocumentId)

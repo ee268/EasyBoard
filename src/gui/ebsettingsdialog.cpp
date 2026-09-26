@@ -58,9 +58,6 @@ EBSettingsDialog::EBSettingsDialog(QWidget *parent)
     _language->addItem(QStringLiteral("简体中文"), QStringLiteral("zh_CN"));
     _language->addItem(QStringLiteral("English"), QStringLiteral("en_US"));
     languageForm->addRow(tr("语言："), _language);
-    QLabel *restartNote = new QLabel(tr("更改语言后，重新启动 EasyBoard 生效。"), languageGroup);
-    restartNote->setWordWrap(true);
-    languageForm->addRow(restartNote);
     generalLayout->addWidget(languageGroup);
     generalLayout->addStretch();
     tabs->addTab(generalTab, tr("通用"));

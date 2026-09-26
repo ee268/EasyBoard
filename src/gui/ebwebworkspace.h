@@ -30,6 +30,7 @@ public:
     int tabCount() const;
     void navigate(const QString &address);
     void startCapture();
+    void retranslate();
 
 signals:
     void imageCaptured(const QImage &image);

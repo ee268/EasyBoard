@@ -126,6 +126,13 @@ void EBDesktopOverlay::openOnDesktop()
     }
 }
 
+void EBDesktopOverlay::retranslate()
+{
+    setWindowTitle(tr("EasyBoard 桌面批注"));
+    _bar->retranslate();
+    positionBar(false);
+}
+
 void EBDesktopOverlay::setInteractionMode(bool enabled)
 {
     if (_drawing)

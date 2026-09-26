@@ -57,6 +57,7 @@ EBPagePanel::EBPagePanel(EBDocument *document, QWidget *parent)
     layout->setSpacing(8);
     QHBoxLayout *header = new QHBoxLayout;
     QLabel *title = new QLabel(tr("页面"), this);
+    title->setObjectName(QStringLiteral("pagePanelTitle"));
     QPushButton *addButton = new QPushButton(tr("新增"), this);
     QPushButton *duplicateButton = new QPushButton(tr("复制"), this);
     addButton->setObjectName(QStringLiteral("addPageButton"));
@@ -123,6 +124,28 @@ EBPagePanel::EBPagePanel(EBDocument *document, QWidget *parent)
         emit pageSelected(_document->currentPageIndex() + 1);
     });
     refreshPages();
+}
+
+void EBPagePanel::retranslate()
+{
+    findChild<QLabel *>(QStringLiteral("pagePanelTitle"))->setText(tr("页面"));
+    QPushButton *addButton = findChild<QPushButton *>(QStringLiteral("addPageButton"));
+    QPushButton *duplicateButton = findChild<QPushButton *>(QStringLiteral("duplicatePageButton"));
+    addButton->setText(tr("新增"));
+    addButton->setToolTip(tr("新增页面"));
+    duplicateButton->setText(tr("复制"));
+    duplicateButton->setToolTip(tr("复制当前页面"));
+    _removeButton->setText(tr("删除"));
+    _removeButton->setToolTip(tr("删除当前页面"));
+    _moveUpButton->setText(tr("上移"));
+    _moveUpButton->setToolTip(tr("将当前页面向前移动"));
+    _moveDownButton->setText(tr("下移"));
+    _moveDownButton->setToolTip(tr("将当前页面向后移动"));
+    _previousButton->setText(tr("上一页"));
+    _nextButton->setText(tr("下一页"));
+    for (int index = 0; index < _pageList->count(); ++index)
+        _pageList->item(index)->setText(tr("第 %1 页").arg(index + 1));
+    updateControls();
 }
 
 void EBPagePanel::refreshPages()

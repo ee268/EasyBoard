@@ -1,6 +1,7 @@
 #include "ebdialoglocalizer.h"
 
 #include <QAbstractButton>
+#include <QApplication>
 #include <QDialogButtonBox>
 #include <QEvent>
 #include <QTimer>
@@ -61,13 +62,23 @@ EBDialogLocalizer::EBDialogLocalizer(bool english, QObject *parent)
 {
 }
 
+void EBDialogLocalizer::setEnglish(bool english)
+{
+    _english = english;
+    for (QWidget *widget : QApplication::allWidgets()) {
+        QDialogButtonBox *box = qobject_cast<QDialogButtonBox *>(widget);
+        if (box)
+            localizeButtons(box, _english);
+    }
+}
+
 bool EBDialogLocalizer::eventFilter(QObject *object, QEvent *event)
 {
     if (event->type() == QEvent::Show) {
         QDialogButtonBox *box = qobject_cast<QDialogButtonBox *>(object);
         if (box) {
-            QTimer::singleShot(0, box, [box, english = _english]() {
-                localizeButtons(box, english);
+            QTimer::singleShot(0, box, [this, box]() {
+                localizeButtons(box, _english);
             });
         }
     }

@@ -22,6 +22,7 @@ public:
     void setMode(EBApplicationController::MainMode mode);
     QString modeLabel(EBApplicationController::MainMode mode) const;
     void setDisplayVisible(bool visible);
+    void retranslate();
 
 signals:
     void newDocumentRequested();

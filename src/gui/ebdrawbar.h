@@ -16,6 +16,7 @@ public:
     EBDrawBar(QMainWindow *window, EBBoardView *boardView);
 
     void setBoardActive(bool active);
+    void retranslate();
     void updateTextFormat();
 
 private:
