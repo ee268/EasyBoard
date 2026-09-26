@@ -1,5 +1,7 @@
 #include "ebdocumentpackageassets.h"
 
+#include <QCoreApplication>
+
 #include <QCryptographicHash>
 #include <QDataStream>
 #include <QDir>
@@ -79,20 +81,20 @@ bool EBDocumentPackageAssets::exportDocument(const EBDocument &document,
     QTemporaryDir assets;
     if (!assets.isValid()) {
         if (error)
-            *error = QStringLiteral("无法创建文档包临时目录");
+            *error = QCoreApplication::translate("EBDocumentPackageAssets", "无法创建文档包临时目录");
         return false;
     }
     const QByteArray json = EBDocumentStorage::toJson(document, assets.path(), error);
     if (json.isEmpty() || json.size() > kMaxDocumentBytes) {
         if (error && error->isEmpty())
-            *error = QStringLiteral("文档内容为空或超过 256 MB");
+            *error = QCoreApplication::translate("EBDocumentPackageAssets", "文档内容为空或超过 256 MB");
         return false;
     }
     bool valid = false;
     const QSet<QString> names = assetNames(json, &valid);
     if (!valid) {
         if (error)
-            *error = QStringLiteral("文档背景图像索引无效");
+            *error = QCoreApplication::translate("EBDocumentPackageAssets", "文档背景图像索引无效");
         return false;
     }
     const QByteArray compressed = qCompress(json, 6);
@@ -120,7 +122,7 @@ bool EBDocumentPackageAssets::exportDocument(const EBDocument &document,
             || asset.size() > kMaxAssetBytes
             || file.pos() + 2 + name.size() + 4 + asset.size() > kMaxPackageBytes) {
             if (error)
-                *error = QStringLiteral("文档包图像缺失或超过大小限制");
+                *error = QCoreApplication::translate("EBDocumentPackageAssets", "文档包图像缺失或超过大小限制");
             return false;
         }
         const QByteArray encoded = name.toLatin1();
@@ -132,14 +134,14 @@ bool EBDocumentPackageAssets::exportDocument(const EBDocument &document,
             || QString::fromLatin1(hash.result().toHex())
                 != name.left(64)) {
             if (error)
-                *error = QStringLiteral("文档包图像写入失败或内容损坏");
+                *error = QCoreApplication::translate("EBDocumentPackageAssets", "文档包图像写入失败或内容损坏");
             return false;
         }
     }
     if (output.status() != QDataStream::Ok || file.size() > kMaxPackageBytes
         || !file.commit()) {
         if (error)
-            *error = QStringLiteral("课程文档包写入失败");
+            *error = QCoreApplication::translate("EBDocumentPackageAssets", "课程文档包写入失败");
         return false;
     }
     if (savedPath)
@@ -179,7 +181,7 @@ bool EBDocumentPackageAssets::importDocument(const QString &path,
     if (json.size() != int(declaredSize)
         || QCryptographicHash::hash(json, QCryptographicHash::Sha256) != digest) {
         if (error)
-            *error = QStringLiteral("文档包内容不完整或已损坏");
+            *error = QCoreApplication::translate("EBDocumentPackageAssets", "文档包内容不完整或已损坏");
         return false;
     }
     bool valid = false;
@@ -212,7 +214,7 @@ bool EBDocumentPackageAssets::importDocument(const QString &path,
             || QString::fromLatin1(hash.result().toHex()) != name.left(64)
             || !asset.commit()) {
             if (error)
-                *error = QStringLiteral("文档包图像不完整或已损坏");
+                *error = QCoreApplication::translate("EBDocumentPackageAssets", "文档包图像不完整或已损坏");
             return false;
         }
     }

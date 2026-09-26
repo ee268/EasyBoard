@@ -1,4 +1,6 @@
 #include "ebdocumentstorage.h"
+
+#include <QCoreApplication>
 #include "ebdocumentbackup.h"
 
 #include <QBuffer>
@@ -248,7 +250,7 @@ QJsonObject pageObject(const EBPage &page, int index,
                 if (!page.backgroundImage().save(&buffer, "PNG")
                     || png.size() > kMaxBackgroundDataBytes) {
                     if (error)
-                        *error = QStringLiteral("页面背景图像无法编码");
+                        *error = QCoreApplication::translate("EBDocumentStorage", "页面背景图像无法编码");
                     return {};
                 }
                 name = QString::fromLatin1(QCryptographicHash::hash(
@@ -256,7 +258,7 @@ QJsonObject pageObject(const EBPage &page, int index,
                     + QStringLiteral(".png");
                 if (!QDir().mkpath(assetDirectory)) {
                     if (error)
-                        *error = QStringLiteral("无法创建背景图像目录");
+                        *error = QCoreApplication::translate("EBDocumentStorage", "无法创建背景图像目录");
                     return {};
                 }
                 const QString path = QDir(assetDirectory).filePath(name);
@@ -265,7 +267,7 @@ QJsonObject pageObject(const EBPage &page, int index,
                     if (!file.open(QIODevice::WriteOnly)
                         || file.write(png) != png.size() || !file.commit()) {
                         if (error)
-                            *error = QStringLiteral("无法保存页面背景图像");
+                            *error = QCoreApplication::translate("EBDocumentStorage", "无法保存页面背景图像");
                         return {};
                     }
                 }
@@ -310,7 +312,7 @@ bool readBackgroundImage(const QJsonObject &object, QImage *image,
         const QFileInfo file(QDir(assetDirectory).filePath(name));
         if (!file.isFile() || file.isSymLink()) {
             if (error)
-                *error = QStringLiteral("背景图像文件缺失：%1").arg(name);
+                *error = QCoreApplication::translate("EBDocumentStorage", "背景图像文件缺失：%1").arg(name);
             return false;
         }
         if (file.size() <= 0 || file.size() > kMaxBackgroundDataBytes)
@@ -320,13 +322,13 @@ bool readBackgroundImage(const QJsonObject &object, QImage *image,
         if (!size.isValid() || qint64(size.width()) * size.height()
             > kMaxBackgroundPixels) {
             if (error)
-                *error = QStringLiteral("背景图像文件损坏或尺寸过大：%1").arg(name);
+                *error = QCoreApplication::translate("EBDocumentStorage", "背景图像文件损坏或尺寸过大：%1").arg(name);
             return false;
         }
         *image = reader.read();
         if (image->isNull()) {
             if (error)
-                *error = QStringLiteral("背景图像文件损坏：%1").arg(name);
+                *error = QCoreApplication::translate("EBDocumentStorage", "背景图像文件损坏：%1").arg(name);
             return false;
         }
         backgroundAssets.insert(image->cacheKey(), name);
@@ -780,7 +782,7 @@ bool moveFile(const QString &source, const QString &destination, QString *error)
 {
     if (QFileInfo::exists(destination)) {
         if (error)
-            *error = QStringLiteral("目标位置已存在同名文档");
+            *error = QCoreApplication::translate("EBDocumentStorage", "目标位置已存在同名文档");
         return false;
     }
     QFile file(source);
@@ -801,7 +803,7 @@ bool moveWithAssets(const QString &source, const QString &destination,
     if (hasAssets && (QDir(destinationAssets).exists()
         || !QDir().rename(sourceAssets, destinationAssets))) {
         if (error)
-            *error = QStringLiteral("无法移动文档背景图像");
+            *error = QCoreApplication::translate("EBDocumentStorage", "无法移动文档背景图像");
         return false;
     }
     if (!EBDocumentBackup::move(source, destination, error)) {
@@ -861,7 +863,7 @@ bool EBDocumentStorage::save(const EBDocument &document, QString *savedPath,
 {
     if (!QDir().mkpath(documentsDirectory())) {
         if (error)
-            *error = QStringLiteral("无法创建文档目录");
+            *error = QCoreApplication::translate("EBDocumentStorage", "无法创建文档目录");
         return false;
     }
 
@@ -870,7 +872,7 @@ bool EBDocumentStorage::save(const EBDocument &document, QString *savedPath,
         document.id() + QStringLiteral(".json"));
     if (!QFileInfo::exists(path) && QFileInfo::exists(recycled)) {
         if (error)
-            *error = QStringLiteral("该文档位于回收站，请先恢复后再保存");
+            *error = QCoreApplication::translate("EBDocumentStorage", "该文档位于回收站，请先恢复后再保存");
         return false;
     }
 
@@ -920,12 +922,12 @@ bool EBDocumentStorage::load(const QString &path, EBDocument *document,
         if (!restored.open(QIODevice::WriteOnly)
             || restored.write(backup) != backup.size() || !restored.commit()) {
             if (error)
-                *error = QStringLiteral("备份可读取，但无法恢复原文档：%1")
+                *error = QCoreApplication::translate("EBDocumentStorage", "备份可读取，但无法恢复原文档：%1")
                     .arg(restored.errorString());
             return false;
         }
         if (error)
-            *error = QStringLiteral("原文档损坏，已从上一版本备份恢复");
+            *error = QCoreApplication::translate("EBDocumentStorage", "原文档损坏，已从上一版本备份恢复");
         return true;
     }
     if (error)
@@ -967,14 +969,14 @@ bool EBDocumentStorage::fromJson(const QByteArray &data, EBDocument *document,
 {
     if (!document) {
         if (error)
-            *error = QStringLiteral("文档接收对象无效");
+            *error = QCoreApplication::translate("EBDocumentStorage", "文档接收对象无效");
         return false;
     }
     QJsonParseError parseError;
     const QJsonDocument json = QJsonDocument::fromJson(data, &parseError);
     if (parseError.error != QJsonParseError::NoError || !json.isObject()) {
         if (error)
-            *error = QStringLiteral("JSON 格式错误：%1").arg(parseError.errorString());
+            *error = QCoreApplication::translate("EBDocumentStorage", "JSON 格式错误：%1").arg(parseError.errorString());
         return false;
     }
 
@@ -983,7 +985,7 @@ bool EBDocumentStorage::fromJson(const QByteArray &data, EBDocument *document,
             != QStringLiteral("EasyBoardDocument")
         || root.value(QStringLiteral("version")).toInt(-1) != 1) {
         if (error)
-            *error = QStringLiteral("不支持的 EasyBoard 文档格式或版本");
+            *error = QCoreApplication::translate("EBDocumentStorage", "不支持的 EasyBoard 文档格式或版本");
         return false;
     }
 
@@ -1000,7 +1002,7 @@ bool EBDocumentStorage::fromJson(const QByteArray &data, EBDocument *document,
         || metadata.value(QStringLiteral("pageCount")).toInt(-1) != pagesJson.size()
         || currentPage < 0 || currentPage >= pagesJson.size()) {
         if (error)
-            *error = QStringLiteral("文档元数据不完整");
+            *error = QCoreApplication::translate("EBDocumentStorage", "文档元数据不完整");
         return false;
     }
 
@@ -1013,8 +1015,8 @@ bool EBDocumentStorage::fromJson(const QByteArray &data, EBDocument *document,
                       assetDirectory, &pageError)) {
             if (error)
                 *error = pageError.isEmpty()
-                    ? QStringLiteral("第 %1 页内容无效").arg(index + 1)
-                    : QStringLiteral("第 %1 页：%2").arg(index + 1)
+                    ? QCoreApplication::translate("EBDocumentStorage", "第 %1 页内容无效").arg(index + 1)
+                    : QCoreApplication::translate("EBDocumentStorage", "第 %1 页：%2").arg(index + 1)
                           .arg(pageError);
             return false;
         }
@@ -1036,7 +1038,7 @@ bool EBDocumentStorage::renameDocument(const QString &path, const QString &title
 {
     if (!fileInDirectory(path, documentsDirectory())) {
         if (error)
-            *error = QStringLiteral("只能重命名文档列表中的文件");
+            *error = QCoreApplication::translate("EBDocumentStorage", "只能重命名文档列表中的文件");
         return false;
     }
     EBDocument document;
@@ -1044,12 +1046,12 @@ bool EBDocumentStorage::renameDocument(const QString &path, const QString &title
         return false;
     if (!samePath(path, documentFilePath(document))) {
         if (error)
-            *error = QStringLiteral("文档标识与文件名不一致");
+            *error = QCoreApplication::translate("EBDocumentStorage", "文档标识与文件名不一致");
         return false;
     }
     if (!document.setTitle(title)) {
         if (error)
-            *error = QStringLiteral("文档名称不能为空且不能超过 120 个字符");
+            *error = QCoreApplication::translate("EBDocumentStorage", "文档名称不能为空且不能超过 120 个字符");
         return false;
     }
     return save(document, nullptr, error);
@@ -1060,7 +1062,7 @@ bool EBDocumentStorage::duplicateDocument(const QString &path,
 {
     if (!fileInDirectory(path, documentsDirectory())) {
         if (error)
-            *error = QStringLiteral("只能复制文档列表中的文件");
+            *error = QCoreApplication::translate("EBDocumentStorage", "只能复制文档列表中的文件");
         return false;
     }
     EBDocument document;
@@ -1068,12 +1070,12 @@ bool EBDocumentStorage::duplicateDocument(const QString &path,
         return false;
     if (!samePath(path, documentFilePath(document))) {
         if (error)
-            *error = QStringLiteral("文档标识与文件名不一致");
+            *error = QCoreApplication::translate("EBDocumentStorage", "文档标识与文件名不一致");
         return false;
     }
     document._id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     document._createdAt = QDateTime::currentDateTimeUtc();
-    const QString suffix = QStringLiteral(" - 副本");
+    const QString suffix = QCoreApplication::translate("EBDocumentStorage", " - 副本");
     document.setTitle(document.title().left(120 - suffix.size()) + suffix);
     return save(document, newPath, error);
 }
@@ -1083,12 +1085,12 @@ bool EBDocumentStorage::moveToTrash(const QString &path, QString *trashPath,
 {
     if (!fileInDirectory(path, documentsDirectory())) {
         if (error)
-            *error = QStringLiteral("只能回收文档列表中的文件");
+            *error = QCoreApplication::translate("EBDocumentStorage", "只能回收文档列表中的文件");
         return false;
     }
     if (!QDir().mkpath(trashDirectory())) {
         if (error)
-            *error = QStringLiteral("无法创建回收站目录");
+            *error = QCoreApplication::translate("EBDocumentStorage", "无法创建回收站目录");
         return false;
     }
     const QString destination = QDir(trashDirectory()).absoluteFilePath(
@@ -1105,12 +1107,12 @@ bool EBDocumentStorage::restoreFromTrash(const QString &path, QString *restoredP
 {
     if (!fileInDirectory(path, trashDirectory())) {
         if (error)
-            *error = QStringLiteral("只能恢复回收站中的文件");
+            *error = QCoreApplication::translate("EBDocumentStorage", "只能恢复回收站中的文件");
         return false;
     }
     if (!QDir().mkpath(documentsDirectory())) {
         if (error)
-            *error = QStringLiteral("无法创建文档目录");
+            *error = QCoreApplication::translate("EBDocumentStorage", "无法创建文档目录");
         return false;
     }
     const QString destination = QDir(documentsDirectory()).absoluteFilePath(
@@ -1126,7 +1128,7 @@ bool EBDocumentStorage::deleteFromTrash(const QString &path, QString *error)
 {
     if (!fileInDirectory(path, trashDirectory())) {
         if (error)
-            *error = QStringLiteral("只能永久删除回收站中的文件");
+            *error = QCoreApplication::translate("EBDocumentStorage", "只能永久删除回收站中的文件");
         return false;
     }
     QFile file(path);

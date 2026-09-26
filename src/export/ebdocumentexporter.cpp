@@ -1,5 +1,7 @@
 #include "ebdocumentexporter.h"
 
+#include <QCoreApplication>
+
 #include <QFileInfo>
 #include <QImageWriter>
 #include <QPageSize>
@@ -30,7 +32,7 @@ QString imageOutputPath(const QString &path, QByteArray *format, QString *error)
 {
     if (path.trimmed().isEmpty()) {
         if (error)
-            *error = QStringLiteral("图片导出路径不能为空");
+            *error = QCoreApplication::translate("EBDocumentExporter", "图片导出路径不能为空");
         return QString();
     }
     QString result = QFileInfo(path).absoluteFilePath();
@@ -42,7 +44,7 @@ QString imageOutputPath(const QString &path, QByteArray *format, QString *error)
     if (suffix != QStringLiteral("png") && suffix != QStringLiteral("jpg")
         && suffix != QStringLiteral("jpeg")) {
         if (error)
-            *error = QStringLiteral("当前页只能导出为 PNG 或 JPEG 图片");
+            *error = QCoreApplication::translate("EBDocumentExporter", "当前页只能导出为 PNG 或 JPEG 图片");
         return QString();
     }
     *format = suffix.toLatin1();
@@ -53,7 +55,7 @@ QString pdfOutputPath(const QString &path, QString *error)
 {
     if (path.trimmed().isEmpty()) {
         if (error)
-            *error = QStringLiteral("PDF 导出路径不能为空");
+            *error = QCoreApplication::translate("EBDocumentExporter", "PDF 导出路径不能为空");
         return QString();
     }
     QString result = QFileInfo(path).absoluteFilePath();
@@ -62,7 +64,7 @@ QString pdfOutputPath(const QString &path, QString *error)
         return result + QStringLiteral(".pdf");
     if (suffix.compare(QStringLiteral("pdf"), Qt::CaseInsensitive) != 0) {
         if (error)
-            *error = QStringLiteral("整份文档只能导出为 PDF 文件");
+            *error = QCoreApplication::translate("EBDocumentExporter", "整份文档只能导出为 PDF 文件");
         return QString();
     }
     return result;
@@ -167,7 +169,7 @@ bool EBDocumentExporter::exportDocumentPdf(const EBDocument &document,
     }
     if (!success) {
         if (error)
-            *error = QStringLiteral("PDF 页面创建失败");
+            *error = QCoreApplication::translate("EBDocumentExporter", "PDF 页面创建失败");
         return false;
     }
     if (!file.commit()) {

@@ -273,7 +273,7 @@ void EBMainWindow::duplicateDocument(const QString &path)
 void EBMainWindow::exportCurrentPageImage()
 {
     _boardView->commitCurrentPage();
-    const QString suggested = QStringLiteral("%1-第%2页.png")
+    const QString suggested = tr("%1-第%2页.png")
         .arg(exportBaseName(_document.title()))
         .arg(_document.currentPageIndex() + 1);
     const QString initial = QDir(EBSettings::settings()->exportDirectory())

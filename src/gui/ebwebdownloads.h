@@ -15,10 +15,14 @@ class EBWebDownloads : public QObject
 {
     Q_OBJECT
 public:
+    enum class Status { Downloading, Completed, Missing, Cancelled, Interrupted, Failed };
+
     struct Entry {
         quint64 id = 0;
         QString path;
-        QString status;
+        Status status = Status::Interrupted;
+        int interruptReason = 0;
+        QString legacyDetail;
         qint64 received = 0;
         qint64 total = 0;
         bool running = false;
@@ -29,6 +33,7 @@ public:
     EBWebDownloads(QWebEngineProfile *profile, QWidget *window);
     int count() const;
     const Entry &entryAt(int index) const;
+    QString statusText(const Entry &entry) const;
     void cancel(int index);
     bool removeRecord(int index);
     void clearFinished();

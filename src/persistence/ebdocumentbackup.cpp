@@ -1,4 +1,6 @@
 #include "ebdocumentbackup.h"
+
+#include <QCoreApplication>
 #include "ebdocumentstorage.h"
 
 #include "../domain/ebdocument.h"
@@ -51,7 +53,7 @@ bool EBDocumentBackup::snapshot(const QString &documentPath,
     if (!source.open(QIODevice::ReadOnly)
         || source.size() <= 0 || source.size() > kMaxDocumentBytes) {
         if (error)
-            *error = QStringLiteral("无法读取当前文档以创建备份");
+            *error = QCoreApplication::translate("EBDocumentBackup", "无法读取当前文档以创建备份");
         return false;
     }
     const QByteArray data = source.readAll();
@@ -62,7 +64,7 @@ bool EBDocumentBackup::snapshot(const QString &documentPath,
     if (!backup.open(QIODevice::WriteOnly)
         || backup.write(data) != data.size() || !backup.commit()) {
         if (error)
-            *error = QStringLiteral("无法创建文档备份");
+            *error = QCoreApplication::translate("EBDocumentBackup", "无法创建文档备份");
         return false;
     }
     return true;
@@ -92,7 +94,7 @@ bool EBDocumentBackup::move(const QString &source,
     QFile backup(oldPath);
     if (QFileInfo::exists(newPath) || !backup.rename(newPath)) {
         if (error)
-            *error = QStringLiteral("无法移动文档备份");
+            *error = QCoreApplication::translate("EBDocumentBackup", "无法移动文档备份");
         return false;
     }
     return true;

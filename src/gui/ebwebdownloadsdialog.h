@@ -5,6 +5,7 @@
 
 class EBWebDownloads;
 class QPushButton;
+class QEvent;
 class QTableWidget;
 
 class EBWebDownloadsDialog : public QDialog
@@ -14,8 +15,12 @@ public:
     explicit EBWebDownloadsDialog(EBWebDownloads *downloads,
                                   QWidget *parent = nullptr);
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
     void updateRow(int index);
+    void retranslate();
     void refreshRows();
     void updateActions();
     void openFile();
@@ -30,6 +35,7 @@ private:
     QPushButton *_relink;
     QPushButton *_remove;
     QPushButton *_clear;
+    QPushButton *_close;
 };
 
 #endif

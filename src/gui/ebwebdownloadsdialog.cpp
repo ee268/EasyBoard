@@ -2,6 +2,7 @@
 
 #include <QDesktopServices>
 #include <QDir>
+#include <QEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -26,6 +27,7 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
     , _relink(new QPushButton(tr("重新定位"), this))
     , _remove(new QPushButton(tr("移除记录"), this))
     , _clear(new QPushButton(tr("清空记录"), this))
+    , _close(new QPushButton(tr("关闭"), this))
 {
     setWindowTitle(tr("网页下载"));
     resize(760, 420);
@@ -42,7 +44,6 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
     _table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     layout->addWidget(_table);
     QHBoxLayout *actions = new QHBoxLayout;
-    QPushButton *close = new QPushButton(tr("关闭"), this);
     actions->addWidget(_cancel);
     actions->addWidget(_open);
     actions->addWidget(_folder);
@@ -50,7 +51,7 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
     actions->addWidget(_remove);
     actions->addWidget(_clear);
     actions->addStretch();
-    actions->addWidget(close);
+    actions->addWidget(_close);
     layout->addLayout(actions);
     connect(_downloads, &EBWebDownloads::entryAdded,
             this, &EBWebDownloadsDialog::updateRow);
@@ -76,13 +77,36 @@ EBWebDownloadsDialog::EBWebDownloadsDialog(EBWebDownloads *downloads,
     });
     connect(_clear, &QPushButton::clicked,
             _downloads, &EBWebDownloads::clearFinished);
-    connect(close, &QPushButton::clicked, this, &QDialog::close);
+    connect(_close, &QPushButton::clicked, this, &QDialog::close);
     QTimer *refreshTimer = new QTimer(this);
     refreshTimer->setInterval(3000);
     connect(refreshTimer, &QTimer::timeout,
             _downloads, &EBWebDownloads::refreshFiles);
     refreshTimer->start();
     refreshRows();
+}
+
+void EBWebDownloadsDialog::changeEvent(QEvent *event)
+{
+    QDialog::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslate();
+}
+
+void EBWebDownloadsDialog::retranslate()
+{
+    setWindowTitle(tr("网页下载"));
+    _table->setHorizontalHeaderLabels(
+        {tr("文件"), tr("进度"), tr("状态"), tr("保存位置")});
+    _cancel->setText(tr("取消下载"));
+    _open->setText(tr("打开文件"));
+    _folder->setText(tr("打开文件夹"));
+    _relink->setText(tr("重新定位"));
+    _remove->setText(tr("移除记录"));
+    _clear->setText(tr("清空记录"));
+    _close->setText(tr("关闭"));
+    for (int index = 0; index < _table->rowCount(); ++index)
+        updateRow(index);
 }
 
 void EBWebDownloadsDialog::refreshRows()
@@ -107,7 +131,7 @@ void EBWebDownloadsDialog::updateRow(int index)
             .arg(QString::number(entry.total / 1048576.0, 'f', 1))
         : tr("%1 MB").arg(QString::number(entry.received / 1048576.0, 'f', 1));
     const QString values[] = {
-        QFileInfo(entry.path).fileName(), progress, entry.status,
+        QFileInfo(entry.path).fileName(), progress, _downloads->statusText(entry),
         QFileInfo(entry.path).absolutePath()
     };
     for (int column = 0; column < 4; ++column) {

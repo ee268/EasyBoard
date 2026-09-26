@@ -6,6 +6,8 @@
 
 class EBWebBookmarks;
 class QLineEdit;
+class QPushButton;
+class QEvent;
 class QTableWidget;
 
 class EBWebBookmarksDialog : public QDialog
@@ -15,11 +17,15 @@ public:
     explicit EBWebBookmarksDialog(EBWebBookmarks *bookmarks,
                                   QWidget *parent = nullptr);
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 signals:
     void openRequested(const QUrl &url);
 
 private:
     void refresh();
+    void retranslate();
     void openSelected();
     void editSelected();
     void removeSelected();
@@ -28,6 +34,10 @@ private:
     EBWebBookmarks *_bookmarks;
     QLineEdit *_search;
     QTableWidget *_table;
+    QPushButton *_edit;
+    QPushButton *_remove;
+    QPushButton *_open;
+    QPushButton *_close;
 };
 
 #endif

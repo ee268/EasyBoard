@@ -25,7 +25,7 @@ QString outputPath(const QString &path, QString *error)
 {
     if (path.trimmed().isEmpty()) {
         if (error)
-            *error = QStringLiteral("文档包路径不能为空");
+            *error = QCoreApplication::translate("EBDocumentPackage", "文档包路径不能为空");
         return QString();
     }
     QString result = QFileInfo(path).absoluteFilePath();
@@ -34,7 +34,7 @@ QString outputPath(const QString &path, QString *error)
         return result + QStringLiteral(".ebz");
     if (suffix.compare(QStringLiteral("ebz"), Qt::CaseInsensitive) != 0) {
         if (error)
-            *error = QStringLiteral("课程文档包必须使用 .ebz 扩展名");
+            *error = QCoreApplication::translate("EBDocumentPackage", "课程文档包必须使用 .ebz 扩展名");
         return QString();
     }
     return result;
@@ -63,14 +63,14 @@ bool EBDocumentPackage::importDocument(const QString &path,
 {
     if (!document) {
         if (error)
-            *error = QStringLiteral("文档接收对象无效");
+            *error = QCoreApplication::translate("EBDocumentPackage", "文档接收对象无效");
         return false;
     }
     const QFileInfo info(path);
     if (!info.isFile() || info.size() <= 0
         || info.size() > kMaxPackageBytes) {
         if (error)
-            *error = QStringLiteral("文档包不存在、为空或超过 128 MB");
+            *error = QCoreApplication::translate("EBDocumentPackage", "文档包不存在、为空或超过 128 MB");
         return false;
     }
 
@@ -90,7 +90,7 @@ bool EBDocumentPackage::importDocument(const QString &path,
         if (!EBDocumentPackageAssets::importDocument(
                 info.absoluteFilePath(), &imported, error)) {
             if (error && error->isEmpty())
-                *error = QStringLiteral("文档包格式无效或内容已损坏");
+                *error = QCoreApplication::translate("EBDocumentPackage", "文档包格式无效或内容已损坏");
             return false;
         }
         imported._id = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -105,7 +105,7 @@ bool EBDocumentPackage::importDocument(const QString &path,
         || qFromBigEndian<quint16>(reinterpret_cast<const uchar *>(
                package.constData() + 4)) != kPackageVersion) {
         if (error)
-            *error = QStringLiteral("文档包格式或版本无效");
+            *error = QCoreApplication::translate("EBDocumentPackage", "文档包格式或版本无效");
         return false;
     }
     const QByteArray digest = package.mid(4 + sizeof(quint16), kDigestBytes);
@@ -114,7 +114,7 @@ bool EBDocumentPackage::importDocument(const QString &path,
         || compressed.size() < int(sizeof(quint32))
         || compressed.size() > kMaxPackageBytes - kHeaderBytes) {
         if (error)
-            *error = QStringLiteral("文档包格式或版本无效");
+            *error = QCoreApplication::translate("EBDocumentPackage", "文档包格式或版本无效");
         return false;
     }
 
@@ -122,14 +122,14 @@ bool EBDocumentPackage::importDocument(const QString &path,
         reinterpret_cast<const uchar *>(compressed.constData()));
     if (expectedSize == 0 || expectedSize > kMaxDocumentBytes) {
         if (error)
-            *error = QStringLiteral("文档包声明的内容大小无效");
+            *error = QCoreApplication::translate("EBDocumentPackage", "文档包声明的内容大小无效");
         return false;
     }
     const QByteArray json = qUncompress(compressed);
     if (quint32(json.size()) != expectedSize
         || QCryptographicHash::hash(json, QCryptographicHash::Sha256) != digest) {
         if (error)
-            *error = QStringLiteral("文档包内容不完整或已损坏");
+            *error = QCoreApplication::translate("EBDocumentPackage", "文档包内容不完整或已损坏");
         return false;
     }
 

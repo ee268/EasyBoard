@@ -732,6 +732,38 @@
         <source>EasyBoard 课程文档包 (*.ebz)</source>
         <translation>EasyBoard course packages (*.ebz)</translation>
     </message>
+    <message>
+        <source>文档包路径不能为空</source>
+        <translation>Document package path cannot be empty</translation>
+    </message>
+    <message>
+        <source>课程文档包必须使用 .ebz 扩展名</source>
+        <translation>Course document packages must use the .ebz extension</translation>
+    </message>
+    <message>
+        <source>文档接收对象无效</source>
+        <translation>Invalid document target</translation>
+    </message>
+    <message>
+        <source>文档包不存在、为空或超过 128 MB</source>
+        <translation>Document package is missing, empty, or larger than 128 MB</translation>
+    </message>
+    <message>
+        <source>文档包格式无效或内容已损坏</source>
+        <translation>Invalid document package format or damaged content</translation>
+    </message>
+    <message>
+        <source>文档包格式或版本无效</source>
+        <translation>Invalid document package format or version</translation>
+    </message>
+    <message>
+        <source>文档包声明的内容大小无效</source>
+        <translation>Invalid declared document package content size</translation>
+    </message>
+    <message>
+        <source>文档包内容不完整或已损坏</source>
+        <translation>Document package content is incomplete or damaged</translation>
+    </message>
 </context>
 <context>
     <name>EBDrawBar</name>
@@ -1374,6 +1406,10 @@
         <location line="+4"/>
         <source>%1截图已插入当前白板页</source>
         <translation>%1 capture inserted into the current whiteboard page</translation>
+    </message>
+    <message>
+        <source>%1-第%2页.png</source>
+        <translation>%1-page%2.png</translation>
     </message>
 </context>
 <context>
@@ -2037,6 +2073,102 @@
         <source>文件已移动或删除</source>
         <translation>File moved or deleted</translation>
     </message>
+    <message>
+        <source>文件操作失败</source>
+        <translation>File operation failed</translation>
+    </message>
+    <message>
+        <source>文件访问被拒绝</source>
+        <translation>File access denied</translation>
+    </message>
+    <message>
+        <source>磁盘空间不足</source>
+        <translation>Not enough disk space</translation>
+    </message>
+    <message>
+        <source>文件名过长</source>
+        <translation>File name is too long</translation>
+    </message>
+    <message>
+        <source>文件过大</source>
+        <translation>File is too large</translation>
+    </message>
+    <message>
+        <source>文件被安全软件拦截</source>
+        <translation>File was blocked by security software</translation>
+    </message>
+    <message>
+        <source>临时文件错误</source>
+        <translation>Temporary file error</translation>
+    </message>
+    <message>
+        <source>文件下载被阻止</source>
+        <translation>File download was blocked</translation>
+    </message>
+    <message>
+        <source>文件安全检查失败</source>
+        <translation>File security check failed</translation>
+    </message>
+    <message>
+        <source>文件内容不完整</source>
+        <translation>File content is incomplete</translation>
+    </message>
+    <message>
+        <source>文件校验失败</source>
+        <translation>File verification failed</translation>
+    </message>
+    <message>
+        <source>网络连接失败</source>
+        <translation>Network connection failed</translation>
+    </message>
+    <message>
+        <source>网络连接超时</source>
+        <translation>Network connection timed out</translation>
+    </message>
+    <message>
+        <source>网络连接中断</source>
+        <translation>Network connection was interrupted</translation>
+    </message>
+    <message>
+        <source>服务器不可用</source>
+        <translation>Server is unavailable</translation>
+    </message>
+    <message>
+        <source>网络请求无效</source>
+        <translation>Invalid network request</translation>
+    </message>
+    <message>
+        <source>服务器返回错误</source>
+        <translation>Server returned an error</translation>
+    </message>
+    <message>
+        <source>服务器内容无效</source>
+        <translation>Invalid server content</translation>
+    </message>
+    <message>
+        <source>服务器需要身份验证</source>
+        <translation>Server requires authentication</translation>
+    </message>
+    <message>
+        <source>服务器证书错误</source>
+        <translation>Server certificate error</translation>
+    </message>
+    <message>
+        <source>服务器拒绝访问</source>
+        <translation>Server denied access</translation>
+    </message>
+    <message>
+        <source>无法连接服务器</source>
+        <translation>Could not connect to the server</translation>
+    </message>
+    <message>
+        <source>用户取消</source>
+        <translation>Cancelled by user</translation>
+    </message>
+    <message>
+        <source>未知错误</source>
+        <translation>Unknown error</translation>
+    </message>
 </context>
 <context>
     <name>EBWebDownloadsDialog</name>
@@ -2335,6 +2467,304 @@
         <location filename="../../src/gui/ebmainwindow.cpp" line="-207"/>
         <source>正在导入 PDF：%1 / %2 页</source>
         <translation>Importing PDF: page %1 of %2</translation>
+    </message>
+</context>
+<context>
+    <name>EBDocument</name>
+    <message>
+        <source>未命名白板</source>
+        <translation>Untitled Whiteboard</translation>
+    </message>
+</context>
+<context>
+    <name>EBDocumentBackup</name>
+    <message>
+        <source>无法读取当前文档以创建备份</source>
+        <translation>Could not read the current document to create a backup</translation>
+    </message>
+    <message>
+        <source>无法创建文档备份</source>
+        <translation>Could not create the document backup</translation>
+    </message>
+    <message>
+        <source>无法移动文档备份</source>
+        <translation>Could not move the document backup</translation>
+    </message>
+</context>
+<context>
+    <name>EBDocumentExporter</name>
+    <message>
+        <source>图片导出路径不能为空</source>
+        <translation>Image export path cannot be empty</translation>
+    </message>
+    <message>
+        <source>当前页只能导出为 PNG 或 JPEG 图片</source>
+        <translation>The current page can only be exported as a PNG or JPEG image</translation>
+    </message>
+    <message>
+        <source>PDF 导出路径不能为空</source>
+        <translation>PDF export path cannot be empty</translation>
+    </message>
+    <message>
+        <source>整份文档只能导出为 PDF 文件</source>
+        <translation>The entire document can only be exported as a PDF file</translation>
+    </message>
+    <message>
+        <source>PDF 页面创建失败</source>
+        <translation>Could not create a PDF page</translation>
+    </message>
+</context>
+<context>
+    <name>EBDocumentPackageAssets</name>
+    <message>
+        <source>无法创建文档包临时目录</source>
+        <translation>Could not create a temporary directory for the document package</translation>
+    </message>
+    <message>
+        <source>文档内容为空或超过 256 MB</source>
+        <translation>Document content is empty or larger than 256 MB</translation>
+    </message>
+    <message>
+        <source>文档背景图像索引无效</source>
+        <translation>Invalid document background image index</translation>
+    </message>
+    <message>
+        <source>文档包图像缺失或超过大小限制</source>
+        <translation>Document package image is missing or exceeds the size limit</translation>
+    </message>
+    <message>
+        <source>文档包图像写入失败或内容损坏</source>
+        <translation>Could not write the document package image, or its content is damaged</translation>
+    </message>
+    <message>
+        <source>课程文档包写入失败</source>
+        <translation>Could not write the course document package</translation>
+    </message>
+    <message>
+        <source>文档包内容不完整或已损坏</source>
+        <translation>Document package content is incomplete or damaged</translation>
+    </message>
+    <message>
+        <source>文档包图像不完整或已损坏</source>
+        <translation>Document package image is incomplete or damaged</translation>
+    </message>
+</context>
+<context>
+    <name>EBDocumentStorage</name>
+    <message>
+        <source>页面背景图像无法编码</source>
+        <translation>Could not encode the page background image</translation>
+    </message>
+    <message>
+        <source>无法创建背景图像目录</source>
+        <translation>Could not create the background image directory</translation>
+    </message>
+    <message>
+        <source>无法保存页面背景图像</source>
+        <translation>Could not save the page background image</translation>
+    </message>
+    <message>
+        <source>背景图像文件缺失：%1</source>
+        <translation>Background image file is missing: %1</translation>
+    </message>
+    <message>
+        <source>背景图像文件损坏或尺寸过大：%1</source>
+        <translation>Background image file is damaged or too large: %1</translation>
+    </message>
+    <message>
+        <source>背景图像文件损坏：%1</source>
+        <translation>Background image file is damaged: %1</translation>
+    </message>
+    <message>
+        <source>目标位置已存在同名文档</source>
+        <translation>A document with the same name already exists at the destination</translation>
+    </message>
+    <message>
+        <source>无法移动文档背景图像</source>
+        <translation>Could not move the document background image</translation>
+    </message>
+    <message>
+        <source>无法创建文档目录</source>
+        <translation>Could not create the document directory</translation>
+    </message>
+    <message>
+        <source>该文档位于回收站，请先恢复后再保存</source>
+        <translation>This document is in the trash. Restore it before saving</translation>
+    </message>
+    <message>
+        <source>备份可读取，但无法恢复原文档：%1</source>
+        <translation>Backup is readable, but the original document could not be restored: %1</translation>
+    </message>
+    <message>
+        <source>原文档损坏，已从上一版本备份恢复</source>
+        <translation>The original document was damaged and has been restored from the previous backup</translation>
+    </message>
+    <message>
+        <source>文档接收对象无效</source>
+        <translation>Invalid document target</translation>
+    </message>
+    <message>
+        <source>JSON 格式错误：%1</source>
+        <translation>JSON format error: %1</translation>
+    </message>
+    <message>
+        <source>不支持的 EasyBoard 文档格式或版本</source>
+        <translation>Unsupported EasyBoard document format or version</translation>
+    </message>
+    <message>
+        <source>文档元数据不完整</source>
+        <translation>Document metadata is incomplete</translation>
+    </message>
+    <message>
+        <source>第 %1 页内容无效</source>
+        <translation>Invalid content on page %1</translation>
+    </message>
+    <message>
+        <source>第 %1 页：%2</source>
+        <translation>Page %1: %2</translation>
+    </message>
+    <message>
+        <source>只能重命名文档列表中的文件</source>
+        <translation>Only files in the document list can be renamed</translation>
+    </message>
+    <message>
+        <source>文档标识与文件名不一致</source>
+        <translation>Document ID does not match its file name</translation>
+    </message>
+    <message>
+        <source>文档名称不能为空且不能超过 120 个字符</source>
+        <translation>Document name must contain 1 to 120 characters</translation>
+    </message>
+    <message>
+        <source>只能复制文档列表中的文件</source>
+        <translation>Only files in the document list can be duplicated</translation>
+    </message>
+    <message>
+        <source> - 副本</source>
+        <translation> - Copy</translation>
+    </message>
+    <message>
+        <source>只能回收文档列表中的文件</source>
+        <translation>Only files in the document list can be moved to trash</translation>
+    </message>
+    <message>
+        <source>无法创建回收站目录</source>
+        <translation>Could not create the trash directory</translation>
+    </message>
+    <message>
+        <source>只能恢复回收站中的文件</source>
+        <translation>Only files in the trash can be restored</translation>
+    </message>
+    <message>
+        <source>只能永久删除回收站中的文件</source>
+        <translation>Only files in the trash can be permanently deleted</translation>
+    </message>
+</context>
+<context>
+    <name>EBPDFImporter</name>
+    <message>
+        <source>PDF 页数为空或超过 200 页</source>
+        <translation>PDF has no pages or more than 200 pages</translation>
+    </message>
+    <message>
+        <source>PDF 第 %1 页尺寸无效</source>
+        <translation>Invalid dimensions on PDF page %1</translation>
+    </message>
+    <message>
+        <source>PDF 第 %1 页比例超出支持范围</source>
+        <translation>Aspect ratio of PDF page %1 is outside the supported range</translation>
+    </message>
+    <message>
+        <source>PDF 第 %1 页渲染图像过大</source>
+        <translation>Rendered image of PDF page %1 is too large</translation>
+    </message>
+    <message>
+        <source>PDF 第 %1 页渲染图像无效</source>
+        <translation>Invalid rendered image of PDF page %1</translation>
+    </message>
+    <message>
+        <source>PDF 第 %1 页图像无法保存</source>
+        <translation>Could not save the image of PDF page %1</translation>
+    </message>
+    <message>
+        <source>PDF 页面索引无法保存</source>
+        <translation>Could not save the PDF page index</translation>
+    </message>
+    <message>
+        <source>PDF 打开或渲染失败（%1）</source>
+        <translation>Could not open or render the PDF (%1)</translation>
+    </message>
+    <message>
+        <source>PDF 页码范围或清晰度无效</source>
+        <translation>Invalid PDF page range or quality</translation>
+    </message>
+    <message>
+        <source>PDF 文件不存在、为空或超过 256 MB</source>
+        <translation>PDF file is missing, empty, or larger than 256 MB</translation>
+    </message>
+    <message>
+        <source>缺少 PDF 渲染组件 EasyBoardPdfRenderer.exe</source>
+        <translation>Missing PDF renderer EasyBoardPdfRenderer.exe</translation>
+    </message>
+    <message>
+        <source>无法启动 PDF 渲染组件</source>
+        <translation>Could not start the PDF renderer</translation>
+    </message>
+    <message>
+        <source>无法读取 PDF 页数</source>
+        <translation>Could not read the PDF page count</translation>
+    </message>
+    <message>
+        <source>PDF 页数无效</source>
+        <translation>Invalid PDF page count</translation>
+    </message>
+    <message>
+        <source>无法创建 PDF 导入临时目录</source>
+        <translation>Could not create a temporary directory for PDF import</translation>
+    </message>
+    <message>
+        <source>已取消 PDF 导入</source>
+        <translation>PDF import was cancelled</translation>
+    </message>
+    <message>
+        <source>PDF 导入超时</source>
+        <translation>PDF import timed out</translation>
+    </message>
+    <message>
+        <source>PDF 密码错误</source>
+        <translation>Incorrect PDF password</translation>
+    </message>
+    <message>
+        <source>PDF 渲染失败或超时</source>
+        <translation>PDF rendering failed or timed out</translation>
+    </message>
+    <message>
+        <source>PDF 文件在导入过程中发生变化，请重新导入</source>
+        <translation>PDF file changed during import. Please import it again</translation>
+    </message>
+    <message>
+        <source>PDF 页面索引缺失</source>
+        <translation>PDF page index is missing</translation>
+    </message>
+    <message>
+        <source>PDF 页面索引无效</source>
+        <translation>Invalid PDF page index</translation>
+    </message>
+    <message>
+        <source>第 %1 页图像无效</source>
+        <translation>Invalid image on page %1</translation>
+    </message>
+    <message>
+        <source>第 %1 页图像过大</source>
+        <translation>Image on page %1 is too large</translation>
+    </message>
+    <message>
+        <source>第 %1 页图像读取失败</source>
+        <translation>Could not read the image on page %1</translation>
+    </message>
+    <message>
+        <source>第 %1 页比例无效</source>
+        <translation>Invalid aspect ratio on page %1</translation>
     </message>
 </context>
 </TS>

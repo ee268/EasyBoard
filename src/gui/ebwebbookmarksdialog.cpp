@@ -1,5 +1,6 @@
 #include "ebwebbookmarksdialog.h"
 
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
@@ -16,6 +17,10 @@ EBWebBookmarksDialog::EBWebBookmarksDialog(EBWebBookmarks *bookmarks,
     , _bookmarks(bookmarks)
     , _search(new QLineEdit(this))
     , _table(new QTableWidget(this))
+    , _edit(new QPushButton(tr("编辑"), this))
+    , _remove(new QPushButton(tr("删除"), this))
+    , _open(new QPushButton(tr("打开"), this))
+    , _close(new QPushButton(tr("关闭"), this))
 {
     setWindowTitle(tr("管理书签"));
     resize(780, 480);
@@ -32,15 +37,11 @@ EBWebBookmarksDialog::EBWebBookmarksDialog(EBWebBookmarks *bookmarks,
     _table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     layout->addWidget(_table);
     QHBoxLayout *actions = new QHBoxLayout;
-    QPushButton *edit = new QPushButton(tr("编辑"), this);
-    QPushButton *remove = new QPushButton(tr("删除"), this);
-    QPushButton *open = new QPushButton(tr("打开"), this);
-    QPushButton *close = new QPushButton(tr("关闭"), this);
-    actions->addWidget(edit);
-    actions->addWidget(remove);
+    actions->addWidget(_edit);
+    actions->addWidget(_remove);
     actions->addStretch();
-    actions->addWidget(open);
-    actions->addWidget(close);
+    actions->addWidget(_open);
+    actions->addWidget(_close);
     layout->addLayout(actions);
     connect(_search, &QLineEdit::textChanged,
             this, &EBWebBookmarksDialog::refresh);
@@ -48,14 +49,32 @@ EBWebBookmarksDialog::EBWebBookmarksDialog(EBWebBookmarks *bookmarks,
             this, &EBWebBookmarksDialog::refresh);
     connect(_table, &QTableWidget::cellDoubleClicked,
             this, &EBWebBookmarksDialog::openSelected);
-    connect(edit, &QPushButton::clicked,
+    connect(_edit, &QPushButton::clicked,
             this, &EBWebBookmarksDialog::editSelected);
-    connect(remove, &QPushButton::clicked,
+    connect(_remove, &QPushButton::clicked,
             this, &EBWebBookmarksDialog::removeSelected);
-    connect(open, &QPushButton::clicked,
+    connect(_open, &QPushButton::clicked,
             this, &EBWebBookmarksDialog::openSelected);
-    connect(close, &QPushButton::clicked, this, &QDialog::reject);
+    connect(_close, &QPushButton::clicked, this, &QDialog::reject);
     refresh();
+}
+
+void EBWebBookmarksDialog::changeEvent(QEvent *event)
+{
+    QDialog::changeEvent(event);
+    if (event->type() == QEvent::LanguageChange)
+        retranslate();
+}
+
+void EBWebBookmarksDialog::retranslate()
+{
+    setWindowTitle(tr("管理书签"));
+    _search->setPlaceholderText(tr("搜索名称、分组或网址"));
+    _table->setHorizontalHeaderLabels({tr("名称"), tr("分组"), tr("网址")});
+    _edit->setText(tr("编辑"));
+    _remove->setText(tr("删除"));
+    _open->setText(tr("打开"));
+    _close->setText(tr("关闭"));
 }
 
 void EBWebBookmarksDialog::refresh()

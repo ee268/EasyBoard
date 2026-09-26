@@ -1,12 +1,14 @@
 #include "ebdocument.h"
 
+#include <QCoreApplication>
+
 #include <QUuid>
 
 EBDocument::EBDocument()
     : _pages(1)
     , _currentPageIndex(0)
     , _id(QUuid::createUuid().toString(QUuid::WithoutBraces))
-    , _title(QStringLiteral("未命名白板"))
+    , _title(QCoreApplication::translate("EBDocument", "未命名白板"))
     , _createdAt(QDateTime::currentDateTimeUtc())
 {
 }

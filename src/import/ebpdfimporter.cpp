@@ -11,6 +11,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 
 #include "../domain/ebdocument.h"
@@ -26,6 +27,37 @@ QString rendererPath()
     return QDir(QCoreApplication::applicationDirPath()).filePath(
         QStringLiteral("EasyBoardPdfRenderer.exe"));
 }
+
+QString rendererError(int exitCode, const QString &output)
+{
+    const QRegularExpression pagePattern(QStringLiteral("\\b(\\d+)\\b"));
+    const QString page = pagePattern.match(output).captured(1);
+    switch (exitCode) {
+    case 2: return QCoreApplication::translate("EBPDFImporter",
+        "PDF 页数为空或超过 200 页");
+    case 3: return QCoreApplication::translate("EBPDFImporter",
+        "PDF 第 %1 页尺寸无效").arg(page);
+    case 4: return QCoreApplication::translate("EBPDFImporter",
+        "PDF 第 %1 页比例超出支持范围").arg(page);
+    case 5: return QCoreApplication::translate("EBPDFImporter",
+        "PDF 第 %1 页渲染图像过大").arg(page);
+    case 6: return QCoreApplication::translate("EBPDFImporter",
+        "PDF 第 %1 页渲染图像无效").arg(page);
+    case 7: return QCoreApplication::translate("EBPDFImporter",
+        "PDF 第 %1 页图像无法保存").arg(page);
+    case 8: return QCoreApplication::translate("EBPDFImporter",
+        "PDF 页面索引无法保存");
+    case 9: {
+        const QRegularExpression codePattern(QStringLiteral("0x[0-9a-fA-F]+"));
+        const QString code = codePattern.match(output).captured();
+        return QCoreApplication::translate("EBPDFImporter",
+            "PDF 打开或渲染失败（%1）").arg(code);
+    }
+    case 10: return QCoreApplication::translate("EBPDFImporter",
+        "PDF 页码范围或清晰度无效");
+    default: return QString();
+    }
+}
 }
 
 bool EBPDFImporter::inspectFile(const QString &path, int *pageCount,
@@ -35,20 +67,20 @@ bool EBPDFImporter::inspectFile(const QString &path, int *pageCount,
     if (!pageCount || !file.isFile() || file.size() <= 0
         || file.size() > kMaxPdfBytes) {
         if (error)
-            *error = QStringLiteral("PDF 文件不存在、为空或超过 256 MB");
+            *error = QCoreApplication::translate("EBPDFImporter", "PDF 文件不存在、为空或超过 256 MB");
         return false;
     }
     const QString renderer = rendererPath();
     if (!QFileInfo::exists(renderer)) {
         if (error)
-            *error = QStringLiteral("缺少 PDF 渲染组件 EasyBoardPdfRenderer.exe");
+            *error = QCoreApplication::translate("EBPDFImporter", "缺少 PDF 渲染组件 EasyBoardPdfRenderer.exe");
         return false;
     }
     QProcess process;
     process.start(renderer, {QStringLiteral("--inspect"), file.absoluteFilePath()});
     if (!process.waitForStarted(10000)) {
         if (error)
-            *error = QStringLiteral("无法启动 PDF 渲染组件");
+            *error = QCoreApplication::translate("EBPDFImporter", "无法启动 PDF 渲染组件");
         return false;
     }
     process.write(password.toUtf8());
@@ -67,7 +99,10 @@ bool EBPDFImporter::inspectFile(const QString &path, int *pageCount,
             }
             const QString detail = QString::fromUtf8(
                 process.readAllStandardError()).trimmed();
-            *error = detail.isEmpty() ? QStringLiteral("无法读取 PDF 页数") : detail;
+            const QString localized = rendererError(process.exitCode(), detail);
+            *error = localized.isEmpty()
+                ? QCoreApplication::translate("EBPDFImporter", "无法读取 PDF 页数")
+                : localized;
         }
         return false;
     }
@@ -77,7 +112,7 @@ bool EBPDFImporter::inspectFile(const QString &path, int *pageCount,
         ? output.mid(6).toInt(&countOk) : 0;
     if (!countOk || count < 1 || count > 200) {
         if (error)
-            *error = QStringLiteral("PDF 页数无效");
+            *error = QCoreApplication::translate("EBPDFImporter", "PDF 页数无效");
         return false;
     }
     *pageCount = count;
@@ -94,7 +129,7 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     if (!document || !file.isFile() || file.size() <= 0
         || file.size() > kMaxPdfBytes) {
         if (error)
-            *error = QStringLiteral("PDF 文件不存在、为空或超过 256 MB");
+            *error = QCoreApplication::translate("EBPDFImporter", "PDF 文件不存在、为空或超过 256 MB");
         return false;
     }
     const qint64 sourceSize = file.size();
@@ -102,13 +137,13 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     QTemporaryDir temporary;
     if (!temporary.isValid()) {
         if (error)
-            *error = QStringLiteral("无法创建 PDF 导入临时目录");
+            *error = QCoreApplication::translate("EBPDFImporter", "无法创建 PDF 导入临时目录");
         return false;
     }
     const QString renderer = rendererPath();
     if (!QFileInfo::exists(renderer)) {
         if (error)
-            *error = QStringLiteral("缺少 PDF 渲染组件 EasyBoardPdfRenderer.exe");
+            *error = QCoreApplication::translate("EBPDFImporter", "缺少 PDF 渲染组件 EasyBoardPdfRenderer.exe");
         return false;
     }
     QProcess process;
@@ -118,7 +153,7 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
                              QString::number(options.scale, 'f', 1)});
     if (!process.waitForStarted(10000)) {
         if (error)
-            *error = QStringLiteral("无法启动 PDF 渲染组件");
+            *error = QCoreApplication::translate("EBPDFImporter", "无法启动 PDF 渲染组件");
         return false;
     }
     process.write(password.toUtf8());
@@ -148,14 +183,14 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
             process.kill();
             process.waitForFinished(3000);
             if (error)
-                *error = QStringLiteral("已取消 PDF 导入");
+                *error = QCoreApplication::translate("EBPDFImporter", "已取消 PDF 导入");
             return false;
         }
         if (elapsed.elapsed() > 300000) {
             process.kill();
             process.waitForFinished(3000);
             if (error)
-                *error = QStringLiteral("PDF 导入超时");
+                *error = QCoreApplication::translate("EBPDFImporter", "PDF 导入超时");
             return false;
         }
         process.waitForReadyRead(100);
@@ -164,20 +199,22 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     readProgress();
     if (cancelled && cancelled->load()) {
         if (error)
-            *error = QStringLiteral("已取消 PDF 导入");
+            *error = QCoreApplication::translate("EBPDFImporter", "已取消 PDF 导入");
         return false;
     }
     if (process.exitStatus() != QProcess::NormalExit
         || process.exitCode() != 0) {
         if (error) {
             if (process.exitCode() == kPasswordError) {
-                *error = QStringLiteral("PDF 密码错误");
+                *error = QCoreApplication::translate("EBPDFImporter", "PDF 密码错误");
                 return false;
             }
             const QString detail = QString::fromUtf8(
                 process.readAllStandardError()).trimmed();
-            *error = detail.isEmpty() ? QStringLiteral("PDF 渲染失败或超时")
-                                      : detail;
+            const QString localized = rendererError(process.exitCode(), detail);
+            *error = localized.isEmpty()
+                ? QCoreApplication::translate("EBPDFImporter", "PDF 渲染失败或超时")
+                : localized;
         }
         return false;
     }
@@ -185,13 +222,13 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     if (!currentSource.isFile() || currentSource.size() != sourceSize
         || currentSource.lastModified() != sourceModified) {
         if (error)
-            *error = QStringLiteral("PDF 文件在导入过程中发生变化，请重新导入");
+            *error = QCoreApplication::translate("EBPDFImporter", "PDF 文件在导入过程中发生变化，请重新导入");
         return false;
     }
     QFile manifest(QDir(temporary.path()).filePath(QStringLiteral("pages.json")));
     if (!manifest.open(QIODevice::ReadOnly)) {
         if (error)
-            *error = QStringLiteral("PDF 页面索引缺失");
+            *error = QCoreApplication::translate("EBPDFImporter", "PDF 页面索引缺失");
         return false;
     }
     const QJsonDocument index = QJsonDocument::fromJson(manifest.readAll());
@@ -201,7 +238,7 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     if (pages.isEmpty() || pages.size() > 200
         || (expectedCount > 0 && pages.size() != expectedCount)) {
         if (error)
-            *error = QStringLiteral("PDF 页面索引无效");
+            *error = QCoreApplication::translate("EBPDFImporter", "PDF 页面索引无效");
         return false;
     }
     EBDocument imported;
@@ -209,7 +246,7 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
     for (int pageIndex = 0; pageIndex < pages.size(); ++pageIndex) {
         if (cancelled && cancelled->load()) {
             if (error)
-                *error = QStringLiteral("已取消 PDF 导入");
+                *error = QCoreApplication::translate("EBPDFImporter", "已取消 PDF 导入");
             return false;
         }
         const QJsonObject pageInfo = pages.at(pageIndex).toObject();
@@ -223,7 +260,7 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
             || !width.isDouble() || !imageFile.isFile() || imageFile.isSymLink()
             || imageFile.size() <= 0 || imageFile.size() > kMaxImageBytes) {
             if (error)
-                *error = QStringLiteral("第 %1 页图像无效").arg(pageIndex + 1);
+                *error = QCoreApplication::translate("EBPDFImporter", "第 %1 页图像无效").arg(pageIndex + 1);
             return false;
         }
         QImageReader reader(imageFile.absoluteFilePath(), "PNG");
@@ -231,13 +268,13 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
         if (!size.isValid()
             || qint64(size.width()) * size.height() > kMaxImagePixels) {
             if (error)
-                *error = QStringLiteral("第 %1 页图像过大").arg(pageIndex + 1);
+                *error = QCoreApplication::translate("EBPDFImporter", "第 %1 页图像过大").arg(pageIndex + 1);
             return false;
         }
         const QImage image = reader.read();
         if (image.isNull()) {
             if (error)
-                *error = QStringLiteral("第 %1 页图像读取失败").arg(pageIndex + 1);
+                *error = QCoreApplication::translate("EBPDFImporter", "第 %1 页图像读取失败").arg(pageIndex + 1);
             return false;
         }
         if (pageIndex > 0) {
@@ -247,7 +284,7 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
         EBPage *page = imported.currentPage();
         if (!page->setCustomSize(width.toDouble(), EBPage::Height)) {
             if (error)
-                *error = QStringLiteral("第 %1 页比例无效").arg(pageIndex + 1);
+                *error = QCoreApplication::translate("EBPDFImporter", "第 %1 页比例无效").arg(pageIndex + 1);
             return false;
         }
         page->setBackgroundImage(image);
