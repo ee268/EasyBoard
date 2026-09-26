@@ -164,6 +164,8 @@ EBDesktopBar::EBDesktopBar(QWidget *parent)
     connect(exit, &QAction::triggered,
             this, &EBDesktopBar::exitRequested);
     setHistory(false, false);
+    // 顶层工具栏的自动调整可能将宽度限制为屏幕的三分之二。
+    setMinimumWidth(sizeHint().width());
 }
 
 void EBDesktopBar::setHistory(bool undoAvailable, bool redoAvailable)

@@ -115,7 +115,6 @@ void EBDesktopOverlay::openOnDesktop()
     showFullScreen();
     raise();
     _bar->show();
-    _bar->adjustSize();
     positionBar(false);
     _bar->raise();
     setInteractionMode(_interactionMode);
@@ -447,7 +446,7 @@ void EBDesktopOverlay::resizeEvent(QResizeEvent *event)
 
 void EBDesktopOverlay::positionBar(bool center)
 {
-    _bar->adjustSize();
+    _bar->resize(_bar->sizeHint());
     const QRect area = geometry();
     if (center || !_barPositioned) {
         _bar->move(area.left() + (area.width() - _bar->width()) / 2,
