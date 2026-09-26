@@ -130,12 +130,14 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
     QAction *downloadsAction = bar->addAction(ebToolbarIcon("download"),
                                               tr("下载"));
     downloadsAction->setObjectName(QStringLiteral("webDownloadsAction"));
+    downloadsAction->setToolTip(tr("下载记录"));
     connect(downloadsAction, &QAction::triggered,
             _downloads, &EBWebDownloads::showManager);
     QToolButton *bookmarksButton = new QToolButton(bar);
     bookmarksButton->setObjectName(QStringLiteral("webBookmarksButton"));
     bookmarksButton->setIcon(ebToolbarIcon("bookmark"));
     bookmarksButton->setText(tr("书签"));
+    bookmarksButton->setToolTip(tr("管理书签"));
     bookmarksButton->setToolButtonStyle(bar->toolButtonStyle());
     bookmarksButton->setPopupMode(QToolButton::InstantPopup);
     QMenu *bookmarksMenu = new QMenu(bookmarksButton);
@@ -182,12 +184,12 @@ EBWebWorkspace::EBWebWorkspace(QWidget *parent)
                     [this, entry]() { createTab(entry.url); });
         }
     });
-    _captureAction = bar->addAction(ebToolbarIcon("image_object"),
-                                    tr("截取网页区域到白板"));
+    _captureAction = bar->addAction(ebToolbarIcon("image_object"), tr("截图"));
     _captureAction->setObjectName(QStringLiteral("webCaptureAction"));
-    _externalAction = bar->addAction(ebToolbarIcon("web"),
-                                     tr("在外部浏览器打开"));
+    _captureAction->setToolTip(tr("截取网页区域到白板"));
+    _externalAction = bar->addAction(ebToolbarIcon("web"), tr("外部打开"));
     _externalAction->setObjectName(QStringLiteral("webExternalAction"));
+    _externalAction->setToolTip(tr("在外部浏览器打开"));
     _tabs->setObjectName(QStringLiteral("webTabs"));
     _tabs->setDocumentMode(true);
     _tabs->setTabsClosable(true);
@@ -308,8 +310,8 @@ void EBWebWorkspace::retranslate()
         {"webBackAction", "后退"}, {"webForwardAction", "前进"},
         {"webReloadAction", "刷新"}, {"webNewTabAction", "新建标签页"},
         {"webHistoryAction", "历史"}, {"webDownloadsAction", "下载"},
-        {"webCaptureAction", "截取网页区域到白板"},
-        {"webExternalAction", "在外部浏览器打开"}
+        {"webCaptureAction", "截图"},
+        {"webExternalAction", "外部打开"}
     };
     for (const auto &entry : actions) {
         if (QAction *action = findChild<QAction *>(QString::fromLatin1(entry.name)))
@@ -320,6 +322,12 @@ void EBWebWorkspace::retranslate()
     clear->setToolTip(tr("清除地址"));
     clear->setAccessibleName(tr("清除地址"));
     findChild<QToolButton *>(QStringLiteral("webBookmarksButton"))->setText(tr("书签"));
+    findChild<QToolButton *>(QStringLiteral("webBookmarksButton"))
+        ->setToolTip(tr("管理书签"));
+    findChild<QAction *>(QStringLiteral("webDownloadsAction"))
+        ->setToolTip(tr("下载记录"));
+    _captureAction->setToolTip(tr("截取网页区域到白板"));
+    _externalAction->setToolTip(tr("在外部浏览器打开"));
     for (int index = 0; index < _tabs->count(); ++index) {
         QWebEngineView *view = qobject_cast<QWebEngineView *>(_tabs->widget(index));
         if (view && view->property("welcomePage").toBool()) {

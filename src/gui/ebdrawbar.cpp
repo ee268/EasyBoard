@@ -108,11 +108,13 @@ void EBDrawBar::retranslate()
     _shapeButton->setToolTip(selectedShape ? selectedShape->text() : tr("形状工具"));
     _shapeButton->setAccessibleName(tr("形状工具"));
     for (QToolButton *button : {_brushButton, _textFormatButton, _teachingButton}) {
-        const QString label = button == _brushButton ? tr("画笔设置")
+        const QString label = button == _brushButton ? tr("画笔")
+            : button == _textFormatButton ? tr("文本") : tr("教具");
+        const QString tip = button == _brushButton ? tr("画笔设置")
             : button == _textFormatButton ? tr("文字格式") : tr("教学工具");
         button->setText(label);
-        button->setToolTip(label);
-        button->setAccessibleName(label);
+        button->setToolTip(tip);
+        button->setAccessibleName(tip);
     }
     _teachingButton->setToolTip(_boardView->teachingTool() == EBTeachingTools::Kind::None
                                 ? tr("教学工具") : tr("教学工具（已开启）"));
@@ -202,7 +204,7 @@ void EBDrawBar::createBrushMenu()
     _brushButton = new QToolButton(this);
     _brushButton->setObjectName(QStringLiteral("brushSettingsButton"));
     _brushButton->setIcon(ebToolbarIcon("brush_settings"));
-    _brushButton->setText(tr("画笔设置"));
+    _brushButton->setText(tr("画笔"));
     _brushButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     _brushButton->setToolTip(tr("画笔设置"));
     _brushButton->setAccessibleName(tr("画笔设置"));
@@ -259,7 +261,7 @@ void EBDrawBar::createTextFormatMenu()
     _textFormatButton = new QToolButton(this);
     _textFormatButton->setObjectName(QStringLiteral("textFormatButton"));
     _textFormatButton->setIcon(ebToolbarIcon("text_format"));
-    _textFormatButton->setText(tr("文字格式"));
+    _textFormatButton->setText(tr("文本"));
     _textFormatButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     _textFormatButton->setToolTip(tr("文字格式"));
     _textFormatButton->setAccessibleName(tr("文字格式"));

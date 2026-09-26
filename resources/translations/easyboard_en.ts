@@ -814,7 +814,7 @@
     <message>
         <location line="+0"/>
         <source>荧光笔</source>
-        <translation>Highlighter</translation>
+        <translation>Marker</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1015,6 +1015,10 @@
         <location line="+5"/>
         <source>收起教具</source>
         <translation>Hide teaching tools</translation>
+    </message>
+    <message>
+        <source>教具</source>
+        <translation>Tools</translation>
     </message>
 </context>
 <context>
@@ -1583,27 +1587,27 @@
     <message>
         <location filename="../../src/gui/ebpagepanel.cpp" line="+41"/>
         <source>删除</source>
-        <translation>Delete</translation>
+        <translation>Del</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>上移</source>
-        <translation>Move up</translation>
+        <translation>Up</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>下移</source>
-        <translation>Move down</translation>
+        <translation>Down</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>上一页</source>
-        <translation>Previous page</translation>
+        <translation>Prev</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>下一页</source>
-        <translation>Next page</translation>
+        <translation>Next</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -1815,7 +1819,7 @@
     <message>
         <location line="+10"/>
         <source>显示页面栏</source>
-        <translation>Show page panel</translation>
+        <translation>Pages</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -1825,7 +1829,7 @@
     <message>
         <location line="+5"/>
         <source>展示视图</source>
-        <translation>Presentation view</translation>
+        <translation>Present</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -1870,7 +1874,7 @@
         <location line="+4"/>
         <location line="+1"/>
         <source>背景</source>
-        <translation>Background</translation>
+        <translation>Page</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -1930,12 +1934,12 @@
     <message>
         <location line="+48"/>
         <source>白板</source>
-        <translation>Whiteboard</translation>
+        <translation>Board</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>文档</source>
-        <translation>Documents</translation>
+        <translation>Docs</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -1946,6 +1950,10 @@
         <location line="+0"/>
         <source>桌面</source>
         <translation>Desktop</translation>
+    </message>
+    <message>
+        <source>图片</source>
+        <translation>Image</translation>
     </message>
 </context>
 <context>
@@ -2380,12 +2388,12 @@
     <message>
         <location line="+3"/>
         <source>下载</source>
-        <translation>Downloads</translation>
+        <translation>Files</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>书签</source>
-        <translation>Bookmarks</translation>
+        <translation>Marks</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -2437,6 +2445,18 @@
         <location line="+33"/>
         <source>网址无效</source>
         <translation>Invalid URL</translation>
+    </message>
+    <message>
+        <source>下载记录</source>
+        <translation>Downloads</translation>
+    </message>
+    <message>
+        <source>截图</source>
+        <translation>Capture</translation>
+    </message>
+    <message>
+        <source>外部打开</source>
+        <translation>Open</translation>
     </message>
 </context>
 <context>

@@ -44,7 +44,11 @@ EBTopBar::EBTopBar(QMainWindow *window, EBBoardView *boardView,
     createBackgroundMenu();
     _insertImageAction->setIcon(ebToolbarIcon("image_object"));
     _insertImageAction->setToolTip(tr("插入图片对象"));
-    addAction(_insertImageAction);
+    QAction *insertImageBarAction = addAction(ebToolbarIcon("image_object"), tr("图片"));
+    insertImageBarAction->setObjectName(QStringLiteral("insertImageToolAction"));
+    insertImageBarAction->setToolTip(tr("插入图片对象"));
+    connect(insertImageBarAction, &QAction::triggered,
+            _insertImageAction, &QAction::trigger);
     addSeparator();
     createZoomActions();
     addSeparator();
@@ -102,6 +106,10 @@ void EBTopBar::retranslate()
     _pagePanelAction->setToolTip(tr("显示或隐藏左侧页面栏"));
     _displayAction->setToolTip(tr("打开或关闭独立展示视图"));
     _insertImageAction->setToolTip(tr("插入图片对象"));
+    QAction *insertImageBarAction = findChild<QAction *>(
+        QStringLiteral("insertImageToolAction"));
+    insertImageBarAction->setText(tr("图片"));
+    insertImageBarAction->setToolTip(tr("插入图片对象"));
     _backgroundButton->setText(tr("背景"));
     _backgroundButton->setToolTip(tr("背景"));
     _backgroundButton->setAccessibleName(tr("背景"));
@@ -126,6 +134,8 @@ void EBTopBar::setMode(EBApplicationController::MainMode mode)
     _displayAction->setEnabled(_boardModeActive);
     _backgroundButton->setEnabled(_boardModeActive);
     _insertImageAction->setEnabled(_boardModeActive);
+    findChild<QAction *>(QStringLiteral("insertImageToolAction"))
+        ->setEnabled(_boardModeActive);
     _zoomInAction->setEnabled(_boardModeActive);
     _zoomOutAction->setEnabled(_boardModeActive);
     _fitPageAction->setEnabled(_boardModeActive);

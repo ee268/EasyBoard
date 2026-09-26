@@ -12,7 +12,7 @@ void EBDrawBar::createTeachingMenu()
     _teachingButton = new QToolButton(this);
     _teachingButton->setObjectName(QStringLiteral("teachingToolsButton"));
     _teachingButton->setIcon(ebToolbarIcon("teaching"));
-    _teachingButton->setText(tr("教学工具"));
+    _teachingButton->setText(tr("教具"));
     _teachingButton->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     _teachingButton->setToolTip(tr("教学工具"));
     _teachingButton->setAccessibleName(tr("教学工具"));
