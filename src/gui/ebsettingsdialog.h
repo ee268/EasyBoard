@@ -12,6 +12,8 @@ class QPushButton;
 
 class EBSettingsDialog : public QDialog
 {
+    Q_OBJECT
+
 public:
     struct Values {
         QString exportDirectory;

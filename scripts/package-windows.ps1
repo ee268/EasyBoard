@@ -47,6 +47,11 @@ if ((Test-Path -LiteralPath $packageDir) -or (Test-Path -LiteralPath $zipPath)) 
 New-Item -ItemType Directory -Path $packageDir | Out-Null
 Copy-Item -LiteralPath $app -Destination $packageDir
 Copy-Item -LiteralPath $renderer -Destination $packageDir
+$translation = Join-Path $binaryDir 'easyboard_en.qm'
+if (-not (Test-Path -LiteralPath $translation -PathType Leaf)) {
+    throw "缺少英文翻译文件：$translation"
+}
+Copy-Item -LiteralPath $translation -Destination $packageDir
 & $deploy --release --compiler-runtime --dir $packageDir (Join-Path $packageDir 'EasyBoard.exe')
 if ($LASTEXITCODE -ne 0) {
     throw "windeployqt 执行失败：$LASTEXITCODE"
@@ -87,7 +92,7 @@ foreach ($runtime in @('vcruntime140.dll', 'msvcp140.dll')) {
     }
 }
 
-$checksums = @('EasyBoard.exe', 'EasyBoardPdfRenderer.exe') | ForEach-Object {
+$checksums = @('EasyBoard.exe', 'EasyBoardPdfRenderer.exe', 'easyboard_en.qm') | ForEach-Object {
     $file = [System.IO.File]::OpenRead((Join-Path $packageDir $_))
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
     try {

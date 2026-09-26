@@ -9,7 +9,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui Network Svg WebEngineWidgets)
+find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui Network Svg WebEngineWidgets LinguistTools)
 find_package(Qt5 REQUIRED COMPONENTS Core)
 
 file(GLOB_RECURSE EASYBOARD_SOURCES CONFIGURE_DEPENDS
@@ -25,6 +25,21 @@ add_executable(${PROJECT_NAME}
 )
 configure_file(src/core/ebversion.h.in
     "${CMAKE_CURRENT_BINARY_DIR}/ebversion.h" @ONLY)
+set(EASYBOARD_EN_TS resources/translations/easyboard_en.ts)
+set_source_files_properties(${EASYBOARD_EN_TS} PROPERTIES
+    OUTPUT_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/translations")
+qt5_add_translation(EASYBOARD_TRANSLATIONS ${EASYBOARD_EN_TS})
+set(EASYBOARD_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+if(CMAKE_CONFIGURATION_TYPES)
+    set(EASYBOARD_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
+endif()
+add_custom_target(EasyBoardTranslations ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${EASYBOARD_RUNTIME_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${EASYBOARD_TRANSLATIONS} ${EASYBOARD_RUNTIME_DIR}
+    DEPENDS ${EASYBOARD_TRANSLATIONS}
+    VERBATIM)
+
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/resources")
@@ -69,6 +84,9 @@ install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+install(FILES ${EASYBOARD_TRANSLATIONS}
+    DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(WIN32)
     add_executable(EasyBoardPdfRenderer src/import/ebpdfrenderer.cpp)

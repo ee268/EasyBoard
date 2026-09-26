@@ -8,6 +8,8 @@ class QSpinBox;
 
 class EBPageSizeDialog : public QDialog
 {
+    Q_OBJECT
+
 public:
     explicit EBPageSizeDialog(const QSizeF &current, QWidget *parent = nullptr);
     QSizeF pageSize() const;
