@@ -79,6 +79,22 @@ void EBSettings::setLastDocumentPath(const QString &path)
     _userSettings->setValue(QStringLiteral("Document/LastPath"), path);
 }
 
+QString EBSettings::language() const
+{
+    const QString value = _userSettings->value(
+        QStringLiteral("General/Language"), QStringLiteral("zh_CN")).toString();
+    return value == QStringLiteral("en_US") ? value : QStringLiteral("zh_CN");
+}
+
+bool EBSettings::setLanguage(const QString &language)
+{
+    if (language != QStringLiteral("zh_CN")
+        && language != QStringLiteral("en_US"))
+        return false;
+    _userSettings->setValue(QStringLiteral("General/Language"), language);
+    return true;
+}
+
 QString EBSettings::exportDirectory() const
 {
     return existingDirectory(_userSettings->value(

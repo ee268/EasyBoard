@@ -1,6 +1,7 @@
 #include "ebsettingsdialog.h"
 
 #include <QColorDialog>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDoubleSpinBox>
@@ -9,6 +10,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPixmap>
@@ -38,6 +40,7 @@ EBSettingsDialog::EBSettingsDialog(QWidget *parent)
     , _markerWidth(new QDoubleSpinBox(this))
     , _pageWidth(new QDoubleSpinBox(this))
     , _pageHeight(new QDoubleSpinBox(this))
+    , _language(new QComboBox(this))
 {
     setObjectName(QStringLiteral("settingsDialog"));
     setWindowTitle(tr("设置"));
@@ -46,6 +49,21 @@ EBSettingsDialog::EBSettingsDialog(QWidget *parent)
     QTabWidget *tabs = new QTabWidget(this);
     tabs->setObjectName(QStringLiteral("settingsTabs"));
     layout->addWidget(tabs);
+
+    QWidget *generalTab = new QWidget(tabs);
+    QVBoxLayout *generalLayout = new QVBoxLayout(generalTab);
+    QGroupBox *languageGroup = new QGroupBox(tr("界面语言"), generalTab);
+    QFormLayout *languageForm = new QFormLayout(languageGroup);
+    _language->setObjectName(QStringLiteral("uiLanguageComboBox"));
+    _language->addItem(QStringLiteral("简体中文"), QStringLiteral("zh_CN"));
+    _language->addItem(QStringLiteral("English"), QStringLiteral("en_US"));
+    languageForm->addRow(tr("语言："), _language);
+    QLabel *restartNote = new QLabel(tr("更改语言后，重新启动 EasyBoard 生效。"), languageGroup);
+    restartNote->setWordWrap(true);
+    languageForm->addRow(restartNote);
+    generalLayout->addWidget(languageGroup);
+    generalLayout->addStretch();
+    tabs->addTab(generalTab, tr("通用"));
 
     QWidget *filesTab = new QWidget(tabs);
     QVBoxLayout *filesLayout = new QVBoxLayout(filesTab);
@@ -145,6 +163,7 @@ EBSettingsDialog::EBSettingsDialog(QWidget *parent)
     });
 
     EBSettings *settings = EBSettings::settings();
+    _language->setCurrentIndex(_language->findData(settings->language()));
     _exportDirectory->setText(settings->exportDirectory());
     _downloadDirectory->setText(settings->downloadDirectory());
     _penColor = settings->penColor();
@@ -163,7 +182,8 @@ EBSettingsDialog::Values EBSettingsDialog::values() const
             _downloadDirectory->text().trimmed(),
             _penColor, _markerColor, _penWidth->value(),
             _markerWidth->value(),
-            QSizeF(_pageWidth->value(), _pageHeight->value())};
+            QSizeF(_pageWidth->value(), _pageHeight->value()),
+            _language->currentData().toString()};
 }
 
 void EBSettingsDialog::accept()
@@ -209,6 +229,7 @@ void EBSettingsDialog::restoreDefaults()
     _markerWidth->setValue(18.0);
     _pageWidth->setValue(1200.0);
     _pageHeight->setValue(900.0);
+    _language->setCurrentIndex(_language->findData(QStringLiteral("zh_CN")));
     refreshColorButton(_penColorButton, _penColor);
     refreshColorButton(_markerColorButton, _markerColor);
 }

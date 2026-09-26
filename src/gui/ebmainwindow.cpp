@@ -188,7 +188,8 @@ void EBMainWindow::showSettings()
     EBSettings *settings = EBSettings::settings();
     if (!settings->setExportDirectory(values.exportDirectory)
         || !settings->setDownloadDirectory(values.downloadDirectory)
-        || !settings->setDefaultPageSize(values.pageSize)) {
+        || !settings->setDefaultPageSize(values.pageSize)
+        || !settings->setLanguage(values.language)) {
         QMessageBox::warning(this, tr("设置"), tr("目录或画布尺寸无效。"));
         return;
     }

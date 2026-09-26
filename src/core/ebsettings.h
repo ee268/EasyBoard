@@ -30,6 +30,9 @@ public:
 
     void setLastDocumentPath(const QString &path);
 
+    QString language() const;
+    bool setLanguage(const QString &language);
+
     QString exportDirectory() const;
     bool setExportDirectory(const QString &directory);
     QString downloadDirectory() const;

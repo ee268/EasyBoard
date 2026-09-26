@@ -6,6 +6,7 @@
 #include <QSizeF>
 #include <QString>
 
+class QComboBox;
 class QDoubleSpinBox;
 class QLineEdit;
 class QPushButton;
@@ -23,6 +24,7 @@ public:
         qreal penWidth;
         qreal markerWidth;
         QSizeF pageSize;
+        QString language;
     };
 
     explicit EBSettingsDialog(QWidget *parent = nullptr);
@@ -44,6 +46,7 @@ private:
     QDoubleSpinBox *_markerWidth;
     QDoubleSpinBox *_pageWidth;
     QDoubleSpinBox *_pageHeight;
+    QComboBox *_language;
     QColor _penColor;
     QColor _markerColor;
 };

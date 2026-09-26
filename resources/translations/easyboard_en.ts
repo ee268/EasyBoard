@@ -1058,17 +1058,17 @@
     <name>EBMainWindow</name>
     <message>
         <location filename="../../src/gui/ebmainwindow.cpp" line="+82"/>
-        <location line="+548"/>
+        <location line="+549"/>
         <source>EasyBoard</source>
         <translation>EasyBoard</translation>
     </message>
     <message>
-        <location line="-515"/>
+        <location line="-516"/>
         <source>页面坐标：(%1, %2)</source>
         <translation>Page coordinates: (%1, %2)</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+78"/>
         <location line="+8"/>
         <source>设置</source>
         <translation>Settings</translation>
@@ -1647,13 +1647,33 @@
 <context>
     <name>EBSettingsDialog</name>
     <message>
-        <location filename="../../src/gui/ebsettingsdialog.cpp" line="+43"/>
-        <location line="+131"/>
+        <location filename="../../src/gui/ebsettingsdialog.cpp" line="+46"/>
+        <location line="+148"/>
         <source>设置</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location line="-122"/>
+        <location line="-139"/>
+        <source>界面语言</source>
+        <translation>Interface language</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>语言：</source>
+        <translation>Language:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>更改语言后，重新启动 EasyBoard 生效。</source>
+        <translation>Restart EasyBoard for the language change to take effect.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>通用</source>
+        <translation>General</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>文件导出</source>
         <translation>File export</translation>
     </message>
@@ -1740,7 +1760,7 @@
         <translation>Select default download directory</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+41"/>
         <source>请选择已存在的绝对目录。</source>
         <translation>Select an existing absolute directory.</translation>
     </message>
