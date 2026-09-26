@@ -11,6 +11,7 @@
 #include "../board/ebboardview.h"
 #include "ebbarstyle.h"
 #include "ebicons.h"
+#include "ebpagesizedialog.h"
 
 EBTopBar::EBTopBar(QMainWindow *window, EBBoardView *boardView,
                    QAction *insertImageAction)
@@ -107,15 +108,10 @@ void EBTopBar::syncPage()
     else if (_boardView->pagePattern() == EBBoardView::PagePattern::Ruled)
         pattern = 2;
     const int size = _boardView->pageSize() == EBBoardView::PageSize::Standard
-        ? 0 : _boardView->pageSize() == EBBoardView::PageSize::Widescreen ? 1 : -1;
+        ? 0 : _boardView->pageSize() == EBBoardView::PageSize::Widescreen ? 1 : 2;
     _colorActions[color]->setChecked(true);
     _patternActions[pattern]->setChecked(true);
-    if (size >= 0)
-        _sizeActions[size]->setChecked(true);
-    else {
-        _sizeActions[0]->setChecked(false);
-        _sizeActions[1]->setChecked(false);
-    }
+    _sizeActions[size]->setChecked(true);
 }
 
 void EBTopBar::createZoomActions()
@@ -188,6 +184,8 @@ void EBTopBar::createBackgroundMenu()
                                "standardPageAction", "page_standard");
     QAction *widescreen = choice(sizeMenu, sizeGroup, tr("宽屏 16:9"),
                                  "widescreenPageAction", "page_wide");
+    QAction *custom = choice(sizeMenu, sizeGroup, tr("自定义尺寸..."),
+                             "customPageAction", "page_size");
     _colorActions[0] = white;
     _colorActions[1] = cream;
     _patternActions[0] = blank;
@@ -195,6 +193,7 @@ void EBTopBar::createBackgroundMenu()
     _patternActions[2] = ruled;
     _sizeActions[0] = standard;
     _sizeActions[1] = widescreen;
+    _sizeActions[2] = custom;
     white->setChecked(true);
     blank->setChecked(true);
     standard->setChecked(true);
@@ -220,6 +219,12 @@ void EBTopBar::createBackgroundMenu()
     });
     connect(widescreen, &QAction::triggered, _boardView, [this]() {
         _boardView->setPageSize(EBBoardView::PageSize::Widescreen);
+    });
+    connect(custom, &QAction::triggered, _boardView, [this]() {
+        EBPageSizeDialog dialog(_boardView->pageRect().size(), _boardView);
+        if (dialog.exec() == QDialog::Accepted)
+            _boardView->setCustomPageSize(dialog.pageSize());
+        syncPage();
     });
 }
 

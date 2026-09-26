@@ -215,7 +215,10 @@ void EBBoardView::reloadBrushSettings()
 int EBBoardView::addPage()
 {
     finishPageInteraction();
-    const int index = _document->addPage();
+    const QSizeF size = EBSettings::settings()->defaultPageSize();
+    const int index = _document->addPage(size.width(), size.height());
+    if (index < 0)
+        return -1;
     emit pageListChanged();
     setCurrentPageIndex(index);
     return index;
@@ -358,8 +361,30 @@ void EBBoardView::setPageSize(PageSize size)
         emit teachingToolChanged(EBTeachingTools::Kind::None);
     }
     _document->currentPage()->setSize(size);
-    _scene->setPageSize(size);
-    _teachingTools.restore(_document->currentPage()->teachingTools(), pageRect());
+    applyCurrentPageSize();
+}
+
+bool EBBoardView::setCustomPageSize(const QSizeF &size)
+{
+    if (!EBSettings::isValidPageSize(size))
+        return false;
+    finishPageInteraction();
+    if (_teachingTools.kind() != EBTeachingTools::Kind::None) {
+        _teachingTools.deactivate();
+        emit teachingToolChanged(EBTeachingTools::Kind::None);
+    }
+    if (!_document->currentPage()->setSizeForDimensions(
+            size.width(), size.height()))
+        return false;
+    applyCurrentPageSize();
+    return true;
+}
+
+void EBBoardView::applyCurrentPageSize()
+{
+    const EBPage *page = _document->currentPage();
+    _scene->setPageSize(page->size(), page->pageWidth(), page->pageHeight());
+    _teachingTools.restore(page->teachingTools(), pageRect());
     _scene->setGuides(_document->currentPage()->horizontalGuides(),
                       _document->currentPage()->verticalGuides());
     refreshManualGuides();

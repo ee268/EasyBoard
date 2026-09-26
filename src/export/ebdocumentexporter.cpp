@@ -16,7 +16,7 @@ constexpr int kPdfResolution = 144;
 
 QSize pagePixelSize(const EBPage &page)
 {
-    return QSize(qRound(page.pageWidth()), int(EBPage::Height));
+    return QSize(qRound(page.pageWidth()), qRound(page.pageHeight()));
 }
 
 QPageSize pdfPageSize(const EBPage &page)

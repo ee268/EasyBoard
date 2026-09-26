@@ -43,7 +43,9 @@ public:
     Size size() const;
     void setSize(Size size);
     qreal pageWidth() const;
-    bool setCustomWidth(qreal width);
+    qreal pageHeight() const;
+    bool setCustomSize(qreal width, qreal height);
+    bool setSizeForDimensions(qreal width, qreal height);
 
     const Strokes &strokes() const;
     void setStrokes(const Strokes &strokes);
@@ -68,6 +70,7 @@ private:
     Pattern _pattern = Pattern::Blank;
     Size _size = Size::Standard;
     qreal _customWidth = 1200.0;
+    qreal _customHeight = Height;
     Strokes _strokes;
     Texts _texts;
     Images _images;

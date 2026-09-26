@@ -38,6 +38,9 @@ void EBPage::setSize(Size size)
     const qreal width = pageWidth();
     for (qreal &guide : _verticalGuides)
         guide = qMin(guide, width);
+    const qreal height = pageHeight();
+    for (qreal &guide : _horizontalGuides)
+        guide = qMin(guide, height);
 }
 
 qreal EBPage::pageWidth() const
@@ -45,12 +48,33 @@ qreal EBPage::pageWidth() const
     return _size == Size::Custom ? _customWidth : widthForSize(_size);
 }
 
-bool EBPage::setCustomWidth(qreal width)
+qreal EBPage::pageHeight() const
 {
-    if (!qIsFinite(width) || width < 100.0 || width > 5000.0)
+    return _size == Size::Custom ? _customHeight : Height;
+}
+
+bool EBPage::setCustomSize(qreal width, qreal height)
+{
+    if (!qIsFinite(width) || width < 100.0 || width > 5000.0
+        || !qIsFinite(height) || height < 100.0 || height > 5000.0)
         return false;
     _customWidth = width;
+    _customHeight = height;
     setSize(Size::Custom);
+    return true;
+}
+
+bool EBPage::setSizeForDimensions(qreal width, qreal height)
+{
+    if (!qIsFinite(width) || width < 100.0 || width > 5000.0
+        || !qIsFinite(height) || height < 100.0 || height > 5000.0)
+        return false;
+    if (width == 1200.0 && height == Height)
+        setSize(Size::Standard);
+    else if (width == 1600.0 && height == Height)
+        setSize(Size::Widescreen);
+    else
+        return setCustomSize(width, height);
     return true;
 }
 

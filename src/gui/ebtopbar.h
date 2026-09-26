@@ -45,7 +45,7 @@ private:
     QToolButton *_backgroundButton = nullptr;
     QAction *_colorActions[2] = {};
     QAction *_patternActions[3] = {};
-    QAction *_sizeActions[2] = {};
+    QAction *_sizeActions[3] = {};
     QAction *_modeActions[4] = {};
     bool _boardModeActive = false;
 };

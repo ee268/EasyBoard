@@ -33,6 +33,7 @@ EBBoardScene::EBBoardScene(QObject *parent)
     , _pagePattern(PagePattern::Blank)
     , _pageSize(PageSize::Standard)
     , _customPageWidth(1200.0)
+    , _customPageHeight(EBPage::Height)
     , _objectInteractionEnabled(false)
 {
     setSceneRect(0.0, 0.0,
@@ -64,7 +65,7 @@ QRectF EBBoardScene::pageRect() const
 void EBBoardScene::showPage(const EBPage &page)
 {
     hidePointer();
-    setPageSize(page.size(), page.pageWidth());
+    setPageSize(page.size(), page.pageWidth(), page.pageHeight());
     setPageColor(page.color());
     setPagePattern(page.pattern());
     _pageBackgroundImage = page.backgroundImage();
@@ -99,13 +100,17 @@ EBBoardScene::PagePattern EBBoardScene::pagePattern() const
     return _pagePattern;
 }
 
-void EBBoardScene::setPageSize(PageSize size, qreal customWidth)
+void EBBoardScene::setPageSize(PageSize size, qreal customWidth,
+                               qreal customHeight)
 {
     if (_pageSize == size
-        && (size != PageSize::Custom || qFuzzyCompare(_customPageWidth, customWidth)))
+        && (size != PageSize::Custom
+            || (qFuzzyCompare(_customPageWidth, customWidth)
+                && qFuzzyCompare(_customPageHeight, customHeight))))
         return;
     _pageSize = size;
     _customPageWidth = customWidth;
+    _customPageHeight = customHeight;
     refreshPageGeometry();
 }
 
@@ -797,10 +802,12 @@ void EBBoardScene::refreshPageGeometry()
 {
     const qreal width = _pageSize == PageSize::Custom
         ? _customPageWidth : EBPage::widthForSize(_pageSize);
-    _pageRect = QRectF(kPageMargin, kPageMargin, width, EBPage::Height);
+    const qreal height = _pageSize == PageSize::Custom
+        ? _customPageHeight : EBPage::Height;
+    _pageRect = QRectF(kPageMargin, kPageMargin, width, height);
     _pageItem->setRect(_pageRect);
     setSceneRect(0.0, 0.0, width + 2.0 * kPageMargin,
-                 EBPage::Height + 2.0 * kPageMargin);
+                 height + 2.0 * kPageMargin);
     refreshPageImage();
 }
 

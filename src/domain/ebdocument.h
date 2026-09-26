@@ -23,7 +23,7 @@ public:
 
     int pageCount() const;
     int currentPageIndex() const;
-    int addPage();
+    int addPage(qreal width = 1200.0, qreal height = EBPage::Height);
     int duplicatePage(int index);
     bool removePage(int index);
     bool movePage(int from, int to);

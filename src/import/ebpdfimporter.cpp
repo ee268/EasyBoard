@@ -245,7 +245,7 @@ bool EBPDFImporter::importFile(const QString &path, EBDocument *document,
             imported.setCurrentPageIndex(pageIndex);
         }
         EBPage *page = imported.currentPage();
-        if (!page->setCustomWidth(width.toDouble())) {
+        if (!page->setCustomSize(width.toDouble(), EBPage::Height)) {
             if (error)
                 *error = QStringLiteral("第 %1 页比例无效").arg(pageIndex + 1);
             return false;

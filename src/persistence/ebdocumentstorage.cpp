@@ -227,8 +227,10 @@ QJsonObject pageObject(const EBPage &page, int index,
         {QStringLiteral("teachingTools"),
          EBTeachingStorage::toJson(page.teachingTools())}
     };
-    if (page.size() == EBPage::Size::Custom)
+    if (page.size() == EBPage::Size::Custom) {
         result.insert(QStringLiteral("width"), page.pageWidth());
+        result.insert(QStringLiteral("height"), page.pageHeight());
+    }
     if (!horizontalGuides.isEmpty() || !verticalGuides.isEmpty()) {
         result.insert(QStringLiteral("guides"), QJsonObject{
             {QStringLiteral("horizontal"), horizontalGuides},
@@ -625,7 +627,11 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page,
         page->setSize(EBPage::Size::Widescreen);
     else if (size == QStringLiteral("custom")) {
         const QJsonValue width = object.value(QStringLiteral("width"));
-        if (!width.isDouble() || !page->setCustomWidth(width.toDouble()))
+        const QJsonValue height = object.value(QStringLiteral("height"));
+        if (!width.isDouble()
+            || (!height.isUndefined() && !height.isDouble())
+            || !page->setCustomSize(width.toDouble(),
+                height.isUndefined() ? EBPage::Height : height.toDouble()))
             return false;
     } else
         return false;
@@ -674,7 +680,7 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page,
     EBPage::TeachingTools teachingTools;
     if (!EBTeachingStorage::fromJson(
             object.value(QStringLiteral("teachingTools")), &teachingTools,
-            QSizeF(page->pageWidth(), EBPage::Height)))
+            QSizeF(page->pageWidth(), page->pageHeight())))
         return false;
     page->setTeachingTools(teachingTools);
     const QJsonValue guidesValue = object.value(QStringLiteral("guides"));
@@ -696,7 +702,7 @@ bool readPage(const QJsonObject &object, int expectedIndex, EBPage *page,
         for (const QJsonValue &value : horizontal) {
             const qreal coordinate = value.toDouble(-1.0);
             if (!value.isDouble() || !qIsFinite(coordinate)
-                || coordinate < 0.0 || coordinate > EBPage::Height)
+                || coordinate < 0.0 || coordinate > page->pageHeight())
                 return false;
             horizontalGuides.append(coordinate);
         }

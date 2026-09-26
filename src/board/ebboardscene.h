@@ -50,7 +50,8 @@ public:
     PageColor pageColor() const;
     void setPagePattern(PagePattern pattern);
     PagePattern pagePattern() const;
-    void setPageSize(PageSize size, qreal customWidth = 1200.0);
+    void setPageSize(PageSize size, qreal customWidth = 1200.0,
+                     qreal customHeight = EBPage::Height);
     PageSize pageSize() const;
     const QVector<qreal> &horizontalGuides() const;
     const QVector<qreal> &verticalGuides() const;
@@ -123,6 +124,7 @@ private:
     PagePattern _pagePattern;
     PageSize _pageSize;
     qreal _customPageWidth;
+    qreal _customPageHeight;
     QImage _pageBackgroundImage;
     QVector<qreal> _horizontalGuides;
     QVector<qreal> _verticalGuides;

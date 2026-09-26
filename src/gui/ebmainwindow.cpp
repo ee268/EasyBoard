@@ -62,6 +62,12 @@ QString exportBaseName(QString title)
     title = title.trimmed();
     return title.isEmpty() ? QStringLiteral("EasyBoard") : title;
 }
+
+void applyDefaultPageSize(EBDocument *document)
+{
+    const QSizeF size = EBSettings::settings()->defaultPageSize();
+    document->currentPage()->setSizeForDimensions(size.width(), size.height());
+}
 }
 
 EBMainWindow::EBMainWindow(QWidget *parent)
@@ -162,6 +168,8 @@ EBMainWindow::EBMainWindow(QWidget *parent)
             _pagePanel, &EBPagePanel::setVisible);
     connect(_commands, &EBCommands::displayViewRequested,
             this, &EBMainWindow::setDisplayVisible);
+    applyDefaultPageSize(&_document);
+    _boardView->reloadDocument();
     restoreLastDocument();
 }
 
@@ -206,6 +214,7 @@ void EBMainWindow::newDocument()
         return;
     }
     EBDocument document;
+    applyDefaultPageSize(&document);
     QString path;
     QString error;
     if (!activateImportedDocument(document, &path, &error)) {
@@ -616,6 +625,7 @@ void EBMainWindow::deleteDocument(const QString &path)
 void EBMainWindow::resetCurrentDocument()
 {
     _document = EBDocument();
+    applyDefaultPageSize(&_document);
     _boardView->reloadDocument();
     setWindowTitle(tr("EasyBoard"));
     EBSettings *settings = EBSettings::settings();

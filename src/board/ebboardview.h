@@ -3,6 +3,7 @@
 
 #include <QGraphicsView>
 #include <QFont>
+#include <QSizeF>
 
 #include "ebboardscene.h"
 #include "ebobjectclipboard.h"
@@ -125,6 +126,7 @@ public:
     void setPagePattern(PagePattern pattern);
     PagePattern pagePattern() const;
     void setPageSize(PageSize size);
+    bool setCustomPageSize(const QSizeF &size);
     PageSize pageSize() const;
     QRectF pageRect() const;
     QPointF toPagePosition(const QPointF &viewportPosition) const;
@@ -165,6 +167,7 @@ private:
         qreal rotation;
     };
 
+    void applyCurrentPageSize();
     void applyViewState();
     void zoomBy(qreal factor);
     QPointF boundedPagePosition(const QPointF &viewportPosition) const;

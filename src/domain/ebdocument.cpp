@@ -49,9 +49,12 @@ int EBDocument::currentPageIndex() const
     return _currentPageIndex;
 }
 
-int EBDocument::addPage()
+int EBDocument::addPage(qreal width, qreal height)
 {
-    _pages.append(EBPage());
+    EBPage page;
+    if (!page.setSizeForDimensions(width, height))
+        return -1;
+    _pages.append(page);
     return _pages.size() - 1;
 }
 
