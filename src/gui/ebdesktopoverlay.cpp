@@ -2,6 +2,7 @@
 
 #include <QGuiApplication>
 #include <QHideEvent>
+#include <QDir>
 #include <QFileDialog>
 #include <QImageWriter>
 #include <QKeyEvent>
@@ -16,6 +17,7 @@
 #include <QWindow>
 
 #include "ebdesktopbar.h"
+#include "../core/ebsettings.h"
 #include "ebscreencapture.h"
 
 #ifdef Q_OS_WIN
@@ -249,8 +251,10 @@ void EBDesktopOverlay::saveSnapshot()
 {
     if (_capturing)
         return;
+    const QString initial = QDir(EBSettings::settings()->exportDirectory())
+        .filePath(QStringLiteral("desktop.png"));
     const QString path = QFileDialog::getSaveFileName(this,
-        tr("保存桌面批注图片"), QStringLiteral("desktop.png"),
+        tr("保存桌面批注图片"), initial,
         tr("PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg)"));
     if (path.isEmpty())
         return;

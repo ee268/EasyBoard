@@ -231,11 +231,13 @@ void EBMainWindow::exportCurrentPageImage()
     const QString suggested = QStringLiteral("%1-第%2页.png")
         .arg(exportBaseName(_document.title()))
         .arg(_document.currentPageIndex() + 1);
+    const QString initial = QDir(EBSettings::settings()->exportDirectory())
+        .filePath(suggested);
     const QString pngFilter = tr("PNG 图片 (*.png)");
     const QString jpegFilter = tr("JPEG 图片 (*.jpg *.jpeg)");
     QString selectedFilter = pngFilter;
     QString path = QFileDialog::getSaveFileName(
-        this, tr("导出当前页图片"), suggested,
+        this, tr("导出当前页图片"), initial,
         pngFilter + QStringLiteral(";;") + jpegFilter, &selectedFilter);
     if (path.isEmpty())
         return;
@@ -259,8 +261,10 @@ void EBMainWindow::exportDocumentPdf()
     _boardView->commitCurrentPage();
     const QString suggested = exportBaseName(_document.title())
                               + QStringLiteral(".pdf");
+    const QString initial = QDir(EBSettings::settings()->exportDirectory())
+        .filePath(suggested);
     const QString path = QFileDialog::getSaveFileName(
-        this, tr("导出整份文档 PDF"), suggested, tr("PDF 文件 (*.pdf)"));
+        this, tr("导出整份文档 PDF"), initial, tr("PDF 文件 (*.pdf)"));
     if (path.isEmpty())
         return;
 
@@ -280,8 +284,10 @@ void EBMainWindow::exportDocumentPackage()
     _boardView->commitCurrentPage();
     const QString suggested = exportBaseName(_document.title())
                               + QStringLiteral(".ebz");
+    const QString initial = QDir(EBSettings::settings()->exportDirectory())
+        .filePath(suggested);
     const QString path = QFileDialog::getSaveFileName(
-        this, tr("导出 EasyBoard 课程文档包"), suggested,
+        this, tr("导出 EasyBoard 课程文档包"), initial,
         EBDocumentPackage::fileDialogFilter());
     if (path.isEmpty())
         return;

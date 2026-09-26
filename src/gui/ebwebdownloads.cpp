@@ -4,7 +4,6 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QSettings>
-#include <QStandardPaths>
 #include <QWebEngineDownloadItem>
 #include <QWebEngineProfile>
 
@@ -26,10 +25,8 @@ EBWebDownloads::EBWebDownloads(QWebEngineProfile *profile, QWidget *window)
     load();
     connect(profile, &QWebEngineProfile::downloadRequested,
             this, [this](QWebEngineDownloadItem *download) {
-        const QString directory = QStandardPaths::writableLocation(
-            QStandardPaths::DownloadLocation);
-        const QString initial = directory + QLatin1Char('/')
-                                + download->suggestedFileName();
+        const QString initial = QDir(EBSettings::settings()->downloadDirectory())
+            .filePath(download->suggestedFileName());
         const QString path = QFileDialog::getSaveFileName(
             _window, tr("保存网页下载"), initial);
         if (path.isEmpty()) {
